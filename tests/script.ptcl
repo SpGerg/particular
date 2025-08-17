@@ -4,9 +4,11 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
+syntax let [name: static word] => end {
+    !name :=
+}
+
 function main(): integer {
-    name: static word = Hello
-    !name := 0
-    !name = !!name
+    let me => 123
     return 0
 }
