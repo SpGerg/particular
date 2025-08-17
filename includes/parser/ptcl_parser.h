@@ -78,7 +78,6 @@ typedef enum ptcl_parser_instance_type
     ptcl_parser_instance_typedata_type,
     ptcl_parser_instance_function_type,
     ptcl_parser_instance_variable_type,
-    ptcl_parser_instance_word_variable_type,
     ptcl_parser_instance_syntax_type
 } ptcl_parser_instance_type;
 

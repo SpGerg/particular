@@ -1326,7 +1326,7 @@ ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except)
         }
         else
         {
-            if (type == ptcl_binary_operator_equals_type)
+            if (type == ptcl_binary_operator_equals_type || type == ptcl_binary_operator_negation_type)
             {
                 break;
             }
@@ -1522,10 +1522,26 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
             return (ptcl_expression){};
         }
 
-        if (value.return_type.type == ptcl_value_word_type)
+        if (value.return_type.type == ptcl_value_word_type && value.return_type.is_static && type == ptcl_binary_operator_negation_type)
         {
             free(child);
-            return value;
+            ptcl_parser_instance *instance;
+            if (!ptcl_parser_try_get_instance(parser, value.word, ptcl_parser_instance_variable_type, &instance))
+            {
+                ptcl_parser_throw_unknown_variable(parser, value.word, value.location);
+                ptcl_expression_destroy(value);
+                return (ptcl_expression){};
+            }
+
+            ptcl_expression_destroy(value);
+            if (instance->variable.is_built_in)
+            {
+                ptcl_expression copy = ptcl_expression_copy(instance->variable.built_in, value.location);
+                copy.return_type.is_static = true;
+                return copy;
+            }
+
+            return ptcl_expression_create_variable(value.word, instance->variable.type, value.location);
         }
 
         ptcl_type type_value = value.return_type;
@@ -2027,7 +2043,7 @@ bool ptcl_parser_try_get_instance(ptcl_parser *parser, char *name, ptcl_parser_i
             continue;
         }
 
-        bool is_continue;
+        bool is_continue = false;
         switch (type)
         {
         case ptcl_parser_instance_typedata_type:

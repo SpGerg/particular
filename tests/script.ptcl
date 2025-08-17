@@ -6,6 +6,7 @@ typedata statement(type: integer)
 
 function main(): integer {
     name: static word = Hello
-    !name := 2
+    !name := 0
+    !name = !!name
     return 0
 }
