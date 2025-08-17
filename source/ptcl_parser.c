@@ -12,7 +12,6 @@ typedef struct ptcl_parser
     ptcl_parser_instance *instances;
     size_t instances_count;
     ptcl_statement_func_body *root;
-    ptcl_parser_function *parent;
     ptcl_type *return_type;
     bool is_critical;
 } ptcl_parser;
@@ -143,7 +142,6 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->position = 0;
     parser->is_critical = false;
     parser->root = NULL;
-    parser->parent = NULL;
     parser->return_type = NULL;
     parser->errors = NULL;
     parser->errors_count = 0;
@@ -331,7 +329,7 @@ static bool ptcl_parser_parse_insert_syntax(
         ptcl_token_destroy(parser->tokens[i]);
     }
 
-    if (offset <= 0)
+    if (offset < 0)
     {
         offset *= -1;
         ptcl_token *buffer = realloc(parser->tokens, (parser->count + offset) * sizeof(ptcl_token));
@@ -352,7 +350,7 @@ static bool ptcl_parser_parse_insert_syntax(
             parser->tokens[i] = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
         }
     }
-    else
+    else if (offset > 0)
     {
         size_t new_count = parser->count - offset;
         for (size_t i = stop; i < parser->count; i++)
@@ -370,6 +368,13 @@ static bool ptcl_parser_parse_insert_syntax(
         for (size_t i = 0; i < syntax->tokens_count; i++)
         {
             parser->tokens[start + i] = ptcl_token_same(parser->tokens[syntax->start + i]);
+        }
+    }
+    else
+    {
+        for (size_t i = start; i < stop; i++)
+        {
+            parser->tokens[i] = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
         }
     }
 
@@ -792,24 +797,7 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
     }
 
     func_decl.is_variadic = is_variadic;
-    ptcl_parser_function *parent;
-    if (parser->parent != NULL)
-    {
-        parent = malloc(sizeof(ptcl_parser_function));
-        *parent = *parser->parent;
-
-        if (parent == NULL)
-        {
-            ptcl_statement_func_decl_destroy(func_decl);
-            return (ptcl_statement_func_decl){};
-        }
-    }
-    else
-    {
-        parent = NULL;
-    }
-
-    ptcl_parser_instance function = ptcl_parser_function_create(parser->root, func_decl, parent);
+    ptcl_parser_instance function = ptcl_parser_function_create(parser->root, func_decl);
     size_t identifier = parser->instances_count;
     if (!ptcl_parser_add_instance(parser, function))
     {
@@ -820,15 +808,12 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
 
     if (!is_prototype)
     {
-        ptcl_parser_function *previous = parser->parent;
         ptcl_type *previous_type = parser->return_type;
-        parser->parent = &function.function;
         parser->return_type = &return_type;
         ptcl_parser_parse_func_body_by_pointer(parser, &func_decl.func_body, true);
         if (parser->is_critical)
         {
             ptcl_statement_func_decl_destroy(func_decl);
-            parser->parent = previous;
             parser->return_type = previous_type;
             parser->instances_count--;
             return (ptcl_statement_func_decl){};
@@ -838,7 +823,6 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
 
         ptcl_parser_function *original = &parser->instances[identifier].function;
         original->func = func_decl;
-        parser->parent = previous;
         parser->return_type = previous_type;
     }
 

@@ -119,13 +119,12 @@ static ptcl_parser_instance ptcl_parser_variable_create(char *name, ptcl_type ty
             .is_built_in = is_built_in}};
 }
 
-static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func, ptcl_parser_function *parent)
+static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
         .root = root,
         .function = (ptcl_parser_function){
-            .parent = parent,
             .is_built_in = false,
             .func = func,
         }};
