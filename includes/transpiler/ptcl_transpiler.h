@@ -29,6 +29,8 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result);
 
 char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler);
 
+bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word);
+
 bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word);
 
 bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character);

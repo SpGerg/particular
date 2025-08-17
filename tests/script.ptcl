@@ -4,14 +4,8 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax loop 123 123 123 123 123 end {
-    function __other_temp(): void
-}
-
 function main(): integer {
-    using := 5
-    loop 123 123 123 123 123 {
-
-    }
+    name: static word = Hello
+    !name := 2
     return 0
 }

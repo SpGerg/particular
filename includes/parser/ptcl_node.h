@@ -35,7 +35,8 @@ typedef enum ptcl_expression_type
     ptcl_expression_array_element_type,
     ptcl_expression_dot_type,
     ptcl_expression_ctor_type,
-    ptcl_expression_func_call_type
+    ptcl_expression_func_call_type,
+    ptcl_expression_word_type
 } ptcl_expression_type;
 
 typedef enum ptcl_binary_operator_type
@@ -61,6 +62,7 @@ typedef enum ptcl_value_type
     ptcl_value_typedata_type,
     ptcl_value_array_type,
     ptcl_value_pointer_type,
+    ptcl_value_word_type,
     ptcl_value_character_type,
     ptcl_value_double_type,
     ptcl_value_float_type,
@@ -98,6 +100,8 @@ typedef struct ptcl_argument
 } ptcl_argument;
 
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+
+static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_character = {.type = ptcl_value_character_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
@@ -181,6 +185,7 @@ typedef struct ptcl_expression
     {
         ptcl_statement_func_call func_call;
         ptcl_expression_array array;
+        char *word;
         char character;
         double double_n;
         float float_n;
@@ -542,6 +547,7 @@ static ptcl_argument ptcl_argument_create_variadic()
 {
     return (ptcl_argument){
         .name = "...",
+        .type = ptcl_type_any,
         .is_variadic = true};
 }
 
@@ -609,6 +615,16 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(char *name, ptcl_express
         .name = name,
         .values = values,
         .count = count};
+}
+
+static ptcl_expression ptcl_expression_word_create(char *content, ptcl_location location)
+{
+    return (ptcl_expression) {
+        .type = ptcl_expression_word_type,
+        .location = location,
+        .return_type = ptcl_type_word,
+        .word = content
+    };
 }
 
 static ptcl_expression ptcl_expression_cast_to_double(ptcl_expression expression)
@@ -750,6 +766,7 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             .return_type = ptcl_type_create_typedata(target.ctor.name),
             .location = location,
             .ctor = ptcl_expression_ctor_create(target.ctor.name, ctor, target.ctor.count)};
+    case ptcl_expression_word_type:
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:
     case ptcl_expression_float_type:

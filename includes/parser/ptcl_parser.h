@@ -78,7 +78,7 @@ typedef enum ptcl_parser_instance_type
     ptcl_parser_instance_typedata_type,
     ptcl_parser_instance_function_type,
     ptcl_parser_instance_variable_type,
-    ptcl_parser_instance_syntax_variable_type,
+    ptcl_parser_instance_word_variable_type,
     ptcl_parser_instance_syntax_type
 } ptcl_parser_instance_type;
 
@@ -110,7 +110,7 @@ typedef struct ptcl_parser_result
 static ptcl_parser_instance ptcl_parser_variable_create(char *name, ptcl_type type, ptcl_expression built_in, bool is_built_in, ptcl_statement_func_body *root)
 {
     return (ptcl_parser_instance){
-        .type = ptcl_parser_instance_syntax_variable_type,
+        .type = ptcl_parser_instance_variable_type,
         .root = root,
         .variable = (ptcl_parser_variable){
             .name = name,
@@ -300,7 +300,9 @@ bool ptcl_parser_add_instance(ptcl_parser *parser, ptcl_parser_instance instance
 
 bool ptcl_parser_try_get_instance(ptcl_parser *parser, char *name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
 
-bool ptcl_parser_try_get_function(ptcl_parser *parser, char *name, ptcl_expression *arguments, size_t count, ptcl_parser_function **function);
+bool ptcl_parser_try_get_function(ptcl_parser *parser, char *name, ptcl_parser_function **function);
+
+bool ptcl_parser_check_arguments(ptcl_parser *parser,  ptcl_parser_function *function, ptcl_expression *arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
 
@@ -324,7 +326,9 @@ void ptcl_parser_throw_unknown_statement(ptcl_parser *parser, ptcl_location loca
 
 void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_location location);
 
-void ptcl_parser_throw_unknown_function(ptcl_parser *parser, char *name, ptcl_expression *values, size_t count, ptcl_location location);
+void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression *values, size_t count, ptcl_location location);
+
+void ptcl_parser_throw_unknown_function(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_throw_unknown_variable_or_type(ptcl_parser *parser, char *name, ptcl_location location);
 

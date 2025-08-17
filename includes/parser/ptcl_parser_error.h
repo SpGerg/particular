@@ -9,6 +9,7 @@ typedef enum ptcl_parser_error_type
     ptcl_parser_error_incorrect_type_type,
     ptcl_parser_error_variable_redefination_type,
     ptcl_parser_error_must_be_variable_type,
+    ptcl_parser_error_wrong_arguments_type,
     ptcl_parser_error_unknown_member_type,
     ptcl_parser_error_unknown_statement_type,
     ptcl_parser_error_unknown_function_type,
