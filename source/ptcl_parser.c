@@ -166,7 +166,9 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
         .instances = parser->instances,
         .instances_count = parser->instances_count,
         .is_critical = parser->is_critical};
+
     parser->input->tokens = parser->tokens;
+    parser->input->count = parser->count;
     return result;
 }
 
@@ -321,7 +323,7 @@ static bool ptcl_parser_parse_insert_syntax(
     size_t start,
     size_t stop)
 {
-    size_t tokens_count = parser->position - start;
+    size_t tokens_count = stop - start;
     int offset = tokens_count - syntax->tokens_count;
 
     for (size_t i = start; i < start + tokens_count; i++)
@@ -338,8 +340,8 @@ static bool ptcl_parser_parse_insert_syntax(
             return false;
         }
 
-        parser->count += offset;
         parser->tokens = buffer;
+        parser->count += offset;
         for (size_t i = parser->count - 1; i >= start; i--)
         {
             parser->tokens[i] = parser->tokens[i - offset];
@@ -347,19 +349,31 @@ static bool ptcl_parser_parse_insert_syntax(
 
         for (size_t i = start; i < start + offset + tokens_count; i++)
         {
-            ptcl_token copy = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
-            parser->tokens[i] = copy;
+            parser->tokens[i] = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
         }
     }
     else
     {
-        for (size_t i = start; i < parser->count; i++)
+        size_t new_count = parser->count - offset;
+        for (size_t i = stop; i < parser->count; i++)
         {
-            parser->tokens[i] = parser->tokens[i + (offset * -1)];
+            parser->tokens[i - offset] = parser->tokens[i];
         }
 
-        parser->count -= offset * -1;
+        ptcl_token *buffer = realloc(parser->tokens, new_count * sizeof(ptcl_token));
+        if (buffer != NULL)
+        {
+            parser->tokens = buffer;
+        }
+
+        parser->count = new_count;
+        for (size_t i = 0; i < syntax->tokens_count; i++)
+        {
+            parser->tokens[start + i] = ptcl_token_same(parser->tokens[syntax->start + i]);
+        }
     }
+
+    return true;
 }
 
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser)
@@ -1068,6 +1082,12 @@ void ptcl_parser_parse_syntax(ptcl_parser *parser)
         ptcl_token current = ptcl_parser_current(parser);
         ptcl_parser_skip(parser);
 
+        if (current.type == ptcl_token_word_type && strcmp(current.value, "end") == 0)
+        {
+            breaked = true;
+            break;
+        }
+
         ptcl_parser_syntax_node node;
 
         switch (current.type)
@@ -1079,19 +1099,7 @@ void ptcl_parser_parse_syntax(ptcl_parser *parser)
             switch (current.type)
             {
             case ptcl_token_word_type:
-                if (strcmp(current.value, "end") == 0)
-                {
-                    ptcl_parser_except(parser, ptcl_token_right_square_type);
-                    if (parser->is_critical)
-                    {
-                        ptcl_parser_syntax_destroy(*syntax);
-                        return;
-                    }
-
-                    breaked = true;
-                    break;
-                }
-                else if (ptcl_parser_match(parser, ptcl_token_colon_type))
+                if (ptcl_parser_match(parser, ptcl_token_colon_type))
                 {
                     ptcl_type type = ptcl_parser_parse_type(parser);
 

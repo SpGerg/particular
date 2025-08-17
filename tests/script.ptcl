@@ -4,17 +4,13 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax loop using [end] {
+syntax loop 123 end {
     function __other_temp(): void
-}
-
-syntax loop [count: integer] [end] {
-    function __temp(): void
 }
 
 function main(): integer {
     using := 5
-    loop using {
+    loop 123 {
 
     }
     return 0
