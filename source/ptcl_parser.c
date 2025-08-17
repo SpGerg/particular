@@ -318,63 +318,69 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
 static bool ptcl_parser_parse_insert_syntax(
     ptcl_parser *parser,
     ptcl_parser_syntax *syntax,
-    size_t start,
-    size_t stop)
+    size_t start_position,
+    size_t end_position)
 {
-    size_t tokens_count = stop - start;
-    int offset = tokens_count - syntax->tokens_count;
-
-    for (size_t i = start; i < start + tokens_count; i++)
+    const size_t number_of_tokens_to_replace = end_position - start_position;
+    const int size_difference = number_of_tokens_to_replace - syntax->tokens_count;
+    for (size_t token_index = start_position; token_index < end_position; token_index++)
     {
-        ptcl_token_destroy(parser->tokens[i]);
+        ptcl_token_destroy(parser->tokens[token_index]);
     }
 
-    if (offset < 0)
+    if (size_difference < 0)
     {
-        offset *= -1;
-        ptcl_token *buffer = realloc(parser->tokens, (parser->count + offset) * sizeof(ptcl_token));
-        if (buffer == NULL)
+        const size_t additional_space_needed = -size_difference;
+        ptcl_token *new_token_buffer = realloc(parser->tokens,
+                                               (parser->count + additional_space_needed) * sizeof(ptcl_token));
+
+        if (new_token_buffer == NULL)
         {
             return false;
         }
 
-        parser->tokens = buffer;
-        parser->count += offset;
-        for (size_t i = parser->count - 1; i >= start; i--)
+        parser->tokens = new_token_buffer;
+        parser->count += additional_space_needed;
+        for (size_t token_index = parser->count - 1; token_index >= start_position; token_index--)
         {
-            parser->tokens[i] = parser->tokens[i - offset];
+            parser->tokens[token_index] = parser->tokens[token_index - additional_space_needed];
         }
 
-        for (size_t i = start; i < start + offset + tokens_count; i++)
+        for (size_t insert_index = start_position;
+             insert_index < start_position + additional_space_needed + number_of_tokens_to_replace;
+             insert_index++)
         {
-            parser->tokens[i] = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
+            parser->tokens[insert_index] = ptcl_token_same(
+                parser->tokens[syntax->start + (insert_index - start_position)]);
         }
     }
-    else if (offset > 0)
+    else if (size_difference > 0)
     {
-        size_t new_count = parser->count - offset;
-        for (size_t i = stop; i < parser->count; i++)
+        const size_t new_token_count = parser->count - size_difference;
+        for (size_t token_index = end_position; token_index < parser->count; token_index++)
         {
-            parser->tokens[i - offset] = parser->tokens[i];
+            parser->tokens[token_index - size_difference] = parser->tokens[token_index];
         }
 
-        ptcl_token *buffer = realloc(parser->tokens, new_count * sizeof(ptcl_token));
-        if (buffer != NULL)
+        ptcl_token *new_token_buffer = realloc(parser->tokens, new_token_count * sizeof(ptcl_token));
+        if (new_token_buffer != NULL)
         {
-            parser->tokens = buffer;
+            parser->tokens = new_token_buffer;
         }
 
-        parser->count = new_count;
-        for (size_t i = 0; i < syntax->tokens_count; i++)
+        parser->count = new_token_count;
+        for (size_t copy_index = 0; copy_index < syntax->tokens_count; copy_index++)
         {
-            parser->tokens[start + i] = ptcl_token_same(parser->tokens[syntax->start + i]);
+            parser->tokens[start_position + copy_index] =
+                ptcl_token_same(parser->tokens[syntax->start + copy_index]);
         }
     }
     else
     {
-        for (size_t i = start; i < stop; i++)
+        for (size_t replace_index = start_position; replace_index < end_position; replace_index++)
         {
-            parser->tokens[i] = ptcl_token_same(parser->tokens[syntax->start + (i - start)]);
+            parser->tokens[replace_index] = ptcl_token_same(
+                parser->tokens[syntax->start + (replace_index - start_position)]);
         }
     }
 
