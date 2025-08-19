@@ -4,11 +4,11 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax let [name: static word] => end {
-    !name :=
+syntax sum_of_squares of [n: static integer] end {
+    static if n == 0 { 0 }
+    else { n * n + sum_of_squares of (n - 1) }
 }
 
 function main(): integer {
-    let me => 123
-    return 0
+    return sum_of_squares of 1
 }

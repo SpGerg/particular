@@ -35,6 +35,7 @@ typedef enum ptcl_expression_type
     ptcl_expression_array_element_type,
     ptcl_expression_dot_type,
     ptcl_expression_ctor_type,
+    ptcl_expression_if_type,
     ptcl_expression_func_call_type,
     ptcl_expression_word_type
 } ptcl_expression_type;
@@ -165,6 +166,12 @@ typedef struct ptcl_expression_ctor
     size_t count;
 } ptcl_expression_ctor;
 
+typedef struct ptcl_expression_if
+{
+    // Condition, body, (else)
+    ptcl_expression *children;
+} ptcl_expression_if;
+
 typedef struct ptcl_statement_func_call
 {
     ptcl_identifier identifier;
@@ -196,6 +203,7 @@ typedef struct ptcl_expression
         ptcl_expression_array_element array_element;
         ptcl_expression_dot dot;
         ptcl_expression_ctor ctor;
+        ptcl_expression_if if_expr;
     };
 } ptcl_expression;
 
@@ -593,6 +601,12 @@ static ptcl_statement_if ptcl_statement_if_create(ptcl_expression condition, ptc
         .else_body = false};
 }
 
+static ptcl_expression_if ptcl_expression_if_create(ptcl_expression *children)
+{
+    return (ptcl_expression_if){
+        .children = children};
+}
+
 static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, char *name)
 {
     return (ptcl_expression_dot){
@@ -619,12 +633,11 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(char *name, ptcl_express
 
 static ptcl_expression ptcl_expression_word_create(char *content, ptcl_location location)
 {
-    return (ptcl_expression) {
+    return (ptcl_expression){
         .type = ptcl_expression_word_type,
         .location = location,
         .return_type = ptcl_type_word,
-        .word = content
-    };
+        .word = content};
 }
 
 static ptcl_expression ptcl_expression_cast_to_double(ptcl_expression expression)
@@ -1190,6 +1203,13 @@ static void ptcl_statement_if_destroy(ptcl_statement_if if_stat)
     }
 }
 
+static void ptcl_expression_if_destroy(ptcl_expression_if if_expr)
+{
+    ptcl_expression_destroy(if_expr.children[0]);
+    ptcl_expression_destroy(if_expr.children[1]);
+    free(if_expr.children);
+}
+
 static void ptcl_type_destroy(ptcl_type type)
 {
     if (type.target != NULL && !type.target->is_primitive)
@@ -1371,6 +1391,9 @@ static void ptcl_expression_destroy(ptcl_expression expression)
         break;
     case ptcl_expression_ctor_type:
         ptcl_expression_ctor_destroy(expression.ctor);
+        break;
+    case ptcl_expression_if_type:
+        ptcl_expression_if_destroy(expression.if_expr);
         break;
     }
 }

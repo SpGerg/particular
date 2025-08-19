@@ -239,9 +239,9 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser);
 
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 
-bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser);
+bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement);
 
-bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first);
+bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement);
 
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser);
 
@@ -255,6 +255,8 @@ ptcl_statement_return ptcl_parser_parse_return(ptcl_parser *parser);
 
 ptcl_statement_if ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
 
+ptcl_expression ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
+
 void ptcl_parser_parse_syntax(ptcl_parser *parser);
 
 void ptcl_parser_parse_each(ptcl_parser *parser);
@@ -265,19 +267,19 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word);
 
-ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word);
+ptcl_expression ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
 ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_parser_typedata *typedata);
 
