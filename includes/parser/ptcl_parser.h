@@ -239,9 +239,12 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser);
 
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 
-bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement);
+bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
+    ptcl_expression *old_expression, bool *with_expression);
 
-bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement);
+bool ptcl_parser_parse_try_parse_syntax_usage(
+    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
+    ptcl_expression *old_expression, bool *with_expression);
 
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser);
 
