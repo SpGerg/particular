@@ -640,6 +640,18 @@ static ptcl_expression ptcl_expression_word_create(char *content, ptcl_location 
         .word = content};
 }
 
+static bool ptcl_statement_is_declaration(ptcl_statement_type type)
+{
+    switch (type)
+    {
+        case ptcl_statement_typedata_decl_type:
+        case ptcl_statement_func_decl_type:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static ptcl_expression ptcl_expression_cast_to_double(ptcl_expression expression)
 {
     switch (expression.type)

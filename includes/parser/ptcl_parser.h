@@ -235,7 +235,7 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser);
 
-ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser);
+ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded);
 
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 
@@ -267,6 +267,8 @@ void ptcl_parser_parse_each(ptcl_parser *parser);
 ptcl_statement_func_body ptcl_parser_parse_func_body(ptcl_parser *parser, bool with_brackets);
 
 void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets);
+
+void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser);
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word);
 

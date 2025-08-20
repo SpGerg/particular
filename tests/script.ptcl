@@ -4,11 +4,8 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax fibonnaci of [n: static integer] end {
-    static if n == 0 { 0 }
-    else { static if n == 1 { 1 } else { (fibonnaci of n - 1) + (fibonnaci of n - 2) } }
-}
-
 function main(): integer {
-    return fibonnaci of 10
+    name: { typedata person() } person = person()
+
+    return 0
 }
