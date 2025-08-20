@@ -4,11 +4,11 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax square of [n: static integer] end {
+syntax fibonnaci of [n: static integer] end {
     static if n == 0 { 0 }
-    else { n * n + (square of n - 1) }
+    else { static if n == 1 { 1 } else { (fibonnaci of n - 1) + (fibonnaci of n - 2) } }
 }
 
 function main(): integer {
-    return square of 5
+    return fibonnaci of 10
 }

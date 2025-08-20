@@ -413,12 +413,6 @@ static bool ptcl_parser_insert_syntax(
         }
     }
 
-    for (size_t i = 0; i < parser->count; i++)
-    {
-        printf(parser->tokens[i].value);
-    }
-
-    putchar('\n');
     return true;
 }
 
