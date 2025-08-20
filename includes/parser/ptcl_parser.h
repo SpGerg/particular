@@ -13,6 +13,7 @@ typedef struct ptcl_parser_variable
     ptcl_type type;
     ptcl_expression built_in;
     bool is_built_in;
+    bool is_syntax_word;
 } ptcl_parser_variable;
 
 typedef struct ptcl_parser_typedata
@@ -115,7 +116,8 @@ static ptcl_parser_instance ptcl_parser_variable_create(char *name, ptcl_type ty
             .name = name,
             .type = type,
             .built_in = built_in,
-            .is_built_in = is_built_in}};
+            .is_built_in = is_built_in,
+            .is_syntax_word = false}};
 }
 
 static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func)
@@ -222,6 +224,13 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
 {
     switch (instance->type)
     {
+    case ptcl_parser_instance_variable_type:
+        if (instance->variable.is_syntax_word)
+        {
+            free(instance->variable.built_in.word);
+        }
+
+        break;
     case ptcl_parser_instance_syntax_type:
         ptcl_parser_syntax_destroy(instance->syntax);
         break;
@@ -240,7 +249,7 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
-    ptcl_expression *old_expression, bool *with_expression);
+                                                   ptcl_expression *old_expression, bool *with_expression);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
     ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
@@ -256,7 +265,7 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser);
 
 ptcl_statement_return ptcl_parser_parse_return(ptcl_parser *parser);
 
-ptcl_statement_if ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
+ptcl_statement ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
 
 ptcl_expression ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
 
@@ -306,9 +315,11 @@ bool ptcl_parser_add_instance(ptcl_parser *parser, ptcl_parser_instance instance
 
 bool ptcl_parser_try_get_instance(ptcl_parser *parser, char *name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
 
+bool ptcl_parser_try_get_instance_in_root(ptcl_parser *parser, char *name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
+
 bool ptcl_parser_try_get_function(ptcl_parser *parser, char *name, ptcl_parser_function **function);
 
-bool ptcl_parser_check_arguments(ptcl_parser *parser,  ptcl_parser_function *function, ptcl_expression *arguments, size_t count);
+bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression *arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
 
@@ -329,6 +340,8 @@ void ptcl_parser_throw_must_be_variable(ptcl_parser *parser, ptcl_location locat
 void ptcl_parser_throw_unknown_member(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_throw_unknown_statement(ptcl_parser *parser, ptcl_location location);
+
+void ptcl_parser_throw_unknown_expression(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_location location);
 

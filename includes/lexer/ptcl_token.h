@@ -20,6 +20,7 @@ typedef enum ptcl_token_type
     ptcl_token_word_word_type,
     ptcl_token_each_type,
     ptcl_token_syntax_type,
+    ptcl_token_new_type,
     ptcl_token_typedata_type,
     ptcl_token_function_type,
     ptcl_token_prototype_type,
