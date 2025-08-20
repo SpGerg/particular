@@ -806,7 +806,6 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
 
     memmove(new_statements + 1, new_statements, sizeof(ptcl_statement) * count);
     new_statements[0] = statement;
-
     parser->root->statements = new_statements;
     parser->root->count += 1;
     ptcl_parser_parse_declarations_in_type(parser);
