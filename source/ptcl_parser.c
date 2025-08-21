@@ -2369,35 +2369,6 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         array_type.count = array.count;
         result = ptcl_expression_create_array(array_type, array.expressions, array.count, current.location);
         break;
-    case ptcl_token_less_than_type:
-    case ptcl_token_exclamation_mark_type:
-        parser->position--;
-        ptcl_token word_variable = ptcl_parser_except_word(parser);
-        if (parser->is_critical)
-        {
-            break;
-        }
-
-        char *variable_name = word_variable.value;
-        ptcl_location variable_location = word_variable.location;
-        ptcl_parser_instance *instance;
-        if (!ptcl_parser_try_get_instance(parser, variable_name, ptcl_parser_instance_variable_type, &instance))
-        {
-            ptcl_parser_throw_unknown_variable(parser, variable_name, variable_location);
-            break;
-        }
-
-        if (!ptcl_type_equals(ptcl_type_word, instance->variable.type))
-        {
-            char *excepted = ptcl_type_to_string_copy(ptcl_type_word);
-            char *received = ptcl_type_to_string_copy(instance->variable.type);
-            free(excepted);
-            free(received);
-            ptcl_parser_throw_incorrect_type(parser, excepted, received, variable_location);
-            break;
-        }
-
-        return ptcl_expression_word_create(instance->variable.built_in.word, variable_location);
     default:
         ptcl_parser_throw_unknown_expression(parser, current.location);
         break;

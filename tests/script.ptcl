@@ -11,8 +11,8 @@ syntax list([name: static word]) end {
 
 function main(): integer {
     name: list(test) = test()
-    value := 2
-    test: pointer = &value
+    value: static word = left
+    value = !value
 
     return 0
 }
