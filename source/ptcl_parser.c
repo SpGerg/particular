@@ -1263,6 +1263,10 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser)
     if (!with_type)
     {
         type = value.return_type;
+        if (define)
+        {
+            type.is_static = false;
+        }
     }
     else
     {
