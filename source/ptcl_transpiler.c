@@ -46,17 +46,6 @@ static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_
     }
 }
 
-static char *ptcl_transpiler_get_from_parent(ptcl_parser_function *function, char *first)
-{
-    if (function->parent != NULL)
-    {
-        first = ptcl_string_append(first, "_", function->parent->func.name, NULL);
-        return ptcl_transpiler_get_from_parent(function->parent, first);
-    }
-
-    return first;
-}
-
 static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, ptcl_type type)
 {
     if (type.type != ptcl_value_array_type)

@@ -68,7 +68,6 @@ typedef ptcl_expression (*ptcl_built_in_function_t)(ptcl_parser *parser, ptcl_ex
 
 typedef struct ptcl_parser_function
 {
-    ptcl_parser_function *parent;
     bool is_built_in;
     ptcl_built_in_function_t bind;
     ptcl_statement_func_decl func;
@@ -86,6 +85,7 @@ typedef struct ptcl_parser_instance
 {
     ptcl_statement_func_body *root;
     ptcl_parser_instance_type type;
+    bool is_out_of_scope;
 
     union
     {
@@ -112,6 +112,7 @@ static ptcl_parser_instance ptcl_parser_variable_create(char *name, ptcl_type ty
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_variable_type,
         .root = root,
+        .is_out_of_scope = false,
         .variable = (ptcl_parser_variable){
             .name = name,
             .type = type,
@@ -125,6 +126,7 @@ static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
         .root = root,
+        .is_out_of_scope = false,
         .function = (ptcl_parser_function){
             .is_built_in = false,
             .func = func,
@@ -136,8 +138,8 @@ static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
         .root = root,
+        .is_out_of_scope = false,
         .function = (ptcl_parser_function){
-            .parent = NULL,
             .is_built_in = true,
             .bind = bind,
             .func = (ptcl_statement_func_decl){
@@ -152,6 +154,7 @@ static ptcl_parser_instance ptcl_parser_typedata_create(char *name, ptcl_typedat
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_typedata_type,
         .root = NULL,
+        .is_out_of_scope = false,
         .typedata = (ptcl_parser_typedata){
             .name = name,
             .members = members,
@@ -163,6 +166,7 @@ static ptcl_parser_instance ptcl_parser_syntax_create(char *name, ptcl_parser_sy
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_syntax_type,
         .root = NULL,
+        .is_out_of_scope = false,
         .syntax = (ptcl_parser_syntax){
             .name = name,
             .nodes = nodes,
@@ -235,7 +239,6 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         ptcl_parser_syntax_destroy(instance->syntax);
         break;
     case ptcl_parser_instance_function_type:
-        free(instance->function.parent);
         break;
     }
 }
