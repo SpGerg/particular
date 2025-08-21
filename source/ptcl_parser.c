@@ -1952,28 +1952,6 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
             return (ptcl_expression){};
         }
 
-        if (value.return_type.type == ptcl_value_word_type && value.return_type.is_static && type == ptcl_binary_operator_negation_type)
-        {
-            free(child);
-            ptcl_parser_instance *instance;
-            if (!ptcl_parser_try_get_instance(parser, value.word, ptcl_parser_instance_variable_type, &instance))
-            {
-                ptcl_parser_throw_unknown_variable(parser, value.word, value.location);
-                ptcl_expression_destroy(value);
-                return (ptcl_expression){};
-            }
-
-            ptcl_expression_destroy(value);
-            if (instance->variable.is_built_in)
-            {
-                ptcl_expression copy = ptcl_expression_copy(instance->variable.built_in, value.location);
-                copy.return_type.is_static = true;
-                return copy;
-            }
-
-            return ptcl_expression_create_variable(value.word, instance->variable.type, value.location);
-        }
-
         ptcl_type type_value = value.return_type;
 
         if (type == ptcl_binary_operator_multiplicative_type)
@@ -2332,6 +2310,35 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         array_type.count = array.count;
         result = ptcl_expression_create_array(array_type, array.expressions, array.count, current.location);
         break;
+    case ptcl_token_less_than_type:
+    case ptcl_token_exclamation_mark_type:
+        parser->position--;
+        ptcl_token word_variable = ptcl_parser_except_word(parser);
+        if (parser->is_critical)
+        {
+            break;
+        }
+
+        char *variable_name = word_variable.value;
+        ptcl_location variable_location = word_variable.location;
+        ptcl_parser_instance *instance;
+        if (!ptcl_parser_try_get_instance(parser, variable_name, ptcl_parser_instance_variable_type, &instance))
+        {
+            ptcl_parser_throw_unknown_variable(parser, variable_name, variable_location);
+            break;
+        }
+
+        if (!ptcl_type_equals(ptcl_type_word, instance->variable.type))
+        {
+            char *excepted = ptcl_type_to_string_copy(ptcl_type_word);
+            char *received = ptcl_type_to_string_copy(instance->variable.type);
+            free(excepted);
+            free(received);
+            ptcl_parser_throw_incorrect_type(parser, excepted, received, variable_location);
+            break;
+        }
+
+        return ptcl_expression_word_create(instance->variable.built_in.word, variable_location);
     default:
         ptcl_parser_throw_unknown_expression(parser, current.location);
         break;
@@ -2401,9 +2408,7 @@ ptcl_token ptcl_parser_except_word(ptcl_parser *parser)
             return (ptcl_token){};
         }
 
-        ptcl_type type = ptcl_type_word;
-        type.is_static = true;
-        if (!ptcl_type_equals(type, instance->variable.type))
+        if (!ptcl_type_equals(ptcl_type_word, instance->variable.type))
         {
             char *excepted = ptcl_type_to_string_copy(ptcl_type_word);
             char *received = ptcl_type_to_string_copy(instance->variable.type);

@@ -48,6 +48,8 @@ typedef enum ptcl_binary_operator_type
     ptcl_binary_operator_multiplicative_type,
     ptcl_binary_operator_division_type,
     ptcl_binary_operator_negation_type,
+    ptcl_binary_operator_and_type,
+    ptcl_binary_operator_or_type,
     ptcl_binary_operator_not_equals_type,
     ptcl_binary_operator_equals_type,
     ptcl_binary_operator_reference_type,
@@ -102,7 +104,7 @@ typedef struct ptcl_argument
 
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = true};
 
 static ptcl_type ptcl_type_character = {.type = ptcl_value_character_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
@@ -1059,8 +1061,12 @@ static ptcl_binary_operator_type ptcl_binary_operator_type_from_token(ptcl_token
         return ptcl_binary_operator_multiplicative_type;
     case ptcl_token_slash_type:
         return ptcl_binary_operator_division_type;
-    case ptcl_token_exclamation_mark_type:
+    case ptcl_token_not_type:
         return ptcl_binary_operator_negation_type;
+    case ptcl_token_and_type:
+        return ptcl_binary_operator_and_type;
+    case ptcl_token_or_type:
+        return ptcl_binary_operator_or_type;
     case ptcl_token_equals_type:
         return ptcl_binary_operator_equals_type;
     case ptcl_token_ampersand_type:
@@ -1093,6 +1099,9 @@ static char *ptcl_type_to_string_copy(ptcl_type type)
         char *pointer_name = ptcl_type_to_string_copy(*type.target);
         name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
         free(pointer_name);
+        break;
+    case ptcl_value_word_type:
+        name = "word";
         break;
     case ptcl_value_character_type:
         name = "character";

@@ -11,6 +11,9 @@ syntax list([name: static word]) end {
 
 function main(): integer {
     name: list(test) = test()
+    test: static word = Hello
+    !test := 2
+    test = !test
 
     return 0
 }
