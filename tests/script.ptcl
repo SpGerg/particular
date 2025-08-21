@@ -4,7 +4,7 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax list([name: static word]) end {
+syntax list([name: word]) end {
     { typedata !name() }
     !name
 }

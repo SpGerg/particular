@@ -960,6 +960,14 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
 
         target = parsed_target;
     }
+    else
+    {
+        if (!is_static)
+        {
+            ptcl_parser_throw_must_be_static(parser, current.location);
+            target.is_static = true;
+        }
+    }
 
     if (is_static)
     {
@@ -2885,6 +2893,13 @@ void ptcl_parser_throw_must_be_variable(ptcl_parser *parser, ptcl_location locat
 {
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_must_be_variable_type, false, "Must be variable", false, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_must_be_static(ptcl_parser *parser, ptcl_location location)
+{
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_must_be_static_type, false, "Must be static", false, location);
     ptcl_parser_add_error(parser, error);
 }
 

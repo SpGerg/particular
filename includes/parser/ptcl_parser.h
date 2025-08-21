@@ -340,6 +340,8 @@ void ptcl_parser_throw_variable_redefination(ptcl_parser *parser, char *name, pt
 
 void ptcl_parser_throw_must_be_variable(ptcl_parser *parser, ptcl_location location);
 
+void ptcl_parser_throw_must_be_static(ptcl_parser *parser, ptcl_location location);
+
 void ptcl_parser_throw_unknown_member(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_throw_unknown_statement(ptcl_parser *parser, ptcl_location location);
