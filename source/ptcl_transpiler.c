@@ -451,6 +451,12 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
     case ptcl_binary_operator_negation_type:
         value = "!";
         break;
+    case ptcl_binary_operator_and_type:
+        value = "&&";
+        break;
+    case ptcl_binary_operator_or_type:
+        value = "||";
+        break;
     case ptcl_binary_operator_not_equals_type:
         value = "!=";
         break;
