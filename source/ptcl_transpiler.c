@@ -412,6 +412,9 @@ void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool 
     case ptcl_value_word_type:
         ptcl_transpiler_append_word_s(transpiler, "char*");
         break;
+    case ptcl_value_any_pointer_type:
+        ptcl_transpiler_append_word_s(transpiler, "void*");
+        break;
     case ptcl_value_character_type:
         ptcl_transpiler_append_word_s(transpiler, "char");
         break;

@@ -536,7 +536,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 
                 parser->position = position;
 
-                if (*with_expression)
+                if (!*with_expression)
                 {
                     ptcl_parser_syntax_node_destroy(node);
                 }
@@ -887,6 +887,9 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
         break;
     case ptcl_token_void_type:
         target = ptcl_type_void;
+        break;
+    case ptcl_token_pointer_type:
+        target = ptcl_type_any_pointer;
         break;
     case ptcl_token_word_type:
         ptcl_parser_instance *typedata;
@@ -1961,7 +1964,6 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
         }
 
         ptcl_type type_value = value.return_type;
-
         if (type == ptcl_binary_operator_multiplicative_type)
         {
             if (only_value)
@@ -1975,11 +1977,18 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
         }
         else if (type == ptcl_binary_operator_reference_type)
         {
-            type_value = (ptcl_type){
-                .type = ptcl_value_pointer_type,
-                .identifier = NULL,
-                .target = &value.return_type,
-            };
+            ptcl_type *target = malloc(sizeof(ptcl_type));
+            if (target == NULL)
+            {
+                free(child);
+                ptcl_expression_destroy(value);
+                ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+                return (ptcl_expression){};
+            }
+
+            *target = value.return_type;
+            target->is_primitive = false;
+            type_value = ptcl_type_create_pointer(target);
         }
 
         if (type == ptcl_binary_operator_reference_type || type == ptcl_binary_operator_dereference_type)
@@ -1993,6 +2002,7 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
 
         *child = value;
         ptcl_expression result = ptcl_expression_unary_create(type, child, value.location);
+        result.return_type = type_value;
         return ptcl_expression_unary_static_evaluate(result, result.unary);
     }
 

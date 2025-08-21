@@ -70,6 +70,7 @@ typedef enum ptcl_value_type
     ptcl_value_double_type,
     ptcl_value_float_type,
     ptcl_value_integer_type,
+    ptcl_value_any_pointer_type,
     ptcl_value_any_type,
     ptcl_value_void_type,
 } ptcl_value_type;
@@ -103,6 +104,8 @@ typedef struct ptcl_argument
 } ptcl_argument;
 
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+
+static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = true};
 
@@ -1100,6 +1103,9 @@ static char *ptcl_type_to_string_copy(ptcl_type type)
         name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
         free(pointer_name);
         break;
+    case ptcl_value_any_pointer_type:
+        name = "pointer";
+        break;
     case ptcl_value_word_type:
         name = "word";
         break;
@@ -1158,6 +1164,11 @@ static bool ptcl_type_equals(ptcl_type excepted, ptcl_type target)
     if (excepted.type == ptcl_value_any_type)
     {
         return true;
+    }
+
+    if (excepted.type == ptcl_value_any_pointer_type)
+    {
+        return target.type == ptcl_value_pointer_type || target.type == ptcl_value_array_type;
     }
 
     if (excepted.type == ptcl_value_pointer_type)
@@ -1221,10 +1232,14 @@ static void ptcl_expression_if_destroy(ptcl_expression_if if_expr)
 
 static void ptcl_type_destroy(ptcl_type type)
 {
-    if (type.target != NULL && !type.target->is_primitive)
+    if (type.target != NULL)
     {
         ptcl_type_destroy(*type.target);
-        free(type.target);
+        if (!type.target->is_primitive)
+        {
+            free(type.target);
+        }
+
         type.target = NULL;
     }
 }

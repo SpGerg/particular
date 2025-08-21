@@ -4,16 +4,15 @@ prototype function putchar(content: character): integer
 
 typedata statement(type: integer)
 
-syntax list([name: word]) end {
+syntax list([name: static word]) end {
     { typedata !name() }
     !name
 }
 
 function main(): integer {
     name: list(test) = test()
-    test: static word = Hello
-    !test := 2
-    test = !test
+    value := 2
+    test: pointer = &value
 
     return 0
 }
