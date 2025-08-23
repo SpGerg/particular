@@ -29,27 +29,27 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result);
 
 char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler);
 
-bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word);
+bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word, bool from_position);
 
-bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word);
+bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word, bool from_position);
 
-bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character);
+bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character, bool from_position);
 
-void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets);
+void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter);
 
-void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement);
+void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter);
 
-void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype);
+void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position);
 
-void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call);
+void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call, bool from_position);
 
-void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type);
+void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type, bool from_position);
 
-void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier);
+void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier, bool from_position);
 
-void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool with_array);
+void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool with_array, bool from_position);
 
-void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type);
+void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type, bool from_position);
 
 void ptcl_transpiler_destroy(ptcl_transpiler *transpiler);
 

@@ -10,6 +10,12 @@ syntax list([name: static word]) end {
 }
 
 function main(): integer {
+    function test(): integer {
+        function another(): void {}
+        name: character* = ""
+        return 0
+    }
+
     name: list(test) = test()
     value: static word = left
     value = !value
