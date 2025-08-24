@@ -11,12 +11,14 @@ syntax list([name: static word]) end {
 
 function main(): integer {
     function test(): integer {
-        function another(): void {}
+        function another(): void {
+            testo: character* = ""
+        }
         name: character* = ""
         return 0
     }
 
-    name: list(test) = test()
+    other_name: list(test) = test()
     value: static word = left
     value = !value
 

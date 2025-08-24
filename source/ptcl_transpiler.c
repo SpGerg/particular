@@ -7,6 +7,8 @@ typedef struct ptcl_transpiler
     ptcl_parser_result result;
     ptcl_string_buffer *string_buffer;
     size_t depth;
+    int start;
+    size_t length;
 } ptcl_transpiler;
 
 static void ptcl_transpiler_add_arrays_length_arguments(ptcl_transpiler *transpiler, char *name, ptcl_type type, size_t count, bool from_position)
@@ -83,12 +85,13 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
 
     transpiler->result = result;
     transpiler->depth = 0;
+    transpiler->start = -1;
     return transpiler;
 }
 
 char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
 {
-    ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false, false);
+    ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false, false, false);
     char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
 
     return result;
@@ -132,7 +135,7 @@ bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char characte
     }
 }
 
-void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter)
+void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter, bool is_func_body)
 {
     if (with_brackets)
     {
@@ -141,7 +144,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
 
     for (size_t i = 0; i < func_body.count; i++)
     {
-        ptcl_transpiler_add_statement(transpiler, &func_body.statements[i], from_position, from_position);
+        ptcl_transpiler_add_statement(transpiler, &func_body.statements[i], from_position, from_position, is_func_body);
     }
 
     if (with_brackets)
@@ -150,14 +153,15 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     }
 }
 
-void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter)
+void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter, bool is_func_body)
 {
+    size_t start = ptcl_string_buffer_get_position(transpiler->string_buffer);
     from_position = transpiler->depth != 1 ? false : from_position;
 
     switch (statement->type)
     {
     case ptcl_statement_func_body_type:
-        ptcl_transpiler_add_func_body(transpiler, statement->body, false, from_position, from_position);
+        ptcl_transpiler_add_func_body(transpiler, statement->body, false, from_position, from_position, false);
         break;
     case ptcl_statement_func_call_type:
         ptcl_transpiler_add_func_call(transpiler, statement->func_call, from_position);
@@ -207,19 +211,33 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '(', from_position);
         ptcl_transpiler_add_expression(transpiler, statement->if_stat.condition, false, from_position);
         ptcl_transpiler_append_character(transpiler, ')', from_position);
-        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, true, false, from_position);
+        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, true, false, from_position, false);
         if (statement->if_stat.with_else)
         {
-            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, true, false, from_position);
+            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, true, false, from_position, false);
         }
 
         break;
+    }
+
+    if (!is_func_body)
+    {
+        ptcl_string_buffer_set_position(transpiler->string_buffer, start);
     }
 }
 
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position)
 {
+    int previous_start = -1;
+    if (transpiler->start != -1)
+    {
+        previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
+        ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
+    }
+
     size_t start = ptcl_string_buffer_length(transpiler->string_buffer);
+    size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
+    size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
     ptcl_transpiler_add_type(transpiler, func_decl.return_type, false, from_position);
     ptcl_transpiler_append_word_s(transpiler, name, from_position);
     ptcl_transpiler_append_character(transpiler, '(', from_position);
@@ -251,15 +269,31 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
     }
     else
     {
+        bool is_setter = false;
         if (transpiler->depth == 0)
         {
             size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
             ptcl_string_buffer_set_position(transpiler->string_buffer, start);
             transpiler->depth++;
+            is_setter = true;
+        }
+        else
+        {
+            transpiler->start = position;
+            transpiler->length = length;
         }
 
-        ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, true, from_position);
-        if (transpiler->depth > 0)
+        ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, true, from_position, true);
+        if (!is_setter)
+        {
+            transpiler->start = previous_start;
+        }
+
+        if (previous_start != -1)
+        {
+            ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + (ptcl_string_buffer_length(transpiler->string_buffer) - length));
+        }
+        else
         {
             transpiler->depth--;
         }

@@ -35,9 +35,9 @@ bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word, bool f
 
 bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character, bool from_position);
 
-void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter);
+void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter, bool is_func_body);
 
-void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter);
+void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter, bool is_func_body);
 
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position);
 
