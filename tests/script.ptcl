@@ -13,7 +13,9 @@ function main(): integer {
     function test(): integer {
         function another(): void {
             testo: character* = ""
+            printf(testo)
         }
+
         name: character* = ""
         return 0
     }

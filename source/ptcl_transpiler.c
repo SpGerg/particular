@@ -261,7 +261,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
     int previous_start = -1;
     if (transpiler->start != -1)
     {
-        previous_start = (int) ptcl_string_buffer_get_position(transpiler->string_buffer);
+        previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
         ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
     }
 
@@ -286,7 +286,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
         else
         {
             transpiler->start = position;
-            transpiler->length = ptcl_string_buffer_length(transpiler->string_buffer);
+            transpiler->length = length;
         }
 
         ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, true, from_position, true);
