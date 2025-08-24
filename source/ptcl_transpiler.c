@@ -6,7 +6,7 @@ typedef struct ptcl_transpiler
 {
     ptcl_parser_result result;
     ptcl_string_buffer *string_buffer;
-    size_t depth;
+    bool in_inner;
     int start;
     size_t length;
 } ptcl_transpiler;
@@ -84,8 +84,9 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
     }
 
     transpiler->result = result;
-    transpiler->depth = 0;
+    transpiler->in_inner = false;
     transpiler->start = -1;
+    transpiler->length = 0;
     return transpiler;
 }
 
@@ -156,7 +157,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
 void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter, bool is_func_body)
 {
     size_t start = ptcl_string_buffer_get_position(transpiler->string_buffer);
-    from_position = transpiler->depth != 1 ? false : from_position;
+    from_position = transpiler->in_inner ? from_position : false;
 
     switch (statement->type)
     {
@@ -226,18 +227,8 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     }
 }
 
-void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position)
+static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool from_position)
 {
-    int previous_start = -1;
-    if (transpiler->start != -1)
-    {
-        previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
-        ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
-    }
-
-    size_t start = ptcl_string_buffer_length(transpiler->string_buffer);
-    size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
-    size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
     ptcl_transpiler_add_type(transpiler, func_decl.return_type, false, from_position);
     ptcl_transpiler_append_word_s(transpiler, name, from_position);
     ptcl_transpiler_append_character(transpiler, '(', from_position);
@@ -263,39 +254,57 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
     }
 
     ptcl_transpiler_append_character(transpiler, ')', from_position);
+}
+
+void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position)
+{
+    int previous_start = -1;
+    if (transpiler->start != -1)
+    {
+        previous_start = (int) ptcl_string_buffer_get_position(transpiler->string_buffer);
+        ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
+    }
+
+    const size_t start = ptcl_string_buffer_length(transpiler->string_buffer);
+    const size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
+    const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
+    ptcl_transpiler_add_func_signature(transpiler, name, func_decl, from_position);
+
     if (func_decl.is_prototype || is_prototype)
     {
         ptcl_transpiler_append_character(transpiler, ';', from_position);
     }
     else
     {
-        bool is_setter = false;
-        if (transpiler->depth == 0)
+        bool is_root = false;
+        if (!transpiler->in_inner)
         {
-            size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
             ptcl_string_buffer_set_position(transpiler->string_buffer, start);
-            transpiler->depth++;
-            is_setter = true;
+            transpiler->in_inner = true;
+            is_root = true;
         }
         else
         {
             transpiler->start = position;
-            transpiler->length = length;
+            transpiler->length = ptcl_string_buffer_length(transpiler->string_buffer);
         }
 
         ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, true, from_position, true);
-        if (!is_setter)
+        if (!is_root)
         {
             transpiler->start = previous_start;
         }
 
         if (previous_start != -1)
         {
-            ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + (ptcl_string_buffer_length(transpiler->string_buffer) - length));
+            const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
+            const size_t length_before_body = transpiler->length;
+            const size_t offset = current_length - length_before_body;
+            ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + offset);
         }
         else
         {
-            transpiler->depth--;
+            transpiler->in_inner = false;
         }
     }
 }
