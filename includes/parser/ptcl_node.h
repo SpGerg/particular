@@ -427,6 +427,30 @@ static ptcl_expression ptcl_expression_create_variable(char *name, ptcl_type typ
             .name = name}};
 }
 
+static char *ptcl_expression_get_name(ptcl_expression expression)
+{
+    if (expression.type == ptcl_expression_variable_type)
+    {
+        return expression.variable.name;
+    }
+    else if (expression.type == ptcl_expression_unary_type)
+    {
+        return ptcl_expression_get_name(*expression.unary.child);
+    }
+
+    return NULL;
+}
+
+static char *ptcl_identifier_get_name(ptcl_identifier identifier)
+{
+    if (identifier.is_name)
+    {
+        return identifier.name;
+    }
+
+    return ptcl_expression_get_name(*identifier.value);
+}
+
 static ptcl_type ptcl_type_get_common(ptcl_type left, ptcl_type right)
 {
     enum

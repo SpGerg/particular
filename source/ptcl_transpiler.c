@@ -6,28 +6,35 @@ typedef struct ptcl_transpiler
 {
     ptcl_parser_result result;
     ptcl_string_buffer *string_buffer;
+    ptcl_transpiler_variable *variables;
+    size_t variables_count;
+    ptcl_transpiler_function *inner_functions;
+    size_t inner_functions_count;
+    ptcl_statement_func_body *root;
+    ptcl_statement_func_body *main_root;
+    bool from_position;
     bool in_inner;
     int start;
     size_t length;
 } ptcl_transpiler;
 
-static void ptcl_transpiler_add_arrays_length_arguments(ptcl_transpiler *transpiler, char *name, ptcl_type type, size_t count, bool from_position)
+static void ptcl_transpiler_add_arrays_length_arguments(ptcl_transpiler *transpiler, char *name, ptcl_type type, size_t count)
 {
     if (type.type != ptcl_value_array_type)
     {
         return;
     }
 
-    ptcl_transpiler_append_character(transpiler, ',', from_position);
-    ptcl_transpiler_append_word_s(transpiler, "size_t", from_position);
+    ptcl_transpiler_append_character(transpiler, ',');
+    ptcl_transpiler_append_word_s(transpiler, "size_t");
 
     char *length = ptcl_from_long(count);
     char *copy = ptcl_string(name, "_length_", length, NULL);
-    ptcl_transpiler_append_word_s(transpiler, copy, from_position);
+    ptcl_transpiler_append_word_s(transpiler, copy);
     free(length);
     free(copy);
 
-    ptcl_transpiler_add_arrays_length_arguments(transpiler, name, *type.target, ++count, from_position);
+    ptcl_transpiler_add_arrays_length_arguments(transpiler, name, *type.target, ++count);
 }
 
 static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_type type, bool from_position)
@@ -38,9 +45,9 @@ static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_
     }
 
     size_t count = type.count;
-    ptcl_transpiler_append_character(transpiler, ',', from_position);
+    ptcl_transpiler_append_character(transpiler, ',');
     char *length = ptcl_from_long(count);
-    ptcl_transpiler_append_word_s(transpiler, length, from_position);
+    ptcl_transpiler_append_word_s(transpiler, length);
     free(length);
 
     if (type.target->type == ptcl_value_array_type)
@@ -49,23 +56,23 @@ static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_
     }
 }
 
-static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, ptcl_type type, bool from_position)
+static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, ptcl_type type)
 {
     if (type.type != ptcl_value_array_type)
     {
         return;
     }
 
-    ptcl_transpiler_append_character(transpiler, '[', from_position);
+    ptcl_transpiler_append_character(transpiler, '[');
     char *number = ptcl_from_long(type.count);
     if (number != NULL)
     {
-        ptcl_transpiler_append_word_s(transpiler, number, from_position);
+        ptcl_transpiler_append_word_s(transpiler, number);
         free(number);
     }
 
-    ptcl_transpiler_append_character(transpiler, ']', from_position);
-    ptcl_transpiler_add_array_dimensional(transpiler, *type.target, from_position);
+    ptcl_transpiler_append_character(transpiler, ']');
+    ptcl_transpiler_add_array_dimensional(transpiler, *type.target);
 }
 
 ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
@@ -85,6 +92,11 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
 
     transpiler->result = result;
     transpiler->in_inner = false;
+    transpiler->variables = NULL;
+    transpiler->variables_count = 0;
+    transpiler->inner_functions = NULL;
+    transpiler->inner_functions_count = 0;
+    transpiler->root = NULL;
     transpiler->start = -1;
     transpiler->length = 0;
     return transpiler;
@@ -92,29 +104,30 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
 
 char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
 {
-    ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false, false, false);
-    char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
+    transpiler->main_root = &transpiler->result.body;
+    ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false);
 
+    char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
     return result;
 }
 
-bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word, bool from_position)
+bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word)
 {
-    if (from_position)
+    if (transpiler->from_position)
     {
         ptcl_string_buffer_insert_str(transpiler->string_buffer, word, strlen(word));
         ptcl_string_buffer_insert(transpiler->string_buffer, ' ');
     }
     else
     {
-        ptcl_transpiler_append_word(transpiler, word, from_position);
-        ptcl_transpiler_append_character(transpiler, ' ', from_position);
+        ptcl_transpiler_append_word(transpiler, word);
+        ptcl_transpiler_append_character(transpiler, ' ');
     }
 }
 
-bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word, bool from_position)
+bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word)
 {
-    if (from_position)
+    if (transpiler->from_position)
     {
         ptcl_string_buffer_insert_str(transpiler->string_buffer, word, strlen(word));
     }
@@ -124,9 +137,9 @@ bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word, bool f
     }
 }
 
-bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character, bool from_position)
+bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char character)
 {
-    if (from_position)
+    if (transpiler->from_position)
     {
         ptcl_string_buffer_insert(transpiler->string_buffer, character);
     }
@@ -136,86 +149,194 @@ bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char characte
     }
 }
 
-void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool from_position, bool is_setter, bool is_func_body)
+bool ptcl_transpiler_is_inner(ptcl_transpiler *transpiler, char *name)
 {
+    for (int i = transpiler->variables_count - 1; i >= 0; i--)
+    {
+        ptcl_transpiler_variable variable = transpiler->variables[i];
+        if (variable.root == transpiler->main_root)
+        {
+            break;
+        }
+
+        if (strcmp(variable.name, name) != 0)
+        {
+            continue;
+        }
+
+        if (variable.is_inner)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ptcl_transpiler_is_inner_function(ptcl_transpiler *transpiler, char *name)
+{
+    for (int i = transpiler->inner_functions_count - 1; i >= 0; i--)
+    {
+        ptcl_transpiler_function function = transpiler->inner_functions[i];
+        if (function.root == transpiler->main_root)
+        {
+            break;
+        }
+
+        if (strcmp(function.name, name) != 0)
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool ptcl_transpiler_add_variable(ptcl_transpiler *transpiler, char *name, ptcl_type type, bool is_inner, ptcl_statement_func_body *root)
+{
+    ptcl_transpiler_variable *buffer = realloc(transpiler->variables, (transpiler->variables_count + 1) * sizeof(ptcl_transpiler_variable));
+    if (buffer == NULL)
+    {
+        return false;
+    }
+
+    transpiler->variables = buffer;
+    transpiler->variables[transpiler->variables_count++] = ptcl_transpiler_variable_create(name, type, is_inner, root);
+    return true;
+}
+
+bool ptcl_transpiler_add_inner_func(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_body *root)
+{
+    ptcl_transpiler_function *buffer = realloc(transpiler->inner_functions, (transpiler->inner_functions_count + 1) * sizeof(ptcl_transpiler_function));
+    if (buffer == NULL)
+    {
+        return false;
+    }
+
+    transpiler->inner_functions = buffer;
+    transpiler->inner_functions[transpiler->inner_functions_count++] = ptcl_transpiler_function_create(name, root);
+    return true;
+}
+
+void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler)
+{
+    for (int i = transpiler->variables_count - 1; i >= 0; i--)
+    {
+        if (transpiler->variables[i].root != transpiler->root)
+        {
+            break;
+        }
+
+        transpiler->variables_count--;
+    }
+
+    for (int i = transpiler->inner_functions_count - 1; i >= 0; i--)
+    {
+        if (transpiler->inner_functions[i].root != transpiler->root)
+        {
+            break;
+        }
+
+        transpiler->inner_functions_count--;
+    }
+}
+
+void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body)
+{
+    ptcl_statement_func_body *previous = transpiler->root;
+    func_body.root = transpiler->root;
+    transpiler->root = &func_body;
+
     if (with_brackets)
     {
-        ptcl_transpiler_append_character(transpiler, '{', is_setter);
+        ptcl_transpiler_append_character(transpiler, '{');
     }
 
     for (size_t i = 0; i < func_body.count; i++)
     {
-        ptcl_transpiler_add_statement(transpiler, &func_body.statements[i], from_position, from_position, is_func_body);
+        ptcl_transpiler_add_statement(transpiler, &func_body.statements[i], is_func_body);
     }
 
     if (with_brackets)
     {
-        ptcl_transpiler_append_character(transpiler, '}', is_setter);
+        ptcl_transpiler_append_character(transpiler, '}');
     }
+
+    ptcl_transpiler_clear_scope(transpiler);
+    transpiler->root = previous;
 }
 
-void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool from_position, bool is_setter, bool is_func_body)
+void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool is_func_body)
 {
     size_t start = ptcl_string_buffer_get_position(transpiler->string_buffer);
-    from_position = transpiler->in_inner ? from_position : false;
+    transpiler->from_position = transpiler->in_inner ? transpiler->from_position : false;
 
     switch (statement->type)
     {
     case ptcl_statement_func_body_type:
-        ptcl_transpiler_add_func_body(transpiler, statement->body, false, from_position, from_position, false);
+        ptcl_transpiler_add_func_body(transpiler, statement->body, false, false);
         break;
     case ptcl_statement_func_call_type:
-        ptcl_transpiler_add_func_call(transpiler, statement->func_call, from_position);
+        ptcl_transpiler_add_func_call(transpiler, statement->func_call);
         break;
     case ptcl_statement_assign_type:
+        if (ptcl_transpiler_is_inner(transpiler, ptcl_identifier_get_name(statement->assign.identifier)))
+        {
+            ptcl_transpiler_append_character(transpiler, '*');
+        }
+
         if (statement->assign.is_define)
         {
-            ptcl_transpiler_add_type(transpiler, statement->assign.type, false, from_position);
-            ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier, from_position);
-            ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type, from_position);
+            ptcl_transpiler_add_type(transpiler, statement->assign.type, false);
+            ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier);
+            ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type);
+            ptcl_transpiler_add_variable(
+                transpiler, ptcl_identifier_get_name(statement->assign.identifier), statement->assign.type, false, transpiler->root);
         }
         else
         {
-            ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier, from_position);
+            ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier);
         }
 
-        ptcl_transpiler_append_character(transpiler, '=', from_position);
-        ptcl_transpiler_add_expression(transpiler, statement->assign.value, false, from_position);
-        ptcl_transpiler_append_character(transpiler, ';', from_position);
+        ptcl_transpiler_append_character(transpiler, '=');
+        ptcl_transpiler_add_expression(transpiler, statement->assign.value, false);
+        ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_func_decl_type:
-        ptcl_transpiler_add_func_decl(transpiler, statement->func_decl.name, statement->func_decl, false, from_position);
+        ptcl_transpiler_add_func_decl(transpiler, statement->func_decl.name, statement->func_decl, false);
         break;
     case ptcl_statement_typedata_decl_type:
-        ptcl_transpiler_append_word_s(transpiler, "typedef struct", from_position);
-        ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name, from_position);
-        ptcl_transpiler_append_character(transpiler, '{', from_position);
+        ptcl_transpiler_append_word_s(transpiler, "typedef struct");
+        ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name);
+        ptcl_transpiler_append_character(transpiler, '{');
         for (size_t i = 0; i < statement->typedata_decl.count; i++)
         {
             ptcl_typedata_member member = statement->typedata_decl.members[i];
-            ptcl_transpiler_add_type(transpiler, member.type, false, from_position);
-            ptcl_transpiler_append_word_s(transpiler, member.name, from_position);
-            ptcl_transpiler_append_character(transpiler, ';', from_position);
+            ptcl_transpiler_add_type(transpiler, member.type, false);
+            ptcl_transpiler_append_word_s(transpiler, member.name);
+            ptcl_transpiler_append_character(transpiler, ';');
         }
 
-        ptcl_transpiler_append_character(transpiler, '}', from_position);
-        ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name, from_position);
-        ptcl_transpiler_append_character(transpiler, ';', from_position);
+        ptcl_transpiler_append_character(transpiler, '}');
+        ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name);
+        ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_return_type:
-        ptcl_transpiler_append_word_s(transpiler, "return", from_position);
-        ptcl_transpiler_add_expression(transpiler, statement->ret.value, false, from_position);
-        ptcl_transpiler_append_character(transpiler, ';', from_position);
+        ptcl_transpiler_append_word_s(transpiler, "return");
+        ptcl_transpiler_add_expression(transpiler, statement->ret.value, false);
+        ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_if_type:
-        ptcl_transpiler_append_word_s(transpiler, "if", from_position);
-        ptcl_transpiler_append_character(transpiler, '(', from_position);
-        ptcl_transpiler_add_expression(transpiler, statement->if_stat.condition, false, from_position);
-        ptcl_transpiler_append_character(transpiler, ')', from_position);
-        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, true, false, from_position, false);
+        ptcl_transpiler_append_word_s(transpiler, "if");
+        ptcl_transpiler_append_character(transpiler, '(');
+        ptcl_transpiler_add_expression(transpiler, statement->if_stat.condition, false);
+        ptcl_transpiler_append_character(transpiler, ')');
+        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, false, is_func_body);
         if (statement->if_stat.with_else)
         {
-            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, true, false, from_position, false);
+            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, false, is_func_body);
         }
 
         break;
@@ -227,37 +348,102 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     }
 }
 
-static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool from_position)
+static void ptcl_transpiler_add_argument(ptcl_transpiler *transpiler, ptcl_argument argument)
 {
-    ptcl_transpiler_add_type(transpiler, func_decl.return_type, false, from_position);
-    ptcl_transpiler_append_word_s(transpiler, name, from_position);
-    ptcl_transpiler_append_character(transpiler, '(', from_position);
-    for (size_t i = 0; i < func_decl.count; i++)
+    if (argument.is_variadic)
     {
-        ptcl_argument argument = func_decl.arguments[i];
-        if (argument.is_variadic)
-        {
-            ptcl_transpiler_append_word_s(transpiler, "...", from_position);
-            break;
-        }
-        else
-        {
-            ptcl_transpiler_add_type(transpiler, argument.type, false, from_position);
-            ptcl_transpiler_append_word_s(transpiler, argument.name, from_position);
-            ptcl_transpiler_add_arrays_length_arguments(transpiler, argument.name, argument.type, 0, from_position);
+        ptcl_transpiler_append_word_s(transpiler, "...");
+    }
+    else
+    {
+        ptcl_transpiler_add_type(transpiler, argument.type, false);
+        ptcl_transpiler_append_word_s(transpiler, argument.name);
+        ptcl_transpiler_add_arrays_length_arguments(transpiler, argument.name, argument.type, 0);
+    }
+}
 
-            if (i != func_decl.count - 1)
+static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl)
+{
+    ptcl_transpiler_add_type(transpiler, func_decl.return_type, false);
+    ptcl_transpiler_append_word_s(transpiler, name);
+    ptcl_transpiler_append_character(transpiler, '(');
+
+    if (transpiler->root != transpiler->main_root)
+    {
+        for (int i = 0; i < transpiler->variables_count; i++)
+        {
+            ptcl_transpiler_variable variable = transpiler->variables[i];
+            if (variable.root == transpiler->main_root)
             {
-                ptcl_transpiler_append_character(transpiler, ',', from_position);
+                continue;
+            }
+
+            if (variable.is_inner)
+            {
+                continue;
+            }
+
+            if (i != transpiler->variables_count - 1)
+            {
+                ptcl_transpiler_append_character(transpiler, ',');
+            }
+
+            ptcl_type pointer = ptcl_type_create_pointer(&variable.type);
+            ptcl_argument argument = ptcl_argument_create(pointer, variable.name);
+            ptcl_transpiler_add_argument(transpiler, argument);
+
+            bool breaked = false;
+            for (int j = transpiler->variables_count - 1; j >= 0; j--)
+            {
+                ptcl_transpiler_variable target = transpiler->variables[j];
+                if (target.root == transpiler->main_root)
+                {
+                    break;
+                }
+
+                if (!target.is_inner)
+                {
+                    continue;
+                }
+
+                if (strcmp(variable.name, target.name) != 0)
+                {
+                    continue;
+                }
+
+                breaked = true;
+                break;
+            }
+
+            if (!breaked)
+            {
+                ptcl_transpiler_add_variable(transpiler, variable.name, variable.type, true, variable.root);
             }
         }
     }
 
-    ptcl_transpiler_append_character(transpiler, ')', from_position);
+    for (size_t i = 0; i < func_decl.count; i++)
+    {
+        ptcl_argument argument = func_decl.arguments[i];
+        ptcl_transpiler_add_argument(transpiler, argument);
+
+        if (i != func_decl.count - 1)
+        {
+            ptcl_transpiler_append_character(transpiler, ',');
+        }
+    }
+
+    ptcl_transpiler_append_character(transpiler, ')');
 }
 
-void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype, bool from_position)
+void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_decl func_decl, bool is_prototype)
 {
+    if (transpiler->in_inner)
+    {
+        transpiler->from_position = true;
+        ptcl_transpiler_add_inner_func(transpiler, name, transpiler->root);
+    }
+
     int previous_start = -1;
     if (transpiler->start != -1)
     {
@@ -268,11 +454,11 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
     const size_t start = ptcl_string_buffer_length(transpiler->string_buffer);
     const size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
     const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
-    ptcl_transpiler_add_func_signature(transpiler, name, func_decl, from_position);
+    ptcl_transpiler_add_func_signature(transpiler, name, func_decl);
 
     if (func_decl.is_prototype || is_prototype)
     {
-        ptcl_transpiler_append_character(transpiler, ';', from_position);
+        ptcl_transpiler_append_character(transpiler, ';');
     }
     else
     {
@@ -289,7 +475,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
             transpiler->length = length;
         }
 
-        ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, true, from_position, true);
+        ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, !is_root);
         if (!is_root)
         {
             transpiler->start = previous_start;
@@ -309,107 +495,138 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, char *name, ptcl
     }
 }
 
-void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call, bool from_position)
+void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call)
 {
-    ptcl_transpiler_add_identifier(transpiler, func_call.identifier, from_position);
-    ptcl_transpiler_append_character(transpiler, '(', from_position);
+    ptcl_transpiler_add_identifier(transpiler, func_call.identifier);
+    ptcl_transpiler_append_character(transpiler, '(');
+
+    if (ptcl_transpiler_is_inner_function(transpiler, ptcl_identifier_get_name(func_call.identifier)))
+    {
+        for (int i = transpiler->variables_count - 1; i >= 0; i--)
+        {
+            ptcl_transpiler_variable variable = transpiler->variables[i];
+            if (variable.root == transpiler->main_root)
+            {
+                break;
+            }
+
+            if (!variable.is_inner)
+            {
+                continue;
+            }
+
+            if (i != transpiler->variables_count - 1)
+            {
+                ptcl_transpiler_append_character(transpiler, ',');
+            }
+
+            ptcl_transpiler_append_character(transpiler, '&');
+            ptcl_transpiler_append_word_s(transpiler, variable.name);
+        }
+    }
+
     for (size_t i = 0; i < func_call.count; i++)
     {
         ptcl_expression argument = func_call.arguments[i];
-        ptcl_transpiler_add_expression(transpiler, argument, true, from_position);
+        ptcl_transpiler_add_expression(transpiler, argument, true);
         // ptcl_transpiler_add_arrays_length(transpiler, argument.return_type);
 
         if (i != func_call.count - 1)
         {
-            ptcl_transpiler_append_character(transpiler, ',', from_position);
+            ptcl_transpiler_append_character(transpiler, ',');
         }
     }
 
-    ptcl_transpiler_append_character(transpiler, ')', from_position);
-    ptcl_transpiler_append_character(transpiler, ';', from_position);
+    ptcl_transpiler_append_character(transpiler, ')');
+    ptcl_transpiler_append_character(transpiler, ';');
 }
 
-void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type, bool from_position)
+void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type)
 {
     switch (expression.type)
     {
     case ptcl_expression_array_type:
         if (expression.return_type.is_static && expression.return_type.target->type == ptcl_value_character_type)
         {
-            ptcl_transpiler_append_character(transpiler, '\"', from_position);
+            ptcl_transpiler_append_character(transpiler, '\"');
             // -1 because of end of line symbol
             for (size_t i = 0; i < expression.array.count - 1; i++)
             {
-                ptcl_transpiler_append_character(transpiler, expression.array.expressions[i].character, from_position);
+                ptcl_transpiler_append_character(transpiler, expression.array.expressions[i].character);
             }
 
-            ptcl_transpiler_append_character(transpiler, '\"', from_position);
+            ptcl_transpiler_append_character(transpiler, '\"');
             break;
         }
 
         if (specify_type)
         {
-            ptcl_transpiler_append_character(transpiler, '(', from_position);
-            ptcl_transpiler_add_type(transpiler, expression.return_type, false, from_position);
-            ptcl_transpiler_add_array_dimensional(transpiler, expression.return_type, from_position);
-            ptcl_transpiler_append_character(transpiler, ')', from_position);
+            ptcl_transpiler_append_character(transpiler, '(');
+            ptcl_transpiler_add_type(transpiler, expression.return_type, false);
+            ptcl_transpiler_add_array_dimensional(transpiler, expression.return_type);
+            ptcl_transpiler_append_character(transpiler, ')');
         }
 
-        ptcl_transpiler_append_character(transpiler, '{', from_position);
+        ptcl_transpiler_append_character(transpiler, '{');
         for (size_t i = 0; i < expression.array.count; i++)
         {
-            ptcl_transpiler_add_expression(transpiler, expression.array.expressions[i], false, from_position);
+            ptcl_transpiler_add_expression(transpiler, expression.array.expressions[i], false);
 
             if (i != expression.array.count - 1)
             {
-                ptcl_transpiler_append_character(transpiler, ',', from_position);
+                ptcl_transpiler_append_character(transpiler, ',');
             }
         }
 
-        ptcl_transpiler_append_character(transpiler, '}', from_position);
+        ptcl_transpiler_append_character(transpiler, '}');
         break;
     case ptcl_expression_variable_type:
-        ptcl_transpiler_append_word_s(transpiler, expression.variable.name, from_position);
+        if (ptcl_transpiler_is_inner(transpiler, expression.variable.name))
+        {
+            ptcl_transpiler_append_character(transpiler, '*');
+        }
+
+        ptcl_transpiler_append_word_s(transpiler, expression.variable.name);
         break;
     case ptcl_expression_word_type:
-        ptcl_transpiler_append_character(transpiler, '\"', from_position);
-        ptcl_transpiler_append_word(transpiler, expression.word, from_position);
-        ptcl_transpiler_append_character(transpiler, '\"', from_position);
+        ptcl_transpiler_append_character(transpiler, '\"');
+        ptcl_transpiler_append_word(transpiler, expression.word);
+        ptcl_transpiler_append_character(transpiler, '\"');
         break;
     case ptcl_expression_character_type:
-        ptcl_transpiler_append_character(transpiler, '\'', from_position);
+        ptcl_transpiler_append_character(transpiler, '\'');
         if (expression.character == '\0')
         {
-            ptcl_transpiler_append_character(transpiler, '\\', from_position);
-            ptcl_transpiler_append_character(transpiler, '0', from_position);
+            ptcl_transpiler_append_character(transpiler, '\\');
+            ptcl_transpiler_append_character(transpiler, '0');
         }
         else
         {
-            ptcl_transpiler_append_character(transpiler, expression.character, from_position);
+            ptcl_transpiler_append_character(transpiler, expression.character);
         }
 
-        ptcl_transpiler_append_character(transpiler, '\'', from_position);
+        ptcl_transpiler_append_character(transpiler, '\'');
         break;
     case ptcl_expression_binary_type:
-        ptcl_transpiler_add_expression(transpiler, expression.binary.children[0], false, from_position);
-        ptcl_transpiler_add_binary_type(transpiler, expression.binary.type, from_position);
-        ptcl_transpiler_add_expression(transpiler, expression.binary.children[1], false, from_position);
+        ptcl_transpiler_add_expression(transpiler, expression.binary.children[0], false);
+        ptcl_transpiler_add_binary_type(transpiler, expression.binary.type);
+        ptcl_transpiler_add_expression(transpiler, expression.binary.children[1], false);
         break;
     case ptcl_expression_unary_type:
-        ptcl_transpiler_add_binary_type(transpiler, expression.unary.type, from_position);
-        ptcl_transpiler_add_expression(transpiler, *expression.unary.child, false, from_position);
+        ptcl_transpiler_add_binary_type(transpiler, expression.unary.type);
+        ptcl_transpiler_add_expression(transpiler, *expression.unary.child, false);
         break;
     case ptcl_expression_array_element_type:
-        ptcl_transpiler_add_expression(transpiler, expression.array_element.children[0], false, from_position);
-        ptcl_transpiler_append_character(transpiler, '[', from_position);
-        ptcl_transpiler_add_expression(transpiler, expression.array_element.children[1], false, from_position);
-        ptcl_transpiler_append_character(transpiler, ']', from_position);
+        ptcl_transpiler_add_expression(transpiler, expression.array_element.children[0], false);
+        ptcl_transpiler_append_character(transpiler, '[');
+        ptcl_transpiler_add_expression(transpiler, expression.array_element.children[1], false);
+        ptcl_transpiler_append_character(transpiler, ']');
         break;
     case ptcl_expression_double_type:
         char *double_n = ptcl_from_double(expression.double_n);
         if (double_n != NULL)
         {
-            ptcl_transpiler_append_word_s(transpiler, double_n, from_position);
+            ptcl_transpiler_append_word_s(transpiler, double_n);
             free(double_n);
         }
 
@@ -418,7 +635,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         char *float_n = ptcl_from_float(expression.float_n);
         if (float_n != NULL)
         {
-            ptcl_transpiler_append_word_s(transpiler, float_n, from_position);
+            ptcl_transpiler_append_word_s(transpiler, float_n);
             free(float_n);
         }
 
@@ -427,7 +644,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         char *integer_n = ptcl_from_int(expression.integer_n);
         if (integer_n != NULL)
         {
-            ptcl_transpiler_append_word_s(transpiler, integer_n, from_position);
+            ptcl_transpiler_append_word_s(transpiler, integer_n);
             free(integer_n);
         }
 
@@ -435,85 +652,85 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
     case ptcl_expression_ctor_type:
         if (specify_type)
         {
-            ptcl_transpiler_append_character(transpiler, '(', from_position);
-            ptcl_transpiler_append_word_s(transpiler, expression.ctor.name, from_position);
-            ptcl_transpiler_append_character(transpiler, ')', from_position);
+            ptcl_transpiler_append_character(transpiler, '(');
+            ptcl_transpiler_append_word_s(transpiler, expression.ctor.name);
+            ptcl_transpiler_append_character(transpiler, ')');
         }
 
-        ptcl_transpiler_append_character(transpiler, '{', from_position);
+        ptcl_transpiler_append_character(transpiler, '{');
         for (size_t i = 0; i < expression.ctor.count; i++)
         {
-            ptcl_transpiler_add_expression(transpiler, expression.ctor.values[i], true, from_position);
+            ptcl_transpiler_add_expression(transpiler, expression.ctor.values[i], true);
         }
 
-        ptcl_transpiler_append_character(transpiler, '}', from_position);
+        ptcl_transpiler_append_character(transpiler, '}');
 
         break;
     case ptcl_expression_dot_type:
-        ptcl_transpiler_add_expression(transpiler, *expression.dot.left, false, from_position);
-        ptcl_transpiler_append_character(transpiler, '.', from_position);
-        ptcl_transpiler_append_word_s(transpiler, expression.dot.name, from_position);
+        ptcl_transpiler_add_expression(transpiler, *expression.dot.left, false);
+        ptcl_transpiler_append_character(transpiler, '.');
+        ptcl_transpiler_append_word_s(transpiler, expression.dot.name);
         break;
     case ptcl_expression_func_call_type:
-        ptcl_transpiler_add_func_call(transpiler, expression.func_call, from_position);
+        ptcl_transpiler_add_func_call(transpiler, expression.func_call);
         break;
     }
 }
 
-void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier, bool from_position)
+void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier)
 {
     if (identifier.is_name)
     {
-        ptcl_transpiler_append_word_s(transpiler, identifier.name, from_position);
+        ptcl_transpiler_append_word_s(transpiler, identifier.name);
     }
 }
 
-void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool with_array, bool from_position)
+void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool with_array)
 {
     switch (type.type)
     {
     case ptcl_value_typedata_type:
-        ptcl_transpiler_append_word_s(transpiler, type.identifier, from_position);
+        ptcl_transpiler_append_word_s(transpiler, type.identifier);
         break;
     case ptcl_value_array_type:
-        ptcl_transpiler_add_type(transpiler, *type.target, with_array, from_position);
+        ptcl_transpiler_add_type(transpiler, *type.target, with_array);
 
         if (with_array)
         {
-            ptcl_transpiler_append_character(transpiler, '[', from_position);
-            ptcl_transpiler_append_character(transpiler, ']', from_position);
+            ptcl_transpiler_append_character(transpiler, '[');
+            ptcl_transpiler_append_character(transpiler, ']');
         }
 
         break;
     case ptcl_value_pointer_type:
-        ptcl_transpiler_add_type(transpiler, *type.target, with_array, from_position);
-        ptcl_transpiler_append_character(transpiler, '*', from_position);
+        ptcl_transpiler_add_type(transpiler, *type.target, with_array);
+        ptcl_transpiler_append_character(transpiler, '*');
         break;
     case ptcl_value_word_type:
-        ptcl_transpiler_append_word_s(transpiler, "char*", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "char*");
         break;
     case ptcl_value_any_pointer_type:
-        ptcl_transpiler_append_word_s(transpiler, "void*", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "void*");
         break;
     case ptcl_value_character_type:
-        ptcl_transpiler_append_word_s(transpiler, "char", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "char");
         break;
     case ptcl_value_double_type:
-        ptcl_transpiler_append_word_s(transpiler, "double", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "double");
         break;
     case ptcl_value_float_type:
-        ptcl_transpiler_append_word_s(transpiler, "float", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "float");
         break;
     case ptcl_value_integer_type:
-        ptcl_transpiler_append_word_s(transpiler, "int", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "int");
         break;
     case ptcl_value_void_type:
-        ptcl_transpiler_append_word_s(transpiler, "void", from_position);
+        ptcl_transpiler_append_word_s(transpiler, "void");
         break;
     }
 }
 
-void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type, bool from_position)
+void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type)
 {
     char *value;
 
@@ -566,11 +783,13 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
         break;
     }
 
-    ptcl_transpiler_append_word_s(transpiler, value, from_position);
+    ptcl_transpiler_append_word_s(transpiler, value);
 }
 
 void ptcl_transpiler_destroy(ptcl_transpiler *transpiler)
 {
     ptcl_string_buffer_destroy(transpiler->string_buffer);
+    free(transpiler->variables);
+    free(transpiler->inner_functions);
     free(transpiler);
 }

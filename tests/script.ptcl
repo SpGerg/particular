@@ -10,19 +10,19 @@ syntax list([name: static word]) end {
 }
 
 function main(): integer {
-    function test(): integer {
-        function another(): void {
-            testo: character* = ""
-            printf(testo)
-        }
-
-        name: character* = ""
-        return 0
-    }
-
     other_name: list(test) = test()
     value: static word = left
     value = !value
 
+    function do_something_with_variables(): void {
+        function another(): void {
+            value = yet
+        }
+
+        value = joke
+        value = another
+    }
+
+    do_something_with_variables()
     return 0
 }
