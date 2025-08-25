@@ -277,9 +277,10 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     {
     case ptcl_statement_func_body_type:
         ptcl_transpiler_add_func_body(transpiler, statement->body, false, false);
-        break;
+        return;
     case ptcl_statement_func_call_type:
         ptcl_transpiler_add_func_call(transpiler, statement->func_call);
+        ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_assign_type:
         if (ptcl_transpiler_is_inner(transpiler, ptcl_identifier_get_name(statement->assign.identifier)))
@@ -308,6 +309,21 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_add_func_decl(transpiler, statement->func_decl.name, statement->func_decl, false);
         break;
     case ptcl_statement_typedata_decl_type:
+        const bool last = transpiler->from_position;
+        if (transpiler->in_inner)
+        {
+            transpiler->from_position = true;
+        }
+
+        int previous_start = -1;
+        if (transpiler->start != -1)
+        {
+            previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
+            ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
+        }
+
+        const size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
+        const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
         ptcl_transpiler_append_word_s(transpiler, "typedef struct");
         ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name);
         ptcl_transpiler_append_character(transpiler, '{');
@@ -322,6 +338,22 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '}');
         ptcl_transpiler_append_word_s(transpiler, statement->typedata_decl.name);
         ptcl_transpiler_append_character(transpiler, ';');
+
+        if (previous_start != -1)
+        {
+            const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
+            const size_t length_before_body = length;
+            const size_t offset = current_length - length_before_body;
+            ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + offset);
+            transpiler->start += offset;
+        }
+
+        if (transpiler->from_position)
+        {
+            transpiler->from_position = last;
+            return;
+        }
+
         break;
     case ptcl_statement_return_type:
         ptcl_transpiler_append_word_s(transpiler, "return");
@@ -383,7 +415,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char
                 continue;
             }
 
-            if (i != transpiler->variables_count - 1)
+            if (i != 0)
             {
                 ptcl_transpiler_append_character(transpiler, ',');
             }
@@ -538,7 +570,6 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
     }
 
     ptcl_transpiler_append_character(transpiler, ')');
-    ptcl_transpiler_append_character(transpiler, ';');
 }
 
 void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type)

@@ -36,14 +36,21 @@ ptcl_string_buffer *ptcl_string_buffer_create()
 
 bool ptcl_string_buffer_append_str(ptcl_string_buffer *string_buffer, char *value, size_t count)
 {
-    for (size_t i = 0; i < count; i++)
+    if (count == 0)
     {
-        if (!ptcl_string_buffer_append(string_buffer, value[i]))
-        {
-            return false;
-        }
+        return true;
     }
 
+    char *buffer = realloc(string_buffer->buffer, (string_buffer->capacity + count + 1) * sizeof(char));
+    if (buffer == NULL)
+    {
+        return false;
+    }
+
+    string_buffer->buffer = buffer;
+    memcpy(string_buffer->buffer + string_buffer->capacity, value, count);
+    string_buffer->capacity += count;
+    string_buffer->buffer[string_buffer->capacity] = '\0';
     return true;
 }
 

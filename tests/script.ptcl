@@ -15,7 +15,10 @@ function main(): integer {
     value = !value
 
     function do_something_with_variables(): void {
+        typedata here()
+
         function another(): void {
+            example := here()
             value = yet
         }
 
