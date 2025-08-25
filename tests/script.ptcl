@@ -5,21 +5,16 @@ prototype function putchar(content: character): integer
 typedata statement(type: integer)
 
 syntax list([name: static word]) end {
-    { typedata !name() }
-    !name
+    {
+        type_name: static word = !<list_ !name>
+        typedata !type_name()
+    }
+    
+    !type_name
 }
 
 function main(): integer {
-    other_name: list(test) = test()
-    value: static character* = "test"
-
-    static if value == "test" {
-        function print_me(that: character*, and_this: character*): void {
-            printf(that)
-            printf(and_this)
-        }
-    }
-
-    print_me("Hello, world!", "Hello, universe!")
+    other_name: list(test) = list_test()
+    value: static word = test
     return 0
 }

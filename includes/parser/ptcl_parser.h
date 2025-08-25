@@ -18,7 +18,7 @@ typedef struct ptcl_parser_variable
 
 typedef struct ptcl_parser_typedata
 {
-    char *name;
+    ptcl_name name;
     ptcl_typedata_member *members;
     size_t count;
 } ptcl_parser_typedata;
@@ -149,7 +149,7 @@ static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body
                 .return_type = return_type}}};
 }
 
-static ptcl_parser_instance ptcl_parser_typedata_create(char *name, ptcl_typedata_member *members, size_t count)
+static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name name, ptcl_typedata_member *members, size_t count)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_typedata_type,
@@ -231,7 +231,7 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
     case ptcl_parser_instance_variable_type:
         if (instance->variable.is_syntax_word)
         {
-            free(instance->variable.built_in.word);
+            free(instance->variable.built_in.word.value);
         }
 
         break;
@@ -300,7 +300,7 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
 
 ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_parser_typedata *typedata);
 
-ptcl_token ptcl_parser_except_word(ptcl_parser *parser);
+ptcl_name ptcl_parser_parse_name(ptcl_parser *parser);
 
 ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
 

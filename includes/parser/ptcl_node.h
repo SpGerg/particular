@@ -75,13 +75,20 @@ typedef enum ptcl_value_type
     ptcl_value_void_type,
 } ptcl_value_type;
 
+typedef struct ptcl_name
+{
+    char *value;
+    bool is_free;
+    ptcl_location location;
+} ptcl_name;
+
 typedef struct ptcl_identifier
 {
     bool is_name;
 
     union
     {
-        char *name;
+        ptcl_name name;
         ptcl_expression *value;
     };
 } ptcl_identifier;
@@ -99,7 +106,7 @@ typedef struct ptcl_type
 typedef struct ptcl_argument
 {
     ptcl_type type;
-    char *name;
+    ptcl_name name;
     bool is_variadic;
 } ptcl_argument;
 
@@ -121,7 +128,7 @@ static ptcl_type ptcl_type_void = {.type = ptcl_value_void_type, .target = NULL,
 
 typedef struct ptcl_expression_variable
 {
-    char *name;
+    ptcl_name name;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -157,7 +164,7 @@ typedef struct ptcl_expression_dot
     union
     {
         ptcl_expression_dot *right;
-        char *name;
+        ptcl_name name;
     };
 } ptcl_expression_dot;
 
@@ -165,7 +172,7 @@ typedef struct ptcl_expression_dot
 typedef struct ptcl_expression_ctor
 {
     // Getted from typedata decl, do not free
-    char *name;
+    ptcl_name name;
     // Ordered by members in typedata
     ptcl_expression *values;
     size_t count;
@@ -197,7 +204,7 @@ typedef struct ptcl_expression
     {
         ptcl_statement_func_call func_call;
         ptcl_expression_array array;
-        char *word;
+        ptcl_name word;
         char character;
         double double_n;
         float float_n;
@@ -221,7 +228,7 @@ typedef struct ptcl_statement_func_body
 
 typedef struct ptcl_statement_func_decl
 {
-    char *name;
+    ptcl_name name;
     ptcl_argument *arguments;
     size_t count;
     ptcl_statement_func_body func_body;
@@ -232,14 +239,14 @@ typedef struct ptcl_statement_func_decl
 
 typedef struct ptcl_typedata_member
 {
-    char *name;
+    ptcl_name name;
     ptcl_type type;
     size_t index;
 } ptcl_typedata_member;
 
 typedef struct ptcl_statement_typedata_decl
 {
-    char *name;
+    ptcl_name name;
     ptcl_typedata_member *members;
     size_t count;
     bool is_prototype;
@@ -288,7 +295,7 @@ typedef struct ptcl_statement
 static void ptcl_statement_destroy(ptcl_statement statement);
 static void ptcl_expression_destroy(ptcl_expression expression);
 
-static ptcl_identifier ptcl_identifier_create_by_name(char *name)
+static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name name)
 {
     return (ptcl_identifier){
         .is_name = true,
@@ -346,8 +353,16 @@ static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_identifier 
         .count = 0};
 }
 
+static ptcl_name ptcl_name_create(char *value, bool is_free, ptcl_location location)
+{
+    return (ptcl_name){
+        .value = value,
+        .is_free = is_free,
+        .location = location};
+}
+
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
-    char *name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
+    ptcl_name name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
 {
     return (ptcl_statement_func_decl){
         .name = name,
@@ -417,7 +432,7 @@ static ptcl_expression ptcl_expression_create_array(ptcl_type type, ptcl_express
             .count = count}};
 }
 
-static ptcl_expression ptcl_expression_create_variable(char *name, ptcl_type type, ptcl_location location)
+static ptcl_expression ptcl_expression_create_variable(ptcl_name name, ptcl_type type, ptcl_location location)
 {
     return (ptcl_expression){
         .type = ptcl_expression_variable_type,
@@ -431,7 +446,7 @@ static char *ptcl_expression_get_name(ptcl_expression expression)
 {
     if (expression.type == ptcl_expression_variable_type)
     {
-        return expression.variable.name;
+        return expression.variable.name.value;
     }
     else if (expression.type == ptcl_expression_unary_type)
     {
@@ -445,7 +460,7 @@ static char *ptcl_identifier_get_name(ptcl_identifier identifier)
 {
     if (identifier.is_name)
     {
-        return identifier.name;
+        return identifier.name.value;
     }
 
     return ptcl_expression_get_name(*identifier.value);
@@ -573,7 +588,7 @@ static ptcl_expression ptcl_expression_create_integer(int value, ptcl_location l
     return integer_n;
 }
 
-static ptcl_argument ptcl_argument_create(ptcl_type type, char *name)
+static ptcl_argument ptcl_argument_create(ptcl_type type, ptcl_name name)
 {
     return (ptcl_argument){
         .type = type,
@@ -612,7 +627,7 @@ static ptcl_typedata_member ptcl_typedata_member_create(char *name, ptcl_type ty
         .index = index};
 }
 
-static ptcl_statement_typedata_decl ptcl_statement_typedata_decl_create(char *name, ptcl_typedata_member *members, size_t count, bool is_prototype)
+static ptcl_statement_typedata_decl ptcl_statement_typedata_decl_create(ptcl_name name, ptcl_typedata_member *members, size_t count, bool is_prototype)
 {
     return (ptcl_statement_typedata_decl){
         .name = name,
@@ -636,7 +651,7 @@ static ptcl_expression_if ptcl_expression_if_create(ptcl_expression *children)
         .children = children};
 }
 
-static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, char *name)
+static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptcl_name name)
 {
     return (ptcl_expression_dot){
         .left = left,
@@ -652,7 +667,7 @@ static ptcl_expression_dot ptcl_expression_dot_create_continue(ptcl_expression_d
     return left;
 }
 
-static ptcl_expression_ctor ptcl_expression_ctor_create(char *name, ptcl_expression *values, size_t count)
+static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name name, ptcl_expression *values, size_t count)
 {
     return (ptcl_expression_ctor){
         .name = name,
@@ -660,7 +675,7 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(char *name, ptcl_express
         .count = count};
 }
 
-static ptcl_expression ptcl_expression_word_create(char *content, ptcl_location location)
+static ptcl_expression ptcl_expression_word_create(ptcl_name content, ptcl_location location)
 {
     return (ptcl_expression){
         .type = ptcl_expression_word_type,
@@ -804,11 +819,14 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             ctor[i] = ptcl_expression_copy(target.ctor.values[i], location);
         }
 
+        // Original will be freed
+        ptcl_name copy = target.ctor.name;
+        copy.is_free = false;
         return (ptcl_expression){
             .type = ptcl_expression_ctor_type,
-            .return_type = ptcl_type_create_typedata(target.ctor.name),
+            .return_type = ptcl_type_create_typedata(target.ctor.name.value),
             .location = location,
-            .ctor = ptcl_expression_ctor_create(target.ctor.name, ctor, target.ctor.count)};
+            .ctor = ptcl_expression_ctor_create(copy, ctor, target.ctor.count)};
     case ptcl_expression_word_type:
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:
@@ -1344,6 +1362,14 @@ static bool ptcl_type_equals(ptcl_type excepted, ptcl_type target)
     return excepted.type == target.type;
 }
 
+static void ptcl_name_destroy(ptcl_name name)
+{
+    if (name.is_free)
+    {
+        free(name.value);
+    }
+}
+
 static void ptcl_statement_func_body_destroy(ptcl_statement_func_body func_body)
 {
     if (func_body.count > 0)
@@ -1395,6 +1421,10 @@ static void ptcl_identifier_destroy(ptcl_identifier identifier)
     {
         ptcl_expression_destroy(*identifier.value);
         free(identifier.value);
+    }
+    else
+    {
+        ptcl_name_destroy(identifier.name);
     }
 }
 
@@ -1566,6 +1596,9 @@ static void ptcl_expression_destroy(ptcl_expression expression)
         break;
     case ptcl_expression_if_type:
         ptcl_expression_if_destroy(expression.if_expr);
+        break;
+    case ptcl_expression_word_type:
+        ptcl_name_destroy(expression.word);
         break;
     }
 }
