@@ -408,6 +408,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char
 
     if (transpiler->root != transpiler->main_root)
     {
+        bool added = false;
         for (int i = 0; i < transpiler->variables_count; i++)
         {
             ptcl_transpiler_variable variable = transpiler->variables[i];
@@ -456,7 +457,13 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, char
             if (!breaked)
             {
                 ptcl_transpiler_add_variable(transpiler, variable.name, variable.type, true, variable.root);
+                added = true;
             }
+        }
+
+        if (added && func_decl.count > 0)
+        {
+            ptcl_transpiler_append_character(transpiler, ',');
         }
     }
 
@@ -557,11 +564,11 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
             if (i != transpiler->variables_count - 1)
             {
                 ptcl_transpiler_append_character(transpiler, ',');
-                added = true;
             }
 
             ptcl_transpiler_append_character(transpiler, '&');
             ptcl_transpiler_append_word_s(transpiler, variable.name);
+            added = true;
         }
 
         if (added && func_call.count > 0)
