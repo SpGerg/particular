@@ -768,7 +768,6 @@ static ptcl_expression ptcl_expression_unary_static_evaluate(ptcl_expression exp
 static ptcl_type ptcl_type_copy(ptcl_type type)
 {
     ptcl_type copy = type;
-
     if (type.target != NULL)
     {
         copy.target = malloc(sizeof(ptcl_type));
@@ -780,6 +779,8 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
         {
             copy.target = NULL;
         }
+
+        copy.target->is_primitive = false;
     }
 
     return copy;
@@ -840,7 +841,7 @@ static bool ptcl_expression_binary_static_equals(ptcl_expression left, ptcl_expr
         return true;
     }
 
-    return left.integer_n == right.integer_n; // Primitive type in union will have same value in integer
+    return left.double_n == right.double_n; // Primitive type in union will have same value in integer
 }
 
 static ptcl_expression ptcl_expression_binary_static_evaluate(ptcl_expression expression, ptcl_expression_binary binary)
@@ -861,44 +862,87 @@ static ptcl_expression ptcl_expression_binary_static_evaluate(ptcl_expression ex
         return expression;
     }
 
+    ptcl_expression result;
+    bool finded = false;
+    switch (binary.type)
+    {
+    case ptcl_binary_operator_equals_type:
+        result = ptcl_expression_create_integer(
+            ptcl_expression_binary_static_equals(left_child, right_child),
+            location);
+        finded = true;
+        break;
+    case ptcl_binary_operator_not_equals_type:
+        result = ptcl_expression_create_integer(
+            !ptcl_expression_binary_static_equals(left_child, right_child),
+            location);
+        finded = true;
+        break;
+    }
+
+    if (finded)
+    {
+        free(binary.children);
+        ptcl_expression_destroy(left_child);
+        ptcl_expression_destroy(right_child);
+        return result;
+    }
+
     ptcl_type type = ptcl_type_get_common(left_type, right_type);
-    left_child = left_child.type == ptcl_expression_binary_type ? ptcl_expression_binary_static_evaluate(expression, left_child.binary) : left_child;
-    right_child = right_child.type == ptcl_expression_binary_type ? ptcl_expression_binary_static_evaluate(expression, right_child.binary) : right_child;
+    if (left_child.type == ptcl_expression_binary_type)
+    {
+        ptcl_expression new_left = ptcl_expression_binary_static_evaluate(left_child, left_child.binary);
+        ptcl_expression_destroy(left_child);
+        left_child = new_left;
+    }
+
+    if (right_child.type == ptcl_expression_binary_type)
+    {
+        ptcl_expression new_right = ptcl_expression_binary_static_evaluate(right_child, right_child.binary);
+        ptcl_expression_destroy(right_child);
+        right_child = new_right;
+    }
 
     free(binary.children);
+    ptcl_expression left_converted = left_child;
+    ptcl_expression right_converted = right_child;
     if (left_child.return_type.type != type.type)
     {
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            left_child = ptcl_expression_cast_to_integer(left_child);
+            left_converted = ptcl_expression_cast_to_integer(left_child);
             break;
         case ptcl_value_float_type:
-            left_child = ptcl_expression_cast_to_float(left_child);
+            left_converted = ptcl_expression_cast_to_float(left_child);
             break;
         case ptcl_value_double_type:
-            left_child = ptcl_expression_cast_to_double(left_child);
+            left_converted = ptcl_expression_cast_to_double(left_child);
+            break;
+        default:
             break;
         }
     }
 
-    if (right_type.type != type.type)
+    if (right_child.return_type.type != type.type)
     {
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            right_child = ptcl_expression_cast_to_integer(right_child);
+            right_converted = ptcl_expression_cast_to_integer(right_child);
             break;
         case ptcl_value_float_type:
-            right_child = ptcl_expression_cast_to_float(right_child);
+            right_converted = ptcl_expression_cast_to_float(right_child);
             break;
         case ptcl_value_double_type:
-            right_child = ptcl_expression_cast_to_double(right_child);
+            right_converted = ptcl_expression_cast_to_double(right_child);
+            break;
+        default:
             break;
         }
     }
 
-    if (left_child.type != right_child.type)
+    if (left_converted.type != right_converted.type)
     {
         return expression;
     }
@@ -909,171 +953,248 @@ static ptcl_expression ptcl_expression_binary_static_evaluate(ptcl_expression ex
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n + right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n + right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n + right_child.float_n,
+            result = ptcl_expression_create_float(
+                left_converted.float_n + right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n + right_child.double_n,
+            result = ptcl_expression_create_double(
+                left_converted.double_n + right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_minus_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n - right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n - right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n - right_child.float_n,
+            result = ptcl_expression_create_float(
+                left_converted.float_n - right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n - right_child.double_n,
+            result = ptcl_expression_create_double(
+                left_converted.double_n - right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_multiplicative_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n * right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n * right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n * right_child.float_n,
+            result = ptcl_expression_create_float(
+                left_converted.float_n * right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n * right_child.double_n,
+            result = ptcl_expression_create_double(
+                left_converted.double_n * right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_division_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n / right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n / right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n / right_child.float_n,
+            result = ptcl_expression_create_float(
+                left_converted.float_n / right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n / right_child.double_n,
+            result = ptcl_expression_create_double(
+                left_converted.double_n / right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
-    case ptcl_binary_operator_equals_type:
-        return ptcl_expression_create_integer(
-            ptcl_expression_binary_static_equals(left_child, right_child),
-            location);
-    case ptcl_binary_operator_not_equals_type:
-        return ptcl_expression_create_integer(
-            !ptcl_expression_binary_static_equals(left_child, right_child),
-            location);
     case ptcl_binary_operator_greater_than_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n > right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n > right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n > right_child.float_n,
+            result = ptcl_expression_create_integer(
+                left_converted.float_n > right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n > right_child.double_n,
+            result = ptcl_expression_create_integer(
+                left_converted.double_n > right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_less_than_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n < right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n < right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n < right_child.float_n,
+            result = ptcl_expression_create_integer(
+                left_converted.float_n < right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n < right_child.double_n,
+            result = ptcl_expression_create_integer(
+                left_converted.double_n < right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_greater_equals_than_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n >= right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n >= right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n >= right_child.float_n,
+            result = ptcl_expression_create_integer(
+                left_converted.float_n >= right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n >= right_child.double_n,
+            result = ptcl_expression_create_integer(
+                left_converted.double_n >= right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
-
         break;
+
     case ptcl_binary_operator_less_equals_than_type:
         switch (type.type)
         {
         case ptcl_value_integer_type:
-            return ptcl_expression_create_integer(
-                left_child.integer_n <= right_child.integer_n,
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n <= right_converted.integer_n,
                 location);
-
+            break;
         case ptcl_value_float_type:
-            return ptcl_expression_create_float(
-                left_child.float_n <= right_child.float_n,
+            result = ptcl_expression_create_integer(
+                left_converted.float_n <= right_converted.float_n,
                 location);
-
+            break;
         case ptcl_value_double_type:
-            return ptcl_expression_create_double(
-                left_child.double_n <= right_child.double_n,
+            result = ptcl_expression_create_integer(
+                left_converted.double_n <= right_converted.double_n,
                 location);
+            break;
+        default:
+            result = expression;
+            break;
         }
+        break;
 
+    case ptcl_binary_operator_and_type:
+        switch (type.type)
+        {
+        case ptcl_value_integer_type:
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n && right_converted.integer_n,
+                location);
+            break;
+        case ptcl_value_float_type:
+            result = ptcl_expression_create_integer(
+                left_converted.float_n && right_converted.float_n,
+                location);
+            break;
+        case ptcl_value_double_type:
+            result = ptcl_expression_create_integer(
+                left_converted.double_n && right_converted.double_n,
+                location);
+            break;
+        default:
+            result = expression;
+            break;
+        }
+        break;
+
+    case ptcl_binary_operator_or_type:
+        switch (type.type)
+        {
+        case ptcl_value_integer_type:
+            result = ptcl_expression_create_integer(
+                left_converted.integer_n || right_converted.integer_n,
+                location);
+            break;
+        case ptcl_value_float_type:
+            result = ptcl_expression_create_integer(
+                left_converted.float_n || right_converted.float_n,
+                location);
+            break;
+        case ptcl_value_double_type:
+            result = ptcl_expression_create_integer(
+                left_converted.double_n || right_converted.double_n,
+                location);
+            break;
+        default:
+            result = expression;
+            break;
+        }
+        break;
+    default:
+        result = expression;
         break;
     }
+
+    ptcl_expression_destroy(left_converted);
+    ptcl_expression_destroy(right_converted);
+    return result;
 }
 
 static ptcl_binary_operator_type ptcl_binary_operator_type_from_token(ptcl_token_type type)

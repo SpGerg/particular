@@ -11,21 +11,11 @@ syntax list([name: static word]) end {
 
 function main(): integer {
     other_name: list(test) = test()
-    value: static word = left
-    value = !value
+    value: static character* = "test"
 
-    function do_something_with_variables(): void {
-        typedata here()
-
-        function another(): void {
-            example := here()
-            value = yet
-        }
-
-        value = joke
-        value = another
+    static if value == "test" {
+        
     }
 
-    do_something_with_variables()
     return 0
 }

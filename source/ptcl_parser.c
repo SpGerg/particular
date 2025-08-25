@@ -1355,19 +1355,21 @@ ptcl_statement ptcl_parser_parse_if(ptcl_parser *parser, bool is_static)
                 return (ptcl_statement){};
             }
 
-            ptcl_parser_except(parser, ptcl_token_else_type);
-            ptcl_parser_except(parser, ptcl_token_left_curly_type);
-            if (parser->is_critical)
+            if (ptcl_parser_match(parser, ptcl_token_else_type))
             {
-                ptcl_statement_func_body_destroy(result);
-                return (ptcl_statement){};
-            }
+                ptcl_parser_except(parser, ptcl_token_left_curly_type);
+                if (parser->is_critical)
+                {
+                    ptcl_statement_func_body_destroy(result);
+                    return (ptcl_statement){};
+                }
 
-            ptcl_parser_skip_block_or_expression(parser);
-            if (parser->is_critical)
-            {
-                ptcl_statement_func_body_destroy(result);
-                return (ptcl_statement){};
+                ptcl_parser_skip_block_or_expression(parser);
+                if (parser->is_critical)
+                {
+                    ptcl_statement_func_body_destroy(result);
+                    return (ptcl_statement){};
+                }
             }
         }
         else
