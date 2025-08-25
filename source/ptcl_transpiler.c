@@ -246,8 +246,11 @@ void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler)
 void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body)
 {
     ptcl_statement_func_body *previous = transpiler->root;
-    func_body.root = transpiler->root;
-    transpiler->root = &func_body;
+    if (is_func_body)
+    {
+        func_body.root = transpiler->root;
+        transpiler->root = &func_body;
+    }
 
     if (with_brackets)
     {
@@ -264,8 +267,11 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
         ptcl_transpiler_append_character(transpiler, '}');
     }
 
-    ptcl_transpiler_clear_scope(transpiler);
-    transpiler->root = previous;
+    if (is_func_body)
+    {
+        ptcl_transpiler_clear_scope(transpiler);
+        transpiler->root = previous;
+    }
 }
 
 void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool is_func_body)
@@ -534,6 +540,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
 
     if (ptcl_transpiler_is_inner_function(transpiler, ptcl_identifier_get_name(func_call.identifier)))
     {
+        bool added = false;
         for (int i = transpiler->variables_count - 1; i >= 0; i--)
         {
             ptcl_transpiler_variable variable = transpiler->variables[i];
@@ -550,10 +557,16 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
             if (i != transpiler->variables_count - 1)
             {
                 ptcl_transpiler_append_character(transpiler, ',');
+                added = true;
             }
 
             ptcl_transpiler_append_character(transpiler, '&');
             ptcl_transpiler_append_word_s(transpiler, variable.name);
+        }
+
+        if (added && func_call.count > 0)
+        {
+            ptcl_transpiler_append_character(transpiler, ',');
         }
     }
 

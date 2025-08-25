@@ -14,8 +14,12 @@ function main(): integer {
     value: static character* = "test"
 
     static if value == "test" {
-        
+        function print_me(that: character*, and_this: character*): void {
+            printf(that)
+            printf(and_this)
+        }
     }
 
+    print_me("Hello, world!", "Hello, universe!")
     return 0
 }
