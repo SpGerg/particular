@@ -19,6 +19,7 @@ typedef enum ptcl_token_type
     ptcl_token_integer_type,
     ptcl_token_character_word_type,
     ptcl_token_word_word_type,
+    ptcl_token_type_type,
     ptcl_token_each_type,
     ptcl_token_syntax_type,
     ptcl_token_new_type,

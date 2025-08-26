@@ -2,19 +2,18 @@ prototype function printf(content: character*, ...): integer
 prototype function printf_number(content: integer): integer
 prototype function putchar(content: character): integer
 
-typedata statement(type: integer)
+typedata statement(statement_type: integer)
 
-syntax list([name: static word]) end {
+syntax list([name: static type]) end {
     {
         type_name: static word = !<list_ !name>
         typedata !type_name()
     }
-    
+
     !type_name
 }
 
 function main(): integer {
-    other_name: list(test) = list_test()
-    value: static word = test
+    other_name: list(character*) = list_pointer_character_()
     return 0
 }

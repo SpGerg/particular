@@ -14,6 +14,9 @@ typedef struct ptcl_parser
     ptcl_statement_func_body *root;
     ptcl_type *return_type;
     bool is_critical;
+    bool add_errors;
+    bool called_from_value;
+    bool already_syntax_tried;
 } ptcl_parser;
 
 static void ptcl_parser_skip_block_or_expression(ptcl_parser *parser)
@@ -65,12 +68,36 @@ static bool ptcl_parser_try_get_word_from_instance(ptcl_parser *parser, char *na
         return false;
     }
 
-    if (!ptcl_type_equals(ptcl_type_word, instance->variable.type))
+    bool incorrect_type = false;
+    bool is_free = false;
+    char *value;
+    if (!instance->variable.type.is_static)
+    {
+        incorrect_type = true;
+    }
+    else
+    {
+        switch (instance->variable.type.type)
+        {
+        case ptcl_value_object_type_type:
+            is_free = true;
+            value = ptcl_type_to_word_copy(instance->variable.built_in.object_type.type);
+            break;
+        case ptcl_value_word_type:
+            value = instance->variable.built_in.word.value;
+            break;
+        default:
+            incorrect_type = true;
+            break;
+        }
+    }
+
+    if (incorrect_type)
     {
         if (throw_errors)
         {
-            char *excepted = ptcl_type_to_string_copy(ptcl_type_word);
-            char *received = ptcl_type_to_string_copy(instance->variable.type);
+            char *excepted = ptcl_type_to_present_string_copy(ptcl_type_word);
+            char *received = ptcl_type_to_present_string_copy(instance->variable.type);
             ptcl_parser_throw_incorrect_type(parser, excepted, received, location);
             free(excepted);
             free(received);
@@ -82,8 +109,8 @@ static bool ptcl_parser_try_get_word_from_instance(ptcl_parser *parser, char *na
     *result = (ptcl_token){
         .type = ptcl_token_word_type,
         .location = location,
-        .value = instance->variable.built_in.word.value,
-        .is_free_value = false};
+        .value = value,
+        .is_free_value = is_free};
     return true;
 }
 
@@ -218,6 +245,9 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->errors_count = 0;
     parser->instances = NULL;
     parser->instances_count = 0;
+    parser->called_from_value = false;
+    parser->already_syntax_tried = false;
+    parser->add_errors = true;
 
     ptcl_type type = ptcl_type_create_pointer(&ptcl_type_character);
     type.is_static = true;
@@ -520,8 +550,11 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         {
             ptcl_parser_syntax_node node;
             size_t position = parser->position;
-            size_t count = parser->errors_count;
+
+            const bool last = parser->add_errors;
+            parser->add_errors = false;
             ptcl_expression value = ptcl_parser_parse_binary(parser, NULL, true, is_statement);
+            parser->add_errors = last;
             if (parser->is_critical)
             {
                 parser->position = position;
@@ -529,13 +562,6 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
                 ptcl_token current = ptcl_parser_current(parser);
                 ptcl_parser_skip(parser);
                 node = ptcl_parser_syntax_node_create_word(current.type, current.value);
-                for (int i = parser->errors_count - 1; i != count - 1; i--)
-                {
-                    ptcl_parser_error_destroy(parser->errors[i]);
-                    parser->errors_count--;
-                }
-
-                parser->errors = realloc(parser->errors, count * sizeof(ptcl_parser_error));
                 parser->is_critical = false;
             }
             else
@@ -896,7 +922,16 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
 {
     bool placeholder;
-    ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder);
+
+    if (!parser->already_syntax_tried)
+    {
+        if (parser->called_from_value)
+        {
+            parser->already_syntax_tried = true;
+        }
+
+        ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder);
+    }
 
     size_t position = parser->position;
     size_t original_statements_count = parser->root->count;
@@ -927,6 +962,9 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
     case ptcl_token_character_word_type:
         target = ptcl_type_character;
         break;
+    case ptcl_token_type_type:
+        target = ptcl_type_any_type;
+        break;
     case ptcl_token_double_type:
         target = ptcl_type_double;
         break;
@@ -948,7 +986,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
         ptcl_name name = ptcl_parser_parse_name(parser);
         if (parser->is_critical)
         {
-            return (ptcl_type){};
+            break;
         }
 
         if (ptcl_parser_try_get_instance(parser, name.value, ptcl_parser_instance_typedata_type, &typedata))
@@ -1235,7 +1273,7 @@ ptcl_statement_typedata_decl ptcl_parser_parse_typedata_decl(ptcl_parser *parser
         }
 
         decl.members = buffer;
-        ptcl_token member_name = ptcl_parser_except(parser, ptcl_token_word_type);
+        ptcl_name member_name = ptcl_parser_parse_name(parser);
         if (parser->is_critical)
         {
             ptcl_statement_typedata_decl_destroy(decl);
@@ -1256,7 +1294,7 @@ ptcl_statement_typedata_decl ptcl_parser_parse_typedata_decl(ptcl_parser *parser
             return (ptcl_statement_typedata_decl){};
         }
 
-        decl.members[decl.count] = ptcl_typedata_member_create(member_name.value, type, decl.count);
+        decl.members[decl.count] = ptcl_typedata_member_create(member_name, type, decl.count);
         decl.count++; // UB
     }
 
@@ -1787,6 +1825,7 @@ ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except,
         ptcl_parser_clear_scope(parser);
 
         ptcl_statement_func_body *temp = parser->root;
+        ptcl_statement_func_body_destroy(*temp);
         parser->root = temp->root;
         free(temp);
         return expression;
@@ -1877,8 +1916,8 @@ ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except,
     left = ptcl_expression_binary_static_evaluate(left, left.binary);
     if (except != NULL && !ptcl_type_equals(*except, left.return_type))
     {
-        char *excepted = ptcl_type_to_string_copy(*except);
-        char *received = ptcl_type_to_string_copy(left.return_type);
+        char *excepted = ptcl_type_to_present_string_copy(*except);
+        char *received = ptcl_type_to_present_string_copy(left.return_type);
         ptcl_parser_throw_incorrect_type(parser, excepted, received, left.location);
 
         free(excepted);
@@ -1922,8 +1961,8 @@ ptcl_expression ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *excep
 
         if (right.return_type.type != ptcl_value_float_type && right.return_type.type != ptcl_value_integer_type)
         {
-            char *excepted = ptcl_type_to_string_copy(ptcl_type_integer);
-            char *received = ptcl_type_to_string_copy(right.return_type);
+            char *excepted = ptcl_type_to_present_string_copy(ptcl_type_integer);
+            char *received = ptcl_type_to_present_string_copy(right.return_type);
             ptcl_parser_throw_incorrect_type(parser, excepted, received, ptcl_parser_current(parser).location);
             free(excepted);
             free(received);
@@ -1991,8 +2030,8 @@ ptcl_expression ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type 
 
         if (right.return_type.type != ptcl_value_float_type && right.return_type.type != ptcl_value_integer_type)
         {
-            char *excepted = ptcl_type_to_string_copy(ptcl_type_integer);
-            char *received = ptcl_type_to_string_copy(right.return_type);
+            char *excepted = ptcl_type_to_present_string_copy(ptcl_type_integer);
+            char *received = ptcl_type_to_present_string_copy(right.return_type);
             ptcl_parser_throw_incorrect_type(parser, excepted, received, ptcl_parser_current(parser).location);
             free(excepted);
             free(received);
@@ -2338,6 +2377,11 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         result = ptcl_expression_create_character(current.value[0], current.location);
         break;
     case ptcl_token_static_type:
+        ptcl_parser_except(parser, ptcl_token_if_type);
+        if (parser->is_critical)
+        {
+            break;
+        }
     case ptcl_token_if_type:
         bool is_static = current.type == ptcl_token_static_type;
         result = ptcl_parser_parse_if_expression(parser, is_static);
@@ -2360,6 +2404,11 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
     case ptcl_token_new_type:
         parser->position--;
         ptcl_type type = ptcl_parser_parse_type(parser, false);
+        if (parser->is_critical)
+        {
+            return (ptcl_expression){};
+        }
+
         ptcl_parser_except(parser, ptcl_token_colon_type);
         ptcl_parser_except(parser, ptcl_token_colon_type);
         if (parser->is_critical)
@@ -2421,7 +2470,39 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         result = ptcl_expression_create_array(array_type, array.expressions, array.count, current.location);
         break;
     default:
-        ptcl_parser_throw_unknown_expression(parser, current.location);
+        bool caller = !parser->called_from_value;
+        parser->called_from_value = true;
+        parser->position--;
+
+        const bool last = parser->add_errors;
+        parser->add_errors = false;
+        ptcl_type object_type = ptcl_parser_parse_type(parser, false);
+        parser->add_errors = last;
+
+        if (caller)
+        {
+            parser->called_from_value = false;
+            parser->already_syntax_tried = false;
+        }
+
+        if (parser->is_critical)
+        {
+            ptcl_parser_throw_unknown_expression(parser, current.location);
+            return (ptcl_expression){};
+        }
+
+        ptcl_type *target = malloc(sizeof(ptcl_type));
+        if (target == NULL)
+        {
+            ptcl_type_destroy(object_type);
+            ptcl_parser_throw_out_of_memory(parser, current.location);
+            break;
+        }
+
+        *target = object_type;
+        target->is_primitive = false;
+        result = ptcl_expression_create_object_type(ptcl_type_create_object_type(target), object_type, current.location);
+        result.return_type.is_static = true;
         break;
     }
 
@@ -2500,9 +2581,18 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser)
                 return (ptcl_name){};
             }
 
+            char *concatened = ptcl_string(left.value, right.value, NULL);
+            if (concatened == NULL)
+            {
+                ptcl_name_destroy(left);
+                ptcl_name_destroy(right);
+                ptcl_parser_throw_out_of_memory(parser, left.location);
+                return (ptcl_name){};
+            }
+
             ptcl_name_destroy(left);
             ptcl_name_destroy(right);
-            return ptcl_name_create(ptcl_string(left.value, right.value, NULL), true, left.location);
+            return ptcl_name_create(concatened, true, left.location);
         }
 
         ptcl_token name = ptcl_parser_current(parser);
@@ -2511,7 +2601,7 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser)
         ptcl_token result;
         if (ptcl_parser_try_get_word_from_instance(parser, name.value, name.location, false, true, &result))
         {
-            return ptcl_name_create(result.value, false, name.location);
+            return ptcl_name_create(result.value, result.is_free_value, name.location);
         }
 
         return (ptcl_name){};
@@ -2536,7 +2626,18 @@ ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type)
         return current;
     }
 
-    ptcl_parser_throw_except_token(parser, ptcl_lexer_configuration_get_value(parser->configuration, token_type), current.location);
+    char *value;
+    switch (token_type)
+    {
+    case ptcl_token_word_type:
+        value = "variable, function or type";
+        break;
+    default:
+        value = ptcl_lexer_configuration_get_value(parser->configuration, token_type);
+        break;
+    }
+
+    ptcl_parser_throw_except_token(parser, value, current.location);
     return current;
 }
 
@@ -3033,7 +3134,7 @@ void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_exp
 
     for (size_t i = 0; i < count; i++)
     {
-        char *type = ptcl_type_to_string_copy(values[i].return_type);
+        char *type = ptcl_type_to_present_string_copy(values[i].return_type);
         if (type == NULL)
         {
             free(message);
@@ -3101,6 +3202,17 @@ void ptcl_parser_throw_unknown_type(ptcl_parser *parser, char *value, ptcl_locat
 
 void ptcl_parser_add_error(ptcl_parser *parser, ptcl_parser_error error)
 {
+    if (!parser->add_errors)
+    {
+        ptcl_parser_error_destroy(error);
+        if (!parser->is_critical)
+        {
+            parser->is_critical = error.is_critical;
+        }
+
+        return;
+    }
+
     ptcl_parser_error *buffer = realloc(parser->errors, (parser->errors_count + 1) * sizeof(ptcl_parser_error));
     if (buffer == NULL)
     {

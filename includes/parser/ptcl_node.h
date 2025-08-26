@@ -37,7 +37,8 @@ typedef enum ptcl_expression_type
     ptcl_expression_ctor_type,
     ptcl_expression_if_type,
     ptcl_expression_func_call_type,
-    ptcl_expression_word_type
+    ptcl_expression_word_type,
+    ptcl_expression_object_type_type
 } ptcl_expression_type;
 
 typedef enum ptcl_binary_operator_type
@@ -62,6 +63,7 @@ typedef enum ptcl_binary_operator_type
 
 typedef enum ptcl_value_type
 {
+    ptcl_value_object_type_type,
     ptcl_value_typedata_type,
     ptcl_value_array_type,
     ptcl_value_pointer_type,
@@ -72,6 +74,7 @@ typedef enum ptcl_value_type
     ptcl_value_integer_type,
     ptcl_value_any_pointer_type,
     ptcl_value_any_type,
+    ptcl_value_type_type,
     ptcl_value_void_type,
 } ptcl_value_type;
 
@@ -113,6 +116,8 @@ typedef struct ptcl_argument
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+
+static ptcl_type ptcl_type_any_type = {.type = ptcl_value_object_type_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = true};
 
@@ -184,6 +189,11 @@ typedef struct ptcl_expression_if
     ptcl_expression *children;
 } ptcl_expression_if;
 
+typedef struct ptcl_expression_object_type
+{
+    ptcl_type type;
+} ptcl_expression_object_type;
+
 typedef struct ptcl_statement_func_call
 {
     ptcl_identifier identifier;
@@ -216,6 +226,7 @@ typedef struct ptcl_expression
         ptcl_expression_dot dot;
         ptcl_expression_ctor ctor;
         ptcl_expression_if if_expr;
+        ptcl_expression_object_type object_type;
     };
 } ptcl_expression;
 
@@ -318,6 +329,14 @@ static ptcl_type ptcl_type_create_array(ptcl_type *type, size_t count)
         .target = type,
         .identifier = NULL,
         .count = count};
+}
+
+static ptcl_type ptcl_type_create_object_type(ptcl_type *type)
+{
+    return (ptcl_type){
+        .type = ptcl_value_object_type_type,
+        .target = type,
+        .identifier = NULL};
 }
 
 static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
@@ -440,6 +459,16 @@ static ptcl_expression ptcl_expression_create_variable(ptcl_name name, ptcl_type
         .location = location,
         .variable = (ptcl_expression_variable){
             .name = name}};
+}
+
+static ptcl_expression ptcl_expression_create_object_type(ptcl_type return_type, ptcl_type type, ptcl_location location)
+{
+    return (ptcl_expression){
+        .type = ptcl_expression_object_type_type,
+        .return_type = return_type,
+        .location = location,
+        .object_type = (ptcl_expression_object_type){
+            .type = type}};
 }
 
 static char *ptcl_expression_get_name(ptcl_expression expression)
@@ -619,7 +648,7 @@ static ptcl_statement_return ptcl_statement_return_create(ptcl_expression value)
         .value = value};
 }
 
-static ptcl_typedata_member ptcl_typedata_member_create(char *name, ptcl_type type, size_t index)
+static ptcl_typedata_member ptcl_typedata_member_create(ptcl_name name, ptcl_type type, size_t index)
 {
     return (ptcl_typedata_member){
         .name = name,
@@ -1246,7 +1275,57 @@ static ptcl_binary_operator_type ptcl_binary_operator_type_from_token(ptcl_token
     }
 }
 
-static char *ptcl_type_to_string_copy(ptcl_type type)
+static char *ptcl_type_to_word_copy(ptcl_type type)
+{
+    char *name;
+
+    switch (type.type)
+    {
+    case ptcl_value_typedata_type:
+        name = ptcl_string("typedata_", type.identifier, "_", NULL);
+        break;
+    case ptcl_value_array_type:
+        char *array_name = ptcl_type_to_word_copy(*type.target);
+        name = ptcl_string("array_", array_name, "_", NULL);
+        free(array_name);
+        break;
+    case ptcl_value_pointer_type:
+        char *pointer_name = ptcl_type_to_word_copy(*type.target);
+        name = ptcl_string("pointer_", pointer_name, "_", NULL);
+        free(pointer_name);
+        break;
+    case ptcl_value_any_pointer_type:
+        name = "pointer";
+        break;
+    case ptcl_value_word_type:
+        name = "word";
+        break;
+    case ptcl_value_character_type:
+        name = "character";
+        break;
+    case ptcl_value_double_type:
+        name = "double";
+        break;
+    case ptcl_value_float_type:
+        name = "float";
+        break;
+    case ptcl_value_integer_type:
+        name = "integer";
+        break;
+    case ptcl_value_any_type:
+        name = "any";
+        break;
+    }
+
+    if (type.type != ptcl_value_array_type && type.type != ptcl_value_pointer_type && type.type != ptcl_value_typedata_type)
+    {
+        name = ptcl_string(name, NULL);
+    }
+
+    return name;
+}
+
+static char *ptcl_type_to_present_string_copy(ptcl_type type)
 {
     char *is_static = type.is_static ? "static " : "";
     char *name;
@@ -1257,12 +1336,12 @@ static char *ptcl_type_to_string_copy(ptcl_type type)
         name = ptcl_string(is_static, "typedata (", type.identifier, ")", NULL);
         break;
     case ptcl_value_array_type:
-        char *array_name = ptcl_type_to_string_copy(*type.target);
+        char *array_name = ptcl_type_to_present_string_copy(*type.target);
         name = ptcl_string(is_static, "array (", array_name, ")", NULL);
         free(array_name);
         break;
     case ptcl_value_pointer_type:
-        char *pointer_name = ptcl_type_to_string_copy(*type.target);
+        char *pointer_name = ptcl_type_to_present_string_copy(*type.target);
         name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
         free(pointer_name);
         break;
@@ -1357,6 +1436,16 @@ static bool ptcl_type_equals(ptcl_type excepted, ptcl_type target)
     if (excepted.type == ptcl_value_float_type)
     {
         return target.type == ptcl_value_float_type || target.type == ptcl_value_integer_type;
+    }
+
+    if (excepted.type == ptcl_value_type_type)
+    {
+        if (target.identifier == NULL)
+        {
+            return false;
+        }
+
+        return strcmp(excepted.identifier, target.identifier) == 0;
     }
 
     return excepted.type == target.type;
