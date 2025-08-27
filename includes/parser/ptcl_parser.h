@@ -27,13 +27,14 @@ typedef enum ptcl_parser_syntax_node_type
 {
     ptcl_parser_syntax_node_word_type,
     ptcl_parser_syntax_node_variable_type,
+    ptcl_parser_syntax_node_object_type_type,
     ptcl_parser_syntax_node_value_type
 } ptcl_parser_syntax_node_type;
 
 typedef struct ptcl_parser_syntax_word_node
 {
     ptcl_token_type type;
-    char *value;
+    ptcl_name name;
 } ptcl_parser_syntax_word_node;
 
 typedef struct ptcl_parser_syntax_word_variable
@@ -50,6 +51,7 @@ typedef struct ptcl_parser_syntax_node
     {
         ptcl_parser_syntax_word_node word;
         ptcl_parser_syntax_word_variable variable;
+        ptcl_type object_type;
         ptcl_expression value;
     };
 } ptcl_parser_syntax_node;
@@ -133,7 +135,7 @@ static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body
         }};
 }
 
-static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body *root, char *name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
+static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
@@ -173,13 +175,13 @@ static ptcl_parser_instance ptcl_parser_syntax_create(char *name, ptcl_parser_sy
             .count = count}};
 }
 
-static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_word(ptcl_token_type type, char *value)
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_word(ptcl_token_type type, ptcl_name name)
 {
     return (ptcl_parser_syntax_node){
         .type = ptcl_parser_syntax_node_word_type,
         .word = (ptcl_parser_syntax_word_node){
             .type = type,
-            .value = value}};
+            .name = name}};
 }
 
 static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_variable(ptcl_type type, char *name)
@@ -189,6 +191,13 @@ static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_variable(ptcl_type
         .variable = (ptcl_parser_syntax_word_variable){
             .type = type,
             .name = name}};
+}
+
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_object_type(ptcl_type type)
+{
+    return (ptcl_parser_syntax_node){
+        .type = ptcl_parser_syntax_node_object_type_type,
+        .object_type = type};
 }
 
 static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_value(ptcl_expression value)
@@ -204,6 +213,9 @@ static void ptcl_parser_syntax_node_destroy(ptcl_parser_syntax_node node)
     {
     case ptcl_parser_syntax_node_variable_type:
         ptcl_type_destroy(node.variable.type);
+        break;
+    case ptcl_parser_syntax_node_object_type_type:
+        ptcl_type_destroy(node.object_type);
         break;
     case ptcl_parser_syntax_node_value_type:
         ptcl_expression_destroy(node.value);
@@ -231,7 +243,7 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
     case ptcl_parser_instance_variable_type:
         if (instance->variable.is_syntax_word)
         {
-            free(instance->variable.built_in.word.value);
+            free(instance->variable.built_in.word.word.value);
         }
 
         break;
@@ -300,7 +312,9 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
 
 ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_parser_typedata *typedata);
 
-ptcl_name ptcl_parser_parse_name(ptcl_parser *parser);
+ptcl_name ptcl_parser_just_parse_name(ptcl_parser *parser);
+
+ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool tokens_allowed, bool *succesful);
 
 ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
 

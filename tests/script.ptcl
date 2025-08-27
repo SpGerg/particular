@@ -6,14 +6,17 @@ typedata statement(statement_type: integer)
 
 syntax list([name: static type]) end {
     {
-        type_name: static word = !<list_ !name>
+        type_name: static word = !<list_ word(name)>
         typedata !type_name()
+        syntax list([!name])() end {
+            !type_name()
+        }
     }
 
     !type_name
 }
 
 function main(): integer {
-    other_name: list(character*) = list_pointer_character_()
+    other_name: list(character*) = list(character*)()
     return 0
 }

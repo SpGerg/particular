@@ -80,9 +80,22 @@ typedef enum ptcl_value_type
 
 typedef struct ptcl_name
 {
-    char *value;
-    bool is_free;
+    bool is_name;
     ptcl_location location;
+    
+    union
+    {
+        struct
+        {
+            char *value;
+            bool is_free;
+        } word;
+        struct
+        {
+            ptcl_token *tokens;
+            size_t count;
+        } tokens;
+    };
 } ptcl_name;
 
 typedef struct ptcl_identifier
@@ -375,9 +388,19 @@ static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_identifier 
 static ptcl_name ptcl_name_create(char *value, bool is_free, ptcl_location location)
 {
     return (ptcl_name){
-        .value = value,
-        .is_free = is_free,
-        .location = location};
+        .is_name = true,
+        .location = location,
+        .word.value = value,
+        .word.is_free = is_free};
+}
+
+static ptcl_name ptcl_name_create_tokens(ptcl_token *tokens, size_t count, ptcl_location location)
+{
+    return (ptcl_name){
+        .is_name = false,
+        .location = location,
+        .tokens.tokens = tokens,
+        .tokens.count = count};
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
@@ -471,11 +494,30 @@ static ptcl_expression ptcl_expression_create_object_type(ptcl_type return_type,
             .type = type}};
 }
 
+static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
+{
+    switch (type)
+    {
+        case ptcl_value_character_type:
+            return ptcl_token_character_word_type;
+        case ptcl_value_double_type:
+            return ptcl_token_double_type;
+        case ptcl_value_float_type:
+            return ptcl_token_float_type;
+        case ptcl_value_integer_type:
+            return ptcl_token_integer_type;
+        case ptcl_value_void_type:
+            return ptcl_token_void_type;
+    default:
+        return ptcl_token_word_type;
+    }
+}
+
 static char *ptcl_expression_get_name(ptcl_expression expression)
 {
     if (expression.type == ptcl_expression_variable_type)
     {
-        return expression.variable.name.value;
+        return expression.variable.name.word.value;
     }
     else if (expression.type == ptcl_expression_unary_type)
     {
@@ -489,7 +531,7 @@ static char *ptcl_identifier_get_name(ptcl_identifier identifier)
 {
     if (identifier.is_name)
     {
-        return identifier.name.value;
+        return identifier.name.word.value;
     }
 
     return ptcl_expression_get_name(*identifier.value);
@@ -850,10 +892,10 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
 
         // Original will be freed
         ptcl_name copy = target.ctor.name;
-        copy.is_free = false;
+        copy.word.is_free = false;
         return (ptcl_expression){
             .type = ptcl_expression_ctor_type,
-            .return_type = ptcl_type_create_typedata(target.ctor.name.value),
+            .return_type = ptcl_type_create_typedata(target.ctor.name.word.value),
             .location = location,
             .ctor = ptcl_expression_ctor_create(copy, ctor, target.ctor.count)};
     case ptcl_expression_word_type:
@@ -1453,9 +1495,21 @@ static bool ptcl_type_equals(ptcl_type excepted, ptcl_type target)
 
 static void ptcl_name_destroy(ptcl_name name)
 {
-    if (name.is_free)
+    if (name.is_name)
     {
-        free(name.value);
+        if (name.word.is_free)
+        {
+            free(name.word.value);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < name.tokens.count; i++)
+        {
+            ptcl_token_destroy(name.tokens.tokens[i]);
+        }
+
+        free(name.tokens.tokens);
     }
 }
 
