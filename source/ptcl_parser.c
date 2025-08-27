@@ -1898,7 +1898,7 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
 ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax)
 {
     ptcl_expression syntax_expression;
-    bool with_expression;
+    bool with_expression = false;
     if (with_syntax && ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &syntax_expression, &with_expression))
     {
         ptcl_expression expression = ptcl_parser_parse_binary(parser, except, with_word, true);
