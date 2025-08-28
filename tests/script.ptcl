@@ -4,19 +4,20 @@ prototype function putchar(content: character): integer
 
 typedata statement(statement_type: integer)
 
-syntax list([name: static type]) end {
+syntax list([T: static type]) end {
     {
-        typedata !<list_ word(name)>()
+        typedata !<list_ word(T)>(entities: !T)
     }
 
-    !<list_ word(name)>
+    !<list_ word(T)>
 }
 
-syntax list([name: static type])() end {
-    !<list_ word(name)>()
+syntax list([T: static type])() end {
+    !<list_ word(T)>()
 }
 
 function main(): integer {
     other_name: list(>character*) = list(>character*)()
+    foo: list(>integer) = list(>integer)()
     return 0
 }

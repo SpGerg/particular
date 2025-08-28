@@ -82,7 +82,7 @@ typedef struct ptcl_name
 {
     bool is_name;
     ptcl_location location;
-    
+
     union
     {
         struct
@@ -494,20 +494,32 @@ static ptcl_expression ptcl_expression_create_object_type(ptcl_type return_type,
             .type = type}};
 }
 
+static bool ptcl_value_type_is_name(ptcl_value_type type)
+{
+    switch (type)
+    {
+        case ptcl_value_type_type:
+        case ptcl_value_typedata_type:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
 {
     switch (type)
     {
-        case ptcl_value_character_type:
-            return ptcl_token_character_word_type;
-        case ptcl_value_double_type:
-            return ptcl_token_double_type;
-        case ptcl_value_float_type:
-            return ptcl_token_float_type;
-        case ptcl_value_integer_type:
-            return ptcl_token_integer_type;
-        case ptcl_value_void_type:
-            return ptcl_token_void_type;
+    case ptcl_value_character_type:
+        return ptcl_token_character_word_type;
+    case ptcl_value_double_type:
+        return ptcl_token_double_type;
+    case ptcl_value_float_type:
+        return ptcl_token_float_type;
+    case ptcl_value_integer_type:
+        return ptcl_token_integer_type;
+    case ptcl_value_void_type:
+        return ptcl_token_void_type;
     default:
         return ptcl_token_word_type;
     }

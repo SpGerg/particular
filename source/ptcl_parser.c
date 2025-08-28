@@ -50,9 +50,10 @@ static ptcl_token *ptcl_parser_create_tokens_from_type(ptcl_parser *parser, ptcl
 
     size_t index = 0;
     ptcl_token *first = &tokens[index];
+    char *value = ptcl_value_type_is_name(base_type->type) ? base_type->identifier : ptcl_lexer_configuration_get_value(parser->configuration, ptcl_value_type_to_token(base_type->type));
     *first = ptcl_token_create(
         ptcl_value_type_to_token(base_type->type),
-        ptcl_lexer_configuration_get_value(parser->configuration, tokens[index].type),
+        value,
         location,
         false);
     index++;
@@ -314,7 +315,7 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
     bool placeholder;
     if (ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
     {
-        ptcl_parser_syntax_destroy(parser->last_syntax); 
+        ptcl_parser_syntax_destroy(parser->last_syntax);
         return ptcl_parser_parse_statement(parser);
     }
 
@@ -439,45 +440,71 @@ static void ptcl_parser_replace_words(ptcl_parser *parser, size_t stop)
                 name.word.is_free);
             if (tokens_processed > 1)
             {
-                for (size_t i = current_pos + tokens_processed; i < parser->count; i++)
+                size_t shift_count = parser->count - (current_pos + tokens_processed);
+                if (shift_count > 0)
                 {
-                    parser->tokens[i - (tokens_processed - 1)] = parser->tokens[i];
+                    memmove(&parser->tokens[current_pos + 1],
+                            &parser->tokens[current_pos + tokens_processed],
+                            shift_count * sizeof(ptcl_token));
                 }
 
                 parser->count -= tokens_processed - 1;
                 stop -= tokens_processed - 1;
             }
+            parser->position = current_pos + 1;
         }
         else
         {
             size_t new_tokens_count = name.tokens.count;
             ptrdiff_t size_diff = new_tokens_count - tokens_processed;
+
             if (size_diff != 0)
             {
+                size_t tokens_to_preserve = parser->count - (current_pos + tokens_processed);
+                ptcl_token *preserved_tokens = NULL;
+
+                if (tokens_to_preserve > 0)
+                {
+                    preserved_tokens = malloc(tokens_to_preserve * sizeof(ptcl_token));
+                    if (preserved_tokens == NULL)
+                    {
+                        parser->is_critical = true;
+                        for (size_t i = 0; i < name.tokens.count; i++)
+                        {
+                            ptcl_token_destroy(name.tokens.tokens[i]);
+                        }
+                        free(name.tokens.tokens);
+                        ptcl_parser_throw_out_of_memory(parser, current.location);
+                        return;
+                    }
+                    memcpy(preserved_tokens,
+                           &parser->tokens[current_pos + tokens_processed],
+                           tokens_to_preserve * sizeof(ptcl_token));
+                }
+
                 size_t new_count = parser->count + size_diff;
                 ptcl_token *new_tokens = realloc(parser->tokens, new_count * sizeof(ptcl_token));
                 if (new_tokens == NULL)
                 {
                     parser->is_critical = true;
-                    parser->position = current_pos + 1;
                     for (size_t i = 0; i < name.tokens.count; i++)
                     {
                         ptcl_token_destroy(name.tokens.tokens[i]);
                     }
-
+                    
                     free(name.tokens.tokens);
+                    free(preserved_tokens);
                     ptcl_parser_throw_out_of_memory(parser, current.location);
                     return;
                 }
 
                 parser->tokens = new_tokens;
-                size_t shift_start = current_pos + tokens_processed;
-                size_t shift_count = parser->count - shift_start;
-                if (shift_count > 0)
+                if (tokens_to_preserve > 0)
                 {
-                    memmove(&parser->tokens[current_pos + new_tokens_count],
-                            &parser->tokens[shift_start],
-                            shift_count * sizeof(ptcl_token));
+                    memmove(&new_tokens[current_pos + new_tokens_count],
+                            preserved_tokens,
+                            tokens_to_preserve * sizeof(ptcl_token));
+                    free(preserved_tokens);
                 }
 
                 parser->count = new_count;
@@ -490,6 +517,7 @@ static void ptcl_parser_replace_words(ptcl_parser *parser, size_t stop)
             }
 
             free(name.tokens.tokens);
+            parser->position = current_pos + new_tokens_count;
         }
 
         ptcl_parser_skip(parser);
@@ -937,7 +965,7 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
     }
 }
 
-void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
+void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser, bool is_syntax)
 {
     if (!ptcl_parser_match(parser, ptcl_token_left_curly_type))
     {
@@ -946,10 +974,9 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
 
     parser->position--;
     ptcl_location location = ptcl_parser_current(parser).location;
-    ptcl_statement *statements = parser->root->statements;
-    size_t count = parser->root->count;
-
-    ptcl_statement_func_body body = ptcl_statement_func_body_create(NULL, 0, parser->root->root);
+    ptcl_statement_func_body body = ptcl_statement_func_body_create(
+        NULL, 0,
+        is_syntax ? parser->root->root : parser->root);
     ptcl_parser_parse_func_body_by_pointer(parser, &body, true, false);
     if (parser->is_critical)
     {
@@ -958,6 +985,8 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
 
     ptcl_statement_func_body *previous = parser->root;
     parser->root = body.root;
+    ptcl_statement *statements = parser->root->statements;
+    size_t count = parser->root->count;
     ptcl_statement statement = ptcl_statement_func_body_create_stat(body, location);
     ptcl_statement *new_statements = realloc(statements, sizeof(ptcl_statement) * (count + 1));
     if (new_statements == NULL)
@@ -967,12 +996,23 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser)
         return;
     }
 
-    memmove(new_statements + 1, new_statements, sizeof(ptcl_statement) * count);
-    new_statements[0] = statement;
+    if (count > 0)
+    {
+        memmove(new_statements, statements, sizeof(ptcl_statement) * count);
+        memmove(new_statements + count,
+                new_statements + count - 1,
+                sizeof(ptcl_statement));
+        new_statements[count - 1] = statement;
+    }
+    else
+    {
+        new_statements[0] = statement;
+    }
+
     parser->root->statements = new_statements;
-    parser->root->count += 1;
+    parser->root->count = count + 1;
     parser->root = previous;
-    ptcl_parser_parse_declarations_in_type(parser);
+    ptcl_parser_parse_declarations_in_type(parser, false);
 }
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
@@ -983,7 +1023,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
     size_t position = parser->position;
     size_t original_statements_count = parser->root->count;
     size_t original_instances_count = parser->instances_count;
-    ptcl_parser_parse_declarations_in_type(parser);
+    ptcl_parser_parse_declarations_in_type(parser, with_syntax);
     if (parser->is_critical)
     {
         return (ptcl_type){};
@@ -1064,7 +1104,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
         ptcl_statement_func_body_destroy(*temp);
         parser->root = temp->root;
         free(temp);
-        ptcl_parser_syntax_destroy(parser->last_syntax); 
+        ptcl_parser_syntax_destroy(parser->last_syntax);
     }
 
     if (!parse_success)
@@ -2696,28 +2736,32 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool with_tokens, bool *su
             if (!left_succesful || !right_succesful)
             {
                 goto destroy;
-                return (ptcl_name){};
             }
 
-            char *concatened = ptcl_string(left.word.value, right.word.value, NULL);
-            if (concatened == NULL)
+            char *concatenated = ptcl_string(left.word.value, right.word.value, NULL);
+            if (concatenated == NULL)
             {
                 ptcl_parser_throw_out_of_memory(parser, left.location);
                 goto destroy;
-                return (ptcl_name){};
             }
 
-            if (left_succesful)
+            ptcl_name_destroy(left);
+            ptcl_name_destroy(right);
+            if (with_tokens)
             {
-                ptcl_name_destroy(left);
+                ptcl_token *tokens = malloc(sizeof(ptcl_token));
+                if (tokens == NULL)
+                {
+                    free(concatenated);
+                    ptcl_parser_throw_out_of_memory(parser, current.location);
+                    return (ptcl_name){};
+                }
+
+                tokens[0] = ptcl_token_create(ptcl_token_word_type, concatenated, current.location, true);
+                return ptcl_name_create_tokens(tokens, 1, current.location);
             }
 
-            if (right_succesful)
-            {
-                ptcl_name_destroy(right);
-            }
-
-            return ptcl_name_create(concatened, true, left.location);
+            return ptcl_name_create(concatenated, true, left.location);
         }
 
         ptcl_parser_instance *instance;

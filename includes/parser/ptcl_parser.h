@@ -292,7 +292,7 @@ ptcl_statement_func_body ptcl_parser_parse_func_body(ptcl_parser *parser, bool w
 
 void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root);
 
-void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser);
+void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser, bool is_syntax);
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word);
 
