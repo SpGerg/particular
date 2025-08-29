@@ -51,6 +51,7 @@ typedef enum ptcl_token_type
     ptcl_token_semicolon_type,
     ptcl_token_colon_type,
     ptcl_token_comma_type,
+    ptcl_token_at_type,
     ptcl_token_elipsis_type
 } ptcl_token_type;
 

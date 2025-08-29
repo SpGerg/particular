@@ -260,6 +260,8 @@ tags
 /.emacs.desktop
 /.emacs.desktop.lock
 *.elc
+*.swp
+*.swo
 auto-save-list
 tramp
 .\#*

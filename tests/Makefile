@@ -2,7 +2,7 @@ NAME = ptcl
 CC = gcc
 CFLAGS = -o $(NAME)
 
-SOURCES = $(wildcard ../source/*.c)
+SOURCES = $(wildcard ../sources/*.c)
 LEXER_INCLUDES = ./../includes/lexer/
 PARSER_INCLUDES = ./../includes/parser/
 TRANSPILER_INCLUDES = ./../includes/transpiler/
