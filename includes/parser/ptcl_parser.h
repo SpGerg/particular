@@ -267,7 +267,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_
                                                    ptcl_expression *old_expression, bool *with_expression);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
-    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
+    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
     ptcl_expression *old_expression, bool *with_expression);
 
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser);
@@ -292,7 +292,7 @@ ptcl_statement_func_body ptcl_parser_parse_func_body(ptcl_parser *parser, bool w
 
 void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root);
 
-void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser, bool is_syntax);
+void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax);
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word);
 

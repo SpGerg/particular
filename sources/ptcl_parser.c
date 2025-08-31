@@ -315,8 +315,15 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
     bool placeholder;
     if (ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
     {
+        ptcl_statement statement = ptcl_parser_parse_statement(parser);
+        ptcl_parser_clear_scope(parser);
+
+        ptcl_statement_func_body *temp = parser->root;
+        ptcl_statement_func_body_destroy(*temp);
+        parser->root = temp->root;
+        free(temp);
         ptcl_parser_syntax_destroy(parser->last_syntax);
-        return ptcl_parser_parse_statement(parser);
+        return statement;
     }
 
     if (parser->is_critical)
@@ -601,11 +608,11 @@ static bool ptcl_parser_insert_syntax(
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
                                                    ptcl_expression *old_expression, bool *with_expression)
 {
-    return ptcl_parser_parse_try_parse_syntax_usage(parser, NULL, 0, true, -1, false, is_statement, old_expression, with_expression);
+    return ptcl_parser_parse_try_parse_syntax_usage(parser, NULL, NULL, 0, true, -1, false, is_statement, old_expression, with_expression);
 }
 
 bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
-                                              ptcl_parser_syntax_node *nodes, size_t count,
+                                              ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count,
                                               bool is_free, int down_start, bool skip_first, bool is_statement,
                                               ptcl_expression *old_expression,
                                               bool *with_expression)
@@ -670,11 +677,13 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             if (node.type == ptcl_parser_syntax_node_value_type)
             {
                 bool placeholder;
-                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, syntax.count, false, start, true, true, NULL, &placeholder))
+                ptcl_parser_syntax_node *reallocated_value;
+                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, true, true, NULL, &placeholder))
                 {
                     return true;
                 }
 
+                syntax.nodes = reallocated_value;
                 if (parser->is_critical)
                 {
                     return false;
@@ -773,6 +782,10 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         if (is_free)
         {
             ptcl_parser_syntax_destroy(syntax);
+        }
+        else
+        {
+            *reallocated = syntax.nodes;
         }
     }
 
@@ -963,7 +976,7 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
     }
 }
 
-void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser, bool is_syntax)
+void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
 {
     if (!ptcl_parser_match(parser, ptcl_token_at_type))
     {
@@ -996,16 +1009,21 @@ void ptcl_parser_parse_declarations_in_type(ptcl_parser *parser, bool is_syntax)
         return;
     }
 
-    for (size_t i = new_count - 1; i > 0; i--)
+    size_t insert_position = parser->root->count;
+    if (parser->root->count > 0)
     {
-        new_statements[i] = new_statements[i - 1];
+        insert_position = parser->root->count - 1;
+        for (size_t i = parser->root->count; i > insert_position; i--)
+        {
+            new_statements[i] = new_statements[i - 1];
+        }
     }
 
-    new_statements[0] = statement;
+    new_statements[insert_position] = statement;
     parser->root->statements = new_statements;
     parser->root->count = new_count;
     parser->root = previous;
-    ptcl_parser_parse_declarations_in_type(parser, false);
+    ptcl_parser_parse_extra_body(parser, is_syntax);
 }
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
@@ -1016,7 +1034,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word)
     size_t position = parser->position;
     size_t original_statements_count = parser->root->count;
     size_t original_instances_count = parser->instances_count;
-    ptcl_parser_parse_declarations_in_type(parser, with_syntax);
+    ptcl_parser_parse_extra_body(parser, with_syntax);
     if (parser->is_critical)
     {
         return (ptcl_type){};
@@ -2383,6 +2401,13 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
 
     switch (current.type)
     {
+    case ptcl_token_at_type:
+        parser->position--;
+        ptcl_parser_parse_extra_body(parser, false);
+        if (!parser->is_critical)
+        {
+            return ptcl_parser_parse_binary(parser, except, with_word, true);
+        }
     case ptcl_token_word_type:
         ptcl_parser_instance *variable;
         ptcl_parser_instance *typedata;

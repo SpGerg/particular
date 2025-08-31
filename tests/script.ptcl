@@ -7,6 +7,9 @@ typedata statement(statement_type: integer)
 syntax list([T: static type]) end {
 	@{
 		typedata !<list_ word(T)>(entities: !T*)
+		syntax [left: !<list_ word(T)>].[right: static word] end {
+			printf("Hello, world!")
+		}
 	}
 
 	!<list_ word(T)>
