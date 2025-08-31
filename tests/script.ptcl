@@ -7,8 +7,8 @@ typedata statement(statement_type: integer)
 syntax list([T: static type]) end {
 	@{
 		typedata !<list_ word(T)>(entities: !T*)
-		syntax [left: !<list_ word(T)>].[right: static word] end {
-			printf("Hello, world!")
+		syntax [left: !<list_ word(T)>].append([name: !T]) end {
+			printf("Added!")
 		}
 	}
 
@@ -22,5 +22,6 @@ syntax list([T: static type])() end {
 function main(): integer {
 	other_name: list(>character*) = list(>character*)()
 	foo: list(>integer) = list(>integer)()
+	foo.append(123)
 	return 0
 }

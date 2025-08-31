@@ -639,7 +639,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             const size_t position = parser->position;
             const bool last = parser->add_errors;
             parser->add_errors = false;
-            ptcl_expression value = ptcl_parser_parse_binary(parser, NULL, true, is_statement);
+            ptcl_expression value = ptcl_parser_parse_value(parser, NULL, true, is_statement);
             parser->add_errors = last;
             if (parser->is_critical)
             {
@@ -2341,7 +2341,7 @@ ptcl_expression ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bo
 ptcl_expression ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax)
 {
     ptcl_expression value = ptcl_parser_parse_value(parser, except, with_word, with_syntax);
-    if (parser->is_critical)
+    if (parser->is_critical || (value.return_type.type != ptcl_value_array_type && value.return_type.type != ptcl_value_pointer_type))
     {
         return value;
     }
