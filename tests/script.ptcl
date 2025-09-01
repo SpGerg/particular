@@ -1,6 +1,4 @@
 prototype function printf(content: character*, ...): integer
-prototype function printf_number(content: integer): integer
-prototype function putchar(content: character): integer
 
 typedata statement(statement_type: integer)
 
@@ -19,9 +17,19 @@ syntax list([T: static type])() end {
 	!<list_ word(T)>()
 }
 
+syntax create for me end {
+	@{
+		typedata ~only_here()
+	}
+
+	~only_here()
+}
+
 function main(): integer {
 	other_name: list(>character*) = list(>character*)()
 	foo: list(>integer) = list(>integer)()
 	foo.append(123)
+
+	me := create for me
 	return 0
 }

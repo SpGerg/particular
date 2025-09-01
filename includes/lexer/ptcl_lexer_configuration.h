@@ -4,7 +4,7 @@
 #include <string.h>
 #include <ptcl_token.h>
 
-#define PTCL_LEXER_CONFIGURATION_TOKENS_COUNT 43
+#define PTCL_LEXER_CONFIGURATION_TOKENS_COUNT 45
 #define PTCL_LEXER_CONFIGURATION_ADD_TOKEN(type, value) ptcl_lexer_configuration_add_token(configuration_pointer, type, value); // internal
 
 typedef struct ptcl_lexer_token_config
@@ -49,6 +49,7 @@ static ptcl_lexer_configuration ptcl_lexer_configuration_default()
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_syntax_type, "syntax");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_static_type, "static");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_pointer_type, "pointer");
+    PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_any_type, "any");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_character_word_type, "character");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_word_word_type, "word");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_double_type, "double");
@@ -80,6 +81,7 @@ static ptcl_lexer_configuration ptcl_lexer_configuration_default()
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_colon_type, ":");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_comma_type, ",");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_at_type, "@");
+    PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_tilde_type, "~");
 
     return configuration;
 }

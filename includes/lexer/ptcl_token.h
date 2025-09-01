@@ -14,6 +14,7 @@ typedef enum ptcl_token_type
     ptcl_token_return_type,
     ptcl_token_static_type,
     ptcl_token_pointer_type,
+    ptcl_token_any_type,
     ptcl_token_double_type,
     ptcl_token_float_type,
     ptcl_token_integer_type,
@@ -52,7 +53,8 @@ typedef enum ptcl_token_type
     ptcl_token_colon_type,
     ptcl_token_comma_type,
     ptcl_token_at_type,
-    ptcl_token_elipsis_type
+    ptcl_token_elipsis_type,
+    ptcl_token_tilde_type
 } ptcl_token_type;
 
 typedef struct ptcl_location

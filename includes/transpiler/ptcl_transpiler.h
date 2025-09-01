@@ -19,12 +19,27 @@ typedef struct ptcl_transpiler_function
     ptcl_statement_func_body *root;
 } ptcl_transpiler_function;
 
+typedef struct ptcl_transpiler_anonymous
+{
+    char *original_name;
+    char *alias;
+    ptcl_statement_func_body *root;
+} ptcl_transpiler_anonymous;
+
 static ptcl_transpiler_variable ptcl_transpiler_variable_create(char *name, ptcl_type type, bool is_inner, ptcl_statement_func_body *root)
 {
     return (ptcl_transpiler_variable){
         .name = name,
         .type = type,
         .is_inner = is_inner,
+        .root = root};
+}
+
+static ptcl_transpiler_anonymous ptcl_transpiler_anonymous_create(char *original_name, char *alias, ptcl_statement_func_body *root)
+{
+    return (ptcl_transpiler_anonymous){
+        .original_name = original_name,
+        .alias = alias,
         .root = root};
 }
 
@@ -53,7 +68,7 @@ bool ptcl_transpiler_add_variable(ptcl_transpiler *transpiler, char *name, ptcl_
 
 bool ptcl_transpiler_add_inner_func(ptcl_transpiler *transpiler, char *name, ptcl_statement_func_body *root);
 
-void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler);
+bool ptcl_transpiler_add_anonymous(ptcl_transpiler *transpiler, char *original_name, char *alias, ptcl_statement_func_body *root);
 
 void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body);
 
@@ -65,11 +80,17 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
 
 void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression expression, bool specify_type);
 
-void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier);
+void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier identifier, bool is_declare);
+
+void ptcl_transpiler_add_name(ptcl_transpiler *transpiler, ptcl_name_word name, bool is_declare);
 
 void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool with_array);
 
 void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type);
+
+char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler);
+
+void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler);
 
 void ptcl_transpiler_destroy(ptcl_transpiler *transpiler);
 
