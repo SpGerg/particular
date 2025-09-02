@@ -4,12 +4,14 @@ typedata statement(statement_type: integer)
 type string: character*
 
 syntax test [T: static type] end {
-	function returned(): !T {
-
+	function ~returned(): !T {
+		return 0
 	}
+
+	~returned()
 }
 
 function main(): integer {
-	test >character*
+	test >integer
 	return 0
 }

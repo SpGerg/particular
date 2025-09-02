@@ -270,6 +270,13 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
 ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded)
 {
     ptcl_token current = ptcl_parser_current(parser);
+    if (current.type == ptcl_token_tilde_type)
+    {
+        ptcl_parser_skip(parser);
+        ptcl_statement_type type = ptcl_parser_parse_get_statement(parser, is_finded);
+        parser->position--;
+        return type;
+    }
 
     *is_finded = true;
     switch (current.type)
@@ -309,7 +316,11 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
     bool placeholder;
     if (ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
     {
+        ptcl_statement_func_body *previous = parser->root;
+        parser->is_in_syntax = false;
+        parser->root = previous->root;
         ptcl_statement statement = ptcl_parser_parse_statement(parser);
+        parser->root = previous;
         ptcl_parser_leave_from_syntax(parser);
         return statement;
     }
