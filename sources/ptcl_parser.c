@@ -745,7 +745,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 
             ptcl_expression expression = syntax.nodes[i].value;
             ptcl_parser_instance variable = ptcl_parser_variable_create(
-                ptcl_name_create_fast(syntax_node.variable.name, false).word, syntax_node.variable.type, expression, expression.return_type.is_static, parser->root);
+                ptcl_name_create_fast_w(syntax_node.variable.name, false), syntax_node.variable.type, expression, expression.return_type.is_static, parser->root);
             if (expression.return_type.is_static && expression.return_type.type == ptcl_value_word_type)
             {
                 // After insert it will be destroyed
@@ -1120,7 +1120,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
 
         ptcl_name_word_destroy(name);
     case ptcl_token_word_type:
-        if (ptcl_parser_try_get_instance(parser, ptcl_name_create_fast(current.value, false).word, ptcl_parser_instance_typedata_type, &typedata))
+        if (ptcl_parser_try_get_instance(parser, ptcl_name_create_fast_w(current.value, false), ptcl_parser_instance_typedata_type, &typedata))
         {
             target = ptcl_type_create_typedata(current.value, false);
             break;
@@ -2480,7 +2480,7 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
     case ptcl_token_word_type:
         ptcl_parser_instance *variable;
         ptcl_parser_instance *typedata;
-        ptcl_name_word word_name = ptcl_name_create_fast(current.value, is_anonymous).word;
+        ptcl_name_word word_name = ptcl_name_create_fast_w(current.value, is_anonymous);
         if (ptcl_parser_try_get_instance(parser, word_name, ptcl_parser_instance_variable_type, &variable))
         {
             if (variable->variable.is_built_in)
@@ -2859,7 +2859,7 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool with_tokens, bool *su
         }
 
         ptcl_parser_instance *instance;
-        ptcl_name_word name = ptcl_name_create_fast(current.value, is_anonymous).word;
+        ptcl_name_word name = ptcl_name_create_fast_w(current.value, is_anonymous);
         bool found = ptcl_parser_try_get_instance(parser, name, ptcl_parser_instance_variable_type, &instance);
         if (!found)
         {

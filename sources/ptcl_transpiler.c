@@ -427,7 +427,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
             }
 
             ptcl_type pointer = ptcl_type_create_pointer(&variable.type);
-            ptcl_argument argument = ptcl_argument_create(pointer, ptcl_name_create_fast(variable.name, false).word);
+            ptcl_argument argument = ptcl_argument_create(pointer, ptcl_name_create_fast_w(variable.name, false));
             ptcl_transpiler_add_argument(transpiler, argument);
 
             bool breaked = false;

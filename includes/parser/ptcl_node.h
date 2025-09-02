@@ -398,13 +398,12 @@ static ptcl_name ptcl_name_create_l(char *value, bool is_anonymous, bool is_free
         .word.is_free = false};
 }
 
-static ptcl_name ptcl_name_create_fast(char *value, bool is_anonymous)
+static ptcl_name_word ptcl_name_create_fast_w(char *value, bool is_anonymous)
 {
-    return (ptcl_name){
-        .is_name = true,
-        .word.value = value,
-        .word.is_anonymous = is_anonymous,
-        .word.is_free = false};
+    return (ptcl_name_word){
+        .value = value,
+        .is_anonymous = is_anonymous,
+        .is_free = false};
 }
 
 static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name_word name)
@@ -418,7 +417,7 @@ static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
 {
     return (ptcl_type){
         .type = ptcl_value_typedata_type,
-        .typedata = ptcl_name_create_fast(identifier, is_anonymous).word};
+        .typedata = ptcl_name_create_fast_w(identifier, is_anonymous)};
 }
 
 static ptcl_type ptcl_type_create_array(ptcl_type *type, size_t count)
