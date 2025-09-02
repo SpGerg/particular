@@ -714,7 +714,6 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         }
 
         ptcl_transpiler_append_character(transpiler, '}');
-
         break;
     case ptcl_expression_dot_type:
         ptcl_transpiler_add_expression(transpiler, *expression.dot.left, false);
@@ -900,16 +899,6 @@ void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler)
         }
 
         transpiler->inner_functions_count--;
-    }
-
-    for (int i = transpiler->anonymous_count - 1; i >= 0; i--)
-    {
-        if (transpiler->anonymouses[i].root != transpiler->root)
-        {
-            break;
-        }
-
-        transpiler->anonymous_count--;
     }
 }
 
