@@ -1,6 +1,8 @@
 prototype function printf(content: character*, ...): integer
 typedata statement(statement_type: integer)
 
+type string: character*
+
 function main(): integer {
 	return 0
 }

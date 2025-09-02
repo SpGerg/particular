@@ -278,6 +278,8 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
 
 ptcl_statement_typedata_decl ptcl_parser_parse_typedata_decl(ptcl_parser *parser, bool is_prototype);
 
+ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool is_prototype);
+
 ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser);
 
 ptcl_statement_return ptcl_parser_parse_return(ptcl_parser *parser);
@@ -351,6 +353,8 @@ void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location
 void ptcl_parser_throw_except_token(ptcl_parser *parser, char *value, ptcl_location location);
 
 void ptcl_parser_throw_incorrect_type(ptcl_parser *parser, char *excepted, char *received, ptcl_location location);
+
+void ptcl_parser_throw_fast_incorrect_type(ptcl_parser *parser, ptcl_type excepted, ptcl_type received, ptcl_location location);
 
 void ptcl_parser_throw_variable_redefination(ptcl_parser *parser, char *name, ptcl_location location);
 

@@ -15,6 +15,7 @@ typedef enum ptcl_statement_type
     ptcl_statement_func_call_type,
     ptcl_statement_func_decl_type,
     ptcl_statement_typedata_decl_type,
+    ptcl_statement_type_decl_type,
     ptcl_statement_assign_type,
     ptcl_statement_return_type,
     ptcl_statement_each_type,
@@ -114,14 +115,40 @@ typedef struct ptcl_identifier
     };
 } ptcl_identifier;
 
+typedef struct ptcl_type_pointer
+{
+    ptcl_type *target;
+    bool is_any;
+} ptcl_type_pointer;
+
+typedef struct ptcl_type_array
+{
+    ptcl_type *target;
+    int count;
+} ptcl_type_array;
+
+typedef struct ptcl_type_comp_type
+{
+    ptcl_name_word identifier;
+    ptcl_type *types;
+    size_t count;
+    bool is_any;
+} ptcl_type_comp_type;
+
 typedef struct ptcl_type
 {
     ptcl_value_type type;
-    ptcl_type *target;
-    ptcl_name_word identifier;
-    int count;
     bool is_primitive;
     bool is_static;
+
+    union
+    {
+        ptcl_type_comp_type comp_type;
+        ptcl_name_word typedata;
+        ptcl_type_pointer pointer;
+        ptcl_type_array array;
+        ptcl_type *object_type;
+    };
 } ptcl_type;
 
 typedef struct ptcl_argument
@@ -131,23 +158,24 @@ typedef struct ptcl_argument
     bool is_variadic;
 } ptcl_argument;
 
-static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_any_type = {.type = ptcl_value_object_type_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any_type = {
+    .type = ptcl_value_object_type_type, .comp_type = (ptcl_type_comp_type){.is_any = true}, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = true};
+static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
 
-static ptcl_type ptcl_type_character = {.type = ptcl_value_character_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_character = {.type = ptcl_value_character_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_double = {.type = ptcl_value_double_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_double = {.type = ptcl_value_double_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_float = {.type = ptcl_value_float_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_float = {.type = ptcl_value_float_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_integer = {.type = ptcl_value_integer_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_integer = {.type = ptcl_value_integer_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_void = {.type = ptcl_value_void_type, .target = NULL, .identifier = NULL, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_void = {.type = ptcl_value_void_type, .is_primitive = true, .is_static = false};
 
 typedef struct ptcl_expression_variable
 {
@@ -281,6 +309,16 @@ typedef struct ptcl_statement_typedata_decl
     bool is_prototype;
 } ptcl_statement_typedata_decl;
 
+typedef struct ptcl_statement_type_decl
+{
+    ptcl_name_word name;
+    ptcl_type *types;
+    size_t types_count;
+    ptcl_statement_func_decl *functions;
+    size_t functions_count;
+    bool is_prototype;
+} ptcl_statement_type_decl;
+
 typedef struct ptcl_statement_assign
 {
     ptcl_identifier identifier;
@@ -314,6 +352,7 @@ typedef struct ptcl_statement
         ptcl_statement_func_call func_call;
         ptcl_statement_func_decl func_decl;
         ptcl_statement_typedata_decl typedata_decl;
+        ptcl_statement_type_decl type_decl;
         ptcl_statement_assign assign;
         ptcl_statement_return ret;
         ptcl_statement_if if_stat;
@@ -364,34 +403,32 @@ static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
 {
     return (ptcl_type){
         .type = ptcl_value_typedata_type,
-        .identifier = ptcl_name_create_fast(identifier, is_anonymous).word,
-        .target = NULL,
-        .count = 0};
+        .typedata = ptcl_name_create_fast(identifier, is_anonymous).word};
 }
 
 static ptcl_type ptcl_type_create_array(ptcl_type *type, size_t count)
 {
     return (ptcl_type){
         .type = ptcl_value_array_type,
-        .target = type,
-        .identifier = NULL,
-        .count = count};
+        .array = (ptcl_type_array){
+            .target = type,
+            .count = count}};
 }
 
 static ptcl_type ptcl_type_create_object_type(ptcl_type *type)
 {
     return (ptcl_type){
         .type = ptcl_value_object_type_type,
-        .target = type,
-        .identifier = NULL};
+        .object_type = type};
 }
 
 static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
 {
     return (ptcl_type){
         .type = ptcl_value_pointer_type,
-        .target = type,
-        .identifier = NULL};
+        .pointer = (ptcl_type_pointer){
+            .target = type,
+            .is_any = false}};
 }
 
 static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement *statements, size_t count, ptcl_statement_func_body *root)
@@ -475,7 +512,7 @@ static ptcl_expression ptcl_expression_create_character(char character, ptcl_loc
 static ptcl_expression ptcl_expression_create_characters(ptcl_expression *expressions, size_t count, ptcl_location location)
 {
     ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, count);
-    array_type.target->is_static = true;
+    array_type.array.target->is_static = true;
 
     return (ptcl_expression){
         .type = ptcl_expression_array_type,
@@ -519,6 +556,21 @@ static ptcl_expression ptcl_expression_create_object_type(ptcl_type return_type,
             .type = type}};
 }
 
+static ptcl_statement_type_decl ptcl_statement_type_decl_create(
+    ptcl_name_word name,
+    ptcl_type *types, size_t types_count,
+    ptcl_statement_func_decl *functions, size_t functions_count,
+    bool is_prototype)
+{
+    return (ptcl_statement_type_decl){
+        .name = name,
+        .types = types,
+        .types_count = types_count,
+        .functions = functions,
+        .functions_count = functions_count,
+        .is_prototype = is_prototype};
+}
+
 static bool ptcl_name_word_compare(ptcl_name_word left, ptcl_name_word right)
 {
     return strcmp(left.value, right.value) == 0 && left.is_anonymous == right.is_anonymous;
@@ -533,6 +585,19 @@ static bool ptcl_value_type_is_name(ptcl_value_type type)
         return true;
     default:
         return false;
+    }
+}
+
+static ptcl_type *ptcl_type_get_target(ptcl_type type)
+{
+    switch (type.type)
+    {
+    case ptcl_value_pointer_type:
+        return type.pointer.target;
+    case ptcl_value_array_type:
+        return type.array.target;
+    default:
+        return NULL;
     }
 }
 
@@ -662,7 +727,7 @@ static ptcl_expression ptcl_expression_array_element_create(ptcl_expression *chi
 {
     return (ptcl_expression){
         .type = ptcl_expression_array_element_type,
-        .return_type = *children[0].return_type.target,
+        .return_type = *children[0].return_type.array.target,
         .location = location,
         .array_element = (ptcl_expression_array_element){
             children = children}};
@@ -896,23 +961,74 @@ static ptcl_expression ptcl_expression_unary_static_evaluate(ptcl_expression exp
 static ptcl_type ptcl_type_copy(ptcl_type type)
 {
     ptcl_type copy = type;
-    if (type.target != NULL)
+    switch (type.type)
     {
-        copy.target = malloc(sizeof(ptcl_type));
-        if (copy.target != NULL)
+    case ptcl_value_object_type_type:
+        if (type.object_type != NULL)
         {
-            *copy.target = ptcl_type_copy(*type.target);
-        }
-        else
-        {
-            copy.target = NULL;
+            copy.object_type = malloc(sizeof(ptcl_type));
+            if (copy.object_type != NULL)
+            {
+                *copy.object_type = ptcl_type_copy(*type.object_type);
+            }
+            else
+            {
+                copy.object_type = NULL;
+            }
         }
 
-        copy.target->is_primitive = false;
+        break;
+    case ptcl_value_pointer_type:
+        if (type.pointer.target != NULL)
+        {
+            copy.pointer.target = malloc(sizeof(ptcl_type));
+            if (copy.pointer.target != NULL)
+            {
+                *copy.pointer.target = ptcl_type_copy(*type.pointer.target);
+            }
+            else
+            {
+                copy.pointer.target = NULL;
+            }
+        }
+
+        copy.pointer.is_any = type.pointer.is_any;
+        break;
+    case ptcl_value_array_type:
+        if (type.array.target != NULL)
+        {
+            copy.array.target = malloc(sizeof(ptcl_type));
+            if (copy.array.target != NULL)
+            {
+                *copy.array.target = ptcl_type_copy(*type.array.target);
+            }
+            else
+            {
+                copy.array.target = NULL;
+            }
+        }
+
+        copy.array.count = type.array.count;
+        break;
+    case ptcl_value_typedata_type:
+    case ptcl_value_word_type:
+    case ptcl_value_character_type:
+    case ptcl_value_double_type:
+    case ptcl_value_float_type:
+    case ptcl_value_integer_type:
+    case ptcl_value_any_pointer_type:
+    case ptcl_value_any_type:
+    case ptcl_value_type_type:
+    case ptcl_value_void_type:
+        copy.typedata = type.typedata;
+        break;
+    default:
+        break;
     }
 
     return copy;
 }
+
 static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_location location)
 {
     switch (target.type)
@@ -1366,15 +1482,15 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
     switch (type.type)
     {
     case ptcl_value_typedata_type:
-        name = ptcl_string("typedata_", type.identifier, "_", NULL);
+        name = ptcl_string("typedata_", type.typedata.value, "_", NULL);
         break;
     case ptcl_value_array_type:
-        char *array_name = ptcl_type_to_word_copy(*type.target);
+        char *array_name = ptcl_type_to_word_copy(*type.array.target);
         name = ptcl_string("array_", array_name, "_", NULL);
         free(array_name);
         break;
     case ptcl_value_pointer_type:
-        char *pointer_name = ptcl_type_to_word_copy(*type.target);
+        char *pointer_name = ptcl_type_to_word_copy(*type.pointer.target);
         name = ptcl_string("pointer_", pointer_name, "_", NULL);
         free(pointer_name);
         break;
@@ -1417,15 +1533,15 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     switch (type.type)
     {
     case ptcl_value_typedata_type:
-        name = ptcl_string(is_static, "typedata (", type.identifier, ")", NULL);
+        name = ptcl_string(is_static, "typedata (", type.typedata.value, ")", NULL);
         break;
     case ptcl_value_array_type:
-        char *array_name = ptcl_type_to_present_string_copy(*type.target);
+        char *array_name = ptcl_type_to_present_string_copy(*type.array.target);
         name = ptcl_string(is_static, "array (", array_name, ")", NULL);
         free(array_name);
         break;
     case ptcl_value_pointer_type:
-        char *pointer_name = ptcl_type_to_present_string_copy(*type.target);
+        char *pointer_name = ptcl_type_to_present_string_copy(*type.pointer.target);
         name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
         free(pointer_name);
         break;
@@ -1480,59 +1596,86 @@ static bool ptcl_func_body_can_access(ptcl_statement_func_body *target, ptcl_sta
     return true;
 }
 
-static bool ptcl_type_equals(ptcl_type excepted, ptcl_type target)
+static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
 {
-    if (excepted.is_static && !target.is_static)
+    if (expected.is_static && !target.is_static)
     {
         return false;
     }
 
-    if (excepted.type == ptcl_value_any_type)
+    if (expected.type == ptcl_value_any_type)
     {
         return true;
     }
 
-    if (excepted.type == ptcl_value_any_pointer_type)
+    if (expected.type == ptcl_value_any_pointer_type)
     {
-        return target.type == ptcl_value_pointer_type || target.type == ptcl_value_array_type;
+        return target.type == ptcl_value_pointer_type ||
+               target.type == ptcl_value_array_type ||
+               target.type == ptcl_value_any_pointer_type;
     }
 
-    if (excepted.type == ptcl_value_pointer_type)
+    if (expected.type != target.type)
     {
-        if (target.type == ptcl_value_pointer_type || target.type == ptcl_value_array_type)
+        if (expected.type == ptcl_value_float_type &&
+            target.type == ptcl_value_integer_type)
         {
-            return ptcl_type_equals(*excepted.target, *target.target);
+            return true;
+        }
+
+        if (expected.type == ptcl_value_double_type &&
+            (target.type == ptcl_value_float_type ||
+             target.type == ptcl_value_integer_type))
+        {
+            return true;
         }
 
         return false;
     }
 
-    if (excepted.type == ptcl_value_array_type)
+    switch (expected.type)
     {
-        if (target.type == ptcl_value_array_type)
-        {
-            return ptcl_type_equals(*excepted.target, *target.target);
-        }
+    case ptcl_value_pointer_type:
+        if (expected.pointer.is_any || target.pointer.is_any)
+            return true;
 
-        return false;
-    }
-
-    if (excepted.type == ptcl_value_float_type)
-    {
-        return target.type == ptcl_value_float_type || target.type == ptcl_value_integer_type;
-    }
-
-    if (excepted.type == ptcl_value_type_type)
-    {
-        if (target.identifier.value == NULL)
+        return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
+    case ptcl_value_array_type:
+        return ptcl_type_equals(*expected.array.target, *target.array.target);
+    case ptcl_value_object_type_type:
+        return ptcl_type_equals(*expected.object_type, *target.object_type);
+    case ptcl_value_typedata_type:
+        if (!ptcl_name_word_compare(expected.comp_type.identifier, target.comp_type.identifier))
         {
             return false;
         }
 
-        return ptcl_name_word_compare(excepted.identifier, target.identifier);
-    }
+        if (expected.comp_type.count != target.comp_type.count)
+        {
+            return false;
+        }
 
-    return excepted.type == target.type;
+        for (size_t i = 0; i < expected.comp_type.count; i++)
+        {
+            if (!ptcl_type_equals(expected.comp_type.types[i], target.comp_type.types[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    case ptcl_value_type_type:
+        return ptcl_name_word_compare(expected.typedata, target.typedata);
+    case ptcl_value_word_type:
+    case ptcl_value_character_type:
+    case ptcl_value_double_type:
+    case ptcl_value_float_type:
+    case ptcl_value_integer_type:
+    case ptcl_value_void_type:
+        return true;
+    default:
+        return true;
+    }
 }
 
 static void ptcl_name_word_destroy(ptcl_name_word name)
@@ -1593,15 +1736,48 @@ static void ptcl_expression_if_destroy(ptcl_expression_if if_expr)
 
 static void ptcl_type_destroy(ptcl_type type)
 {
-    if (type.target != NULL)
+    switch (type.type)
     {
-        ptcl_type_destroy(*type.target);
-        if (!type.target->is_primitive)
+    case ptcl_value_pointer_type:
+        if (type.pointer.target != NULL)
         {
-            free(type.target);
+            ptcl_type_destroy(*type.pointer.target);
+            free(type.pointer.target);
+            type.pointer.target = NULL;
         }
 
-        type.target = NULL;
+        break;
+    case ptcl_value_array_type:
+        if (type.array.target != NULL)
+        {
+            ptcl_type_destroy(*type.array.target);
+            free(type.array.target);
+            type.array.target = NULL;
+        }
+
+        break;
+    case ptcl_value_object_type_type:
+        if (type.object_type != NULL)
+        {
+            ptcl_type_destroy(*type.object_type);
+            free(type.object_type);
+            type.object_type = NULL;
+        }
+
+        break;
+    case ptcl_value_typedata_type:
+    case ptcl_value_word_type:
+    case ptcl_value_character_type:
+    case ptcl_value_double_type:
+    case ptcl_value_float_type:
+    case ptcl_value_integer_type:
+    case ptcl_value_any_pointer_type:
+    case ptcl_value_any_type:
+    case ptcl_value_type_type:
+    case ptcl_value_void_type:
+        break;
+    default:
+        break;
     }
 }
 
@@ -1664,6 +1840,30 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
         }
 
         free(func_decl.arguments);
+    }
+}
+
+static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
+{
+    ptcl_name_word_destroy(type_decl.name);
+    if (type_decl.types_count > 0)
+    {
+        for (size_t i = 0; i < type_decl.types_count; i++)
+        {
+            ptcl_type_destroy(type_decl.types[i]);
+        }
+
+        free(type_decl.types);
+    }
+
+    if (type_decl.functions_count > 0)
+    {
+        for (size_t i = 0; i < type_decl.functions_count; i++)
+        {
+            ptcl_statement_func_decl_destroy(type_decl.functions[i]);
+        }
+
+        free(type_decl.functions);
     }
 }
 
@@ -1783,7 +1983,7 @@ static void ptcl_expression_destroy(ptcl_expression expression)
         {
             ptcl_name_word_destroy(expression.dot.name);
         }
-        
+
         ptcl_expression_destroy(*expression.dot.left);
         free(expression.dot.left);
         break;

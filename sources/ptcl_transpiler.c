@@ -36,7 +36,7 @@ static void ptcl_transpiler_add_arrays_length_arguments(ptcl_transpiler *transpi
     ptcl_transpiler_append_word(transpiler, length);
     free(length);
 
-    ptcl_transpiler_add_arrays_length_arguments(transpiler, name, *type.target, ++count);
+    ptcl_transpiler_add_arrays_length_arguments(transpiler, name, *ptcl_type_get_target(type), ++count);
 }
 
 static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_type type, bool from_position)
@@ -46,15 +46,15 @@ static void ptcl_transpiler_add_arrays_length(ptcl_transpiler *transpiler, ptcl_
         return;
     }
 
-    size_t count = type.count;
+    size_t count = type.array.count;
     ptcl_transpiler_append_character(transpiler, ',');
     char *length = ptcl_from_long(count);
     ptcl_transpiler_append_word_s(transpiler, length);
     free(length);
 
-    if (type.target->type == ptcl_value_array_type)
+    if (type.array.target->type == ptcl_value_array_type)
     {
-        ptcl_transpiler_add_arrays_length(transpiler, *type.target, from_position);
+        ptcl_transpiler_add_arrays_length(transpiler, *type.array.target, from_position);
     }
 }
 
@@ -66,7 +66,7 @@ static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, p
     }
 
     ptcl_transpiler_append_character(transpiler, '[');
-    char *number = ptcl_from_long(type.count);
+    char *number = ptcl_from_long(type.array.count);
     if (number != NULL)
     {
         ptcl_transpiler_append_word_s(transpiler, number);
@@ -74,7 +74,7 @@ static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, p
     }
 
     ptcl_transpiler_append_character(transpiler, ']');
-    ptcl_transpiler_add_array_dimensional(transpiler, *type.target);
+    ptcl_transpiler_add_array_dimensional(transpiler, *type.array.target);
 }
 
 ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
@@ -596,7 +596,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
     switch (expression.type)
     {
     case ptcl_expression_array_type:
-        if (expression.return_type.is_static && expression.return_type.target->type == ptcl_value_character_type)
+        if (expression.return_type.is_static && ptcl_type_get_target(expression.return_type)->type == ptcl_value_character_type)
         {
             ptcl_transpiler_append_character(transpiler, '\"');
             // -1 because of end of line symbol
@@ -771,10 +771,10 @@ void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool 
     switch (type.type)
     {
     case ptcl_value_typedata_type:
-        ptcl_transpiler_add_name(transpiler, type.identifier, false);
+        ptcl_transpiler_add_name(transpiler, type.typedata, false);
         break;
     case ptcl_value_array_type:
-        ptcl_transpiler_add_type(transpiler, *type.target, with_array);
+        ptcl_transpiler_add_type(transpiler, *type.array.target, with_array);
 
         if (with_array)
         {
@@ -784,7 +784,7 @@ void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool 
 
         break;
     case ptcl_value_pointer_type:
-        ptcl_transpiler_add_type(transpiler, *type.target, with_array);
+        ptcl_transpiler_add_type(transpiler, *type.pointer.target, with_array);
         ptcl_transpiler_append_character(transpiler, '*');
         break;
     case ptcl_value_word_type:
