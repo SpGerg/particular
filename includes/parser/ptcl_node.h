@@ -185,7 +185,7 @@ static ptcl_type ptcl_type_void = {.type = ptcl_value_void_type, .is_primitive =
 
 typedef struct ptcl_expression_variable
 {
-    ptcl_name name;
+    ptcl_name_word name;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -389,6 +389,15 @@ static ptcl_name ptcl_anonymous_name_create(char *value, bool is_free, ptcl_loca
         .word.is_free = is_free};
 }
 
+static ptcl_name ptcl_name_create_l(char *value, bool is_anonymous, bool is_free, ptcl_location location)
+{
+    return (ptcl_name){
+        .is_name = true,
+        .word.value = value,
+        .word.is_anonymous = is_anonymous,
+        .word.is_free = false};
+}
+
 static ptcl_name ptcl_name_create_fast(char *value, bool is_anonymous)
 {
     return (ptcl_name){
@@ -542,7 +551,7 @@ static ptcl_expression ptcl_expression_create_array(ptcl_type type, ptcl_express
             .count = count}};
 }
 
-static ptcl_expression ptcl_expression_create_variable(ptcl_name name, ptcl_type type, ptcl_location location)
+static ptcl_expression ptcl_expression_create_variable(ptcl_name_word name, ptcl_type type, ptcl_location location)
 {
     return (ptcl_expression){
         .type = ptcl_expression_variable_type,
@@ -630,7 +639,7 @@ static char *ptcl_expression_get_name(ptcl_expression expression)
 {
     if (expression.type == ptcl_expression_variable_type)
     {
-        return expression.variable.name.word.value;
+        return expression.variable.name.value;
     }
     else if (expression.type == ptcl_expression_unary_type)
     {

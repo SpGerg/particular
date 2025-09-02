@@ -109,7 +109,7 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_instance ptcl_parser_variable_create(char *name, ptcl_type type, ptcl_expression built_in, bool is_built_in, ptcl_statement_func_body *root)
+static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptcl_type type, ptcl_expression built_in, bool is_built_in, ptcl_statement_func_body *root)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_variable_type,

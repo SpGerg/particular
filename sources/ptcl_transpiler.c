@@ -631,12 +631,12 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, '}');
         break;
     case ptcl_expression_variable_type:
-        if (ptcl_transpiler_is_inner(transpiler, expression.variable.name.word.value))
+        if (ptcl_transpiler_is_inner(transpiler, expression.variable.name.value))
         {
             ptcl_transpiler_append_character(transpiler, '*');
         }
 
-        ptcl_transpiler_append_word_s(transpiler, expression.variable.name.word.value);
+        ptcl_transpiler_add_name(transpiler, expression.variable.name, false);
         break;
     case ptcl_expression_word_type:
         ptcl_transpiler_append_character(transpiler, '\"');
