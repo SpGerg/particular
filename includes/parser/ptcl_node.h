@@ -1930,6 +1930,9 @@ static void ptcl_statement_destroy(ptcl_statement statement)
     case ptcl_statement_if_type:
         ptcl_statement_if_destroy(statement.if_stat);
         break;
+    case ptcl_statement_type_decl_type:
+        ptcl_statement_type_decl_destroy(statement.type_decl);
+        break;
     case ptcl_statement_func_body_type:
         ptcl_statement_func_body_destroy(statement.body);
         break;
