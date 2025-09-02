@@ -127,6 +127,12 @@ typedef struct ptcl_type_array
     int count;
 } ptcl_type_array;
 
+typedef struct ptcl_type_object_type
+{
+    ptcl_type *target;
+    bool is_any;
+} ptcl_type_object_type;
+
 typedef struct ptcl_type_comp_type
 {
     ptcl_name_word identifier;
@@ -147,7 +153,7 @@ typedef struct ptcl_type
         ptcl_name_word typedata;
         ptcl_type_pointer pointer;
         ptcl_type_array array;
-        ptcl_type *object_type;
+        ptcl_type_object_type object_type;
     };
 } ptcl_type;
 
@@ -163,7 +169,7 @@ static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .is_primitive = t
 static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
-    .type = ptcl_value_object_type_type, .comp_type = (ptcl_type_comp_type){.is_any = true}, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.is_any = true}, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
 
@@ -964,16 +970,16 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     switch (type.type)
     {
     case ptcl_value_object_type_type:
-        if (type.object_type != NULL)
+        if (type.object_type.target != NULL)
         {
-            copy.object_type = malloc(sizeof(ptcl_type));
-            if (copy.object_type != NULL)
+            copy.object_type.target = malloc(sizeof(ptcl_type));
+            if (copy.object_type.target != NULL)
             {
-                *copy.object_type = ptcl_type_copy(*type.object_type);
+                *copy.object_type.target = ptcl_type_copy(*type.object_type.target);
             }
             else
             {
-                copy.object_type = NULL;
+                copy.object_type.target = NULL;
             }
         }
 
@@ -1643,7 +1649,12 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     case ptcl_value_array_type:
         return ptcl_type_equals(*expected.array.target, *target.array.target);
     case ptcl_value_object_type_type:
-        return ptcl_type_equals(*expected.object_type, *target.object_type);
+        if (expected.object_type.is_any)
+        {
+            return true;
+        }
+
+        return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
     case ptcl_value_typedata_type:
         if (!ptcl_name_word_compare(expected.comp_type.identifier, target.comp_type.identifier))
         {
@@ -1757,11 +1768,11 @@ static void ptcl_type_destroy(ptcl_type type)
 
         break;
     case ptcl_value_object_type_type:
-        if (type.object_type != NULL)
+        if (type.object_type.target != NULL)
         {
-            ptcl_type_destroy(*type.object_type);
-            free(type.object_type);
-            type.object_type = NULL;
+            ptcl_type_destroy(*type.object_type.target);
+            free(type.object_type.target);
+            type.object_type.target = NULL;
         }
 
         break;

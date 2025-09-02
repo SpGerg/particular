@@ -3,6 +3,13 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
+syntax test [T: static type] end {
+	function returned(): !T {
+
+	}
+}
+
 function main(): integer {
+	test >character*
 	return 0
 }
