@@ -112,6 +112,11 @@ char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
     ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false);
 
     char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
+    for (size_t i = 0; i < transpiler->anonymous_count; i++)
+    {
+        free(transpiler->anonymouses[i].alias);
+    }
+
     return result;
 }
 
@@ -120,12 +125,12 @@ bool ptcl_transpiler_append_word_s(ptcl_transpiler *transpiler, char *word)
     if (transpiler->from_position)
     {
         ptcl_string_buffer_insert_str(transpiler->string_buffer, word, strlen(word));
-        ptcl_string_buffer_insert(transpiler->string_buffer, ' ');
+        return ptcl_string_buffer_insert(transpiler->string_buffer, ' ');
     }
     else
     {
         ptcl_transpiler_append_word(transpiler, word);
-        ptcl_transpiler_append_character(transpiler, ' ');
+        return ptcl_transpiler_append_character(transpiler, ' ');
     }
 }
 
@@ -133,11 +138,11 @@ bool ptcl_transpiler_append_word(ptcl_transpiler *transpiler, char *word)
 {
     if (transpiler->from_position)
     {
-        ptcl_string_buffer_insert_str(transpiler->string_buffer, word, strlen(word));
+        return ptcl_string_buffer_insert_str(transpiler->string_buffer, word, strlen(word));
     }
     else
     {
-        ptcl_string_buffer_append_str(transpiler->string_buffer, word, strlen(word));
+        return ptcl_string_buffer_append_str(transpiler->string_buffer, word, strlen(word));
     }
 }
 
@@ -145,11 +150,11 @@ bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char characte
 {
     if (transpiler->from_position)
     {
-        ptcl_string_buffer_insert(transpiler->string_buffer, character);
+        return ptcl_string_buffer_insert(transpiler->string_buffer, character);
     }
     else
     {
-        ptcl_string_buffer_append(transpiler->string_buffer, character);
+        return ptcl_string_buffer_append(transpiler->string_buffer, character);
     }
 }
 
@@ -234,6 +239,7 @@ bool ptcl_transpiler_add_anonymous(ptcl_transpiler *transpiler, char *original_n
 
     transpiler->anonymouses = buffer;
     transpiler->anonymouses[transpiler->anonymous_count++] = ptcl_transpiler_anonymous_create(original_name, alias, root);
+    return true;
 }
 
 void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body)
@@ -863,13 +869,14 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
 
 char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler)
 {
-    char *anonymous_name = malloc(64 * sizeof(char));
+    const int max_digits = 20; // Cant be more than int
+    char *anonymous_name = malloc(max_digits * sizeof(char));
     if (anonymous_name == NULL)
     {
         return NULL;
     }
 
-    snprintf(anonymous_name, 64, "__ptcl_anonymous_%d", transpiler->anonymous_count);
+    snprintf(anonymous_name, max_digits, "__ptcl_anonymous_%d", transpiler->anonymous_count);
     return anonymous_name;
 }
 

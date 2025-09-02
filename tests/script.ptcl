@@ -1,35 +1,6 @@
 prototype function printf(content: character*, ...): integer
-
 typedata statement(statement_type: integer)
 
-syntax list([T: static type]) end {
-	@{
-		typedata !<list_ word(T)>(entities: !T*)
-		syntax [left: !<list_ word(T)>].append([name: !T]) end {
-			printf("Added!")
-		}
-	}
-
-	!<list_ word(T)>
-}
-
-syntax list([T: static type])() end {
-	!<list_ word(T)>()
-}
-
-syntax create for me end {
-	@{
-		typedata ~only_here()
-	}
-
-	~only_here()
-}
-
 function main(): integer {
-	other_name: list(>character*) = list(>character*)()
-	foo: list(>integer) = list(>integer)()
-	foo.append(123)
-
-	me := create for me
 	return 0
 }
