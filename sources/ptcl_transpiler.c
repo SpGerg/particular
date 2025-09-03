@@ -534,7 +534,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
         }
         else
         {
-            transpiler->in_inner = false;
+            transpiler->from_position = false;
         }
     }
 }
