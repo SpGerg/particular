@@ -809,11 +809,6 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         ptcl_parser_replace_words(parser, start + result.tokens_count);
         parser->last_syntax = syntax;
         parser->is_in_syntax = true;
-        // We need know where we need stop parsing
-        if (!is_statement)
-        {
-            parser->position = start;
-        }
     }
     else
     {
@@ -2109,8 +2104,10 @@ ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except,
 {
     ptcl_expression syntax_expression;
     bool with_expression = false;
+    size_t start = parser->position;
     if (with_syntax && ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &syntax_expression, &with_expression))
     {
+        parser->position = start;
         ptcl_expression expression = ptcl_parser_parse_binary(parser, except, with_word, true);
         ptcl_parser_leave_from_syntax(parser);
         return expression;

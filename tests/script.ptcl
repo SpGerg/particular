@@ -3,6 +3,10 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
+syntax multiple [left: static integer] [right: static integer] end {
+	left * right
+}
+
 syntax test [T: static type]([value: integer]) end {
 	function ~returned(): !T {
 		~variable := value
@@ -13,6 +17,7 @@ syntax test [T: static type]([value: integer]) end {
 }
 
 function main(): integer {
+	value := multiple 2 4
 	test >integer(16)
 	test >float(16)
 	return 0
