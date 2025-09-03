@@ -3,9 +3,9 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
-syntax test [T: static type] end {
+syntax test [T: static type]([value: integer]) end {
 	function ~returned(): !T {
-		~variable := 2
+		~variable := value
 		return ~variable
 	}
 
@@ -13,6 +13,7 @@ syntax test [T: static type] end {
 }
 
 function main(): integer {
-	test >integer
+	test >integer(16)
+	test >float(16)
 	return 0
 }

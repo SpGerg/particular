@@ -519,7 +519,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
             transpiler->length = length;
         }
 
-        ptcl_transpiler_add_func_body(transpiler, func_decl.func_body, true, !is_root);
+        ptcl_transpiler_add_func_body(transpiler, *func_decl.func_body, true, !is_root);
         if (!is_root)
         {
             transpiler->start = previous_start;

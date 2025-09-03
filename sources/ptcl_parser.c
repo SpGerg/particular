@@ -283,6 +283,8 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
     {
     case ptcl_token_exclamation_mark_type:
         return ptcl_statement_assign_type;
+    case ptcl_token_at_type:
+        return ptcl_statement_func_body_type;
     case ptcl_token_word_type:
         if (ptcl_parser_peek(parser, 1).type == ptcl_token_left_par_type)
         {
@@ -314,15 +316,44 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
 {
     bool placeholder;
+    size_t start = parser->position;
     if (ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
     {
-        ptcl_statement_func_body *previous = parser->root;
-        parser->is_in_syntax = false;
-        parser->root = previous->root;
-        ptcl_statement statement = ptcl_parser_parse_statement(parser);
-        parser->root = previous;
+        size_t stop = parser->position;
+        parser->position = start;
+
+        ptcl_statement_func_body *body = parser->root->root;
+        while (parser->position != stop)
+        {
+            if (ptcl_parser_ended(parser))
+            {
+                ptcl_parser_leave_from_syntax(parser);
+                return (ptcl_statement){.type = ptcl_statement_func_body_type};
+            }
+
+            ptcl_statement statement = ptcl_parser_parse_statement(parser);
+            if (parser->is_critical)
+            {
+                ptcl_parser_leave_from_syntax(parser);
+                return (ptcl_statement){};
+            }
+
+            ptcl_statement *buffer = realloc(body->statements, (body->count + 1) * sizeof(ptcl_statement));
+            if (buffer == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+                ptcl_parser_leave_from_syntax(parser);
+                ptcl_statement_destroy(statement);
+                return (ptcl_statement){};
+            }
+
+            body->statements = buffer;
+            body->statements[body->count++] = statement;
+        }
+
         ptcl_parser_leave_from_syntax(parser);
-        return statement;
+        parser->root = body;
+        return (ptcl_statement){.type = ptcl_statement_func_body_type};
     }
 
     if (parser->is_critical)
@@ -394,6 +425,12 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
             ptcl_parser_parse_syntax(parser);
             statement = (ptcl_statement){
                 .type = ptcl_statement_syntax_type,
+                .location = location};
+            break;
+        case ptcl_statement_func_body_type:
+            ptcl_parser_parse_extra_body(parser, parser->is_in_syntax);
+            statement = (ptcl_statement){
+                .type = ptcl_statement_func_body_type,
                 .location = location};
             break;
         }
@@ -772,7 +809,11 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         ptcl_parser_replace_words(parser, start + result.tokens_count);
         parser->last_syntax = syntax;
         parser->is_in_syntax = true;
-        parser->position = start;
+        // We need know where we need stop parsing
+        if (!is_statement)
+        {
+            parser->position = start;
+        }
     }
     else
     {
@@ -964,7 +1005,7 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
             break;
         }
 
-        if (statement.type == ptcl_statement_each_type || statement.type == ptcl_statement_syntax_type)
+        if (ptcl_statement_is_skip(statement.type))
         {
             continue;
         }
@@ -1237,7 +1278,16 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
     ptcl_statement_func_body func_body = ptcl_statement_func_body_create(NULL, 0, parser->root);
 
     // We set prototype, because on freeing we dont have body
-    ptcl_statement_func_decl func_decl = ptcl_statement_func_decl_create(name, NULL, 0, func_body, ptcl_type_integer, true, false);
+    ptcl_statement_func_decl func_decl = ptcl_statement_func_decl_create(name, NULL, 0, NULL, ptcl_type_integer, true, false);
+    func_decl.func_body = malloc(sizeof(ptcl_statement_func_body));
+    if (func_decl.func_body == NULL)
+    {
+        ptcl_name_word_destroy(name);
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return (ptcl_statement_func_decl){};
+    }
+
+    *func_decl.func_body = ptcl_statement_func_body_create(NULL, 0, parser->root);
     bool is_variadic = false;
 
     while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
@@ -1332,13 +1382,12 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
 
     if (!is_prototype)
     {
-        ptcl_statement_func_body *pointer = &func_decl.func_body;
         ptcl_type *previous_type = parser->return_type;
         parser->return_type = &return_type;
         for (size_t i = 0; i < func_decl.count; i++)
         {
             ptcl_argument argument = func_decl.arguments[i];
-            ptcl_parser_instance variable = ptcl_parser_variable_create(argument.name, argument.type, (ptcl_expression){}, false, pointer);
+            ptcl_parser_instance variable = ptcl_parser_variable_create(argument.name, argument.type, (ptcl_expression){}, false, func_decl.func_body);
             if (!ptcl_parser_add_instance(parser, variable))
             {
                 ptcl_statement_func_decl_destroy(func_decl);
@@ -1347,7 +1396,7 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
             }
         }
 
-        ptcl_parser_parse_func_body_by_pointer(parser, pointer, true, true);
+        ptcl_parser_parse_func_body_by_pointer(parser, func_decl.func_body, true, true);
         if (parser->is_critical)
         {
             ptcl_statement_func_decl_destroy(func_decl);
@@ -2509,6 +2558,12 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
             {
                 // Comeback to function name
                 parser->position--;
+                if (is_anonymous)
+                {
+                    // Comeback to tilde
+                    parser->position--;
+                }
+
                 ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser);
                 if (parser->is_critical)
                 {

@@ -294,7 +294,7 @@ typedef struct ptcl_statement_func_decl
     ptcl_name_word name;
     ptcl_argument *arguments;
     size_t count;
-    ptcl_statement_func_body func_body;
+    ptcl_statement_func_body *func_body;
     ptcl_type return_type;
     bool is_prototype;
     bool is_variadic;
@@ -480,7 +480,7 @@ static ptcl_name ptcl_name_create_tokens(ptcl_token *tokens, size_t count, ptcl_
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
-    ptcl_name_word name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
+    ptcl_name_word name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body *func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
 {
     return (ptcl_statement_func_decl){
         .name = name,
@@ -969,6 +969,18 @@ static ptcl_expression ptcl_expression_unary_static_evaluate(ptcl_expression exp
         }
 
         break;
+    }
+}
+
+static bool ptcl_statement_is_skip(ptcl_statement_type type) {
+    switch (type)
+    {
+        case ptcl_statement_syntax_type:
+        case ptcl_statement_each_type:
+        case ptcl_statement_func_body_type:
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -1848,9 +1860,10 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
     ptcl_type_destroy(func_decl.return_type);
     if (!func_decl.is_prototype)
     {
-        ptcl_statement_func_body_destroy(func_decl.func_body);
+        ptcl_statement_func_body_destroy(*func_decl.func_body);
     }
 
+    free(func_decl.func_body);
     if (func_decl.count > 0)
     {
         for (size_t i = 0; i < func_decl.count; i++)
