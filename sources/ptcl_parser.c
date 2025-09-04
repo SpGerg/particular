@@ -677,16 +677,50 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 
         if (!skip_first)
         {
+            ptcl_parser_syntax_node *buffer = realloc(syntax.nodes, (syntax.count + 1) * sizeof(ptcl_parser_syntax_node));
+            if (buffer == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+                ptcl_parser_syntax_destroy(syntax);
+                parser->position = start;
+                break;
+            }
+
+            syntax.nodes = buffer;
             ptcl_parser_syntax_node node;
             const size_t position = parser->position;
             const bool last = parser->add_errors;
             parser->add_errors = false;
-            ptcl_expression value = ptcl_parser_parse_value(parser, NULL, true, is_statement);
+            ptcl_token current = ptcl_parser_current(parser);
+            bool checked = current.type == ptcl_token_left_par_type;
+            if (checked)
+            {
+                bool with_par_expression = false;
+                ptcl_expression par_expression;
+                syntax.nodes[syntax.count++] = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
+                ptcl_parser_syntax_node *reallocated_value;
+                ptcl_parser_skip(parser);
+                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, true, true, &par_expression, &with_par_expression))
+                {
+                    return true;
+                }
+
+                parser->position = position;
+                syntax.nodes = reallocated_value;
+                syntax.count--;
+            }
+
+            bool value_with_syntax = is_statement;
+            if (is_statement)
+            {
+                value_with_syntax = syntax.count != 0;
+            }
+
+            ptcl_expression value = ptcl_parser_parse_binary(parser, NULL, true, value_with_syntax);
             parser->add_errors = last;
             if (parser->is_critical)
             {
                 parser->position = position;
-                ptcl_token current = ptcl_parser_current(parser);
                 ptcl_parser_skip(parser);
                 node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
                 parser->is_critical = false;
@@ -705,22 +739,12 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
                 }
             }
 
-            ptcl_parser_syntax_node *buffer = realloc(syntax.nodes, (syntax.count + 1) * sizeof(ptcl_parser_syntax_node));
-            if (buffer == NULL)
-            {
-                ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
-                ptcl_parser_syntax_destroy(syntax);
-                parser->position = start;
-                break;
-            }
-
-            syntax.nodes = buffer;
             syntax.nodes[syntax.count++] = node;
-            if (node.type == ptcl_parser_syntax_node_value_type)
+            if (node.type == ptcl_parser_syntax_node_value_type && !checked)
             {
                 bool placeholder;
                 ptcl_parser_syntax_node *reallocated_value;
-                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, true, true, NULL, &placeholder))
+                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, true, false, NULL, &placeholder))
                 {
                     return true;
                 }
