@@ -444,7 +444,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
                     continue;
                 }
 
-                if (ptcl_name_word_compare(variable.name, target.name))
+                if (!ptcl_name_word_compare(variable.name, target.name))
                 {
                     continue;
                 }
@@ -547,12 +547,12 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
     if (ptcl_transpiler_is_inner_function(transpiler, ptcl_identifier_get_name(func_call.identifier)))
     {
         bool added = false;
-        for (int i = transpiler->variables_count - 1; i >= 0; i--)
+        for (size_t i = 0; i < transpiler->variables_count; i++)
         {
             ptcl_transpiler_variable variable = transpiler->variables[i];
             if (variable.root == transpiler->main_root)
             {
-                break;
+                continue;
             }
 
             if (!variable.is_inner)
