@@ -634,25 +634,25 @@ static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
     }
 }
 
-static char *ptcl_expression_get_name(ptcl_expression expression)
+static ptcl_name_word ptcl_expression_get_name(ptcl_expression expression)
 {
     if (expression.type == ptcl_expression_variable_type)
     {
-        return expression.variable.name.value;
+        return expression.variable.name;
     }
     else if (expression.type == ptcl_expression_unary_type)
     {
         return ptcl_expression_get_name(*expression.unary.child);
     }
 
-    return NULL;
+    return (ptcl_name_word) {0};
 }
 
-static char *ptcl_identifier_get_name(ptcl_identifier identifier)
+static ptcl_name_word ptcl_identifier_get_name(ptcl_identifier identifier)
 {
     if (identifier.is_name)
     {
-        return identifier.name.value;
+        return identifier.name;
     }
 
     return ptcl_expression_get_name(*identifier.value);
@@ -972,15 +972,16 @@ static ptcl_expression ptcl_expression_unary_static_evaluate(ptcl_expression exp
     }
 }
 
-static bool ptcl_statement_is_skip(ptcl_statement_type type) {
+static bool ptcl_statement_is_skip(ptcl_statement_type type)
+{
     switch (type)
     {
-        case ptcl_statement_syntax_type:
-        case ptcl_statement_each_type:
-        case ptcl_statement_func_body_type:
-            return true;
-        default:
-            return false;
+    case ptcl_statement_syntax_type:
+    case ptcl_statement_each_type:
+    case ptcl_statement_func_body_type:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1082,6 +1083,7 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             .return_type = ptcl_type_create_typedata(target.ctor.name.value, target.ctor.name.is_anonymous),
             .location = location,
             .ctor = ptcl_expression_ctor_create(copy, ctor, target.ctor.count)};
+    case ptcl_expression_variable_type:
     case ptcl_expression_word_type:
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:
@@ -2030,6 +2032,9 @@ static void ptcl_expression_destroy(ptcl_expression expression)
         break;
     case ptcl_expression_word_type:
         ptcl_name_word_destroy(expression.word);
+        break;
+    case ptcl_expression_variable_type:
+        ptcl_name_word_destroy(expression.variable.name);
         break;
     }
 }

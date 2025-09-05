@@ -17,6 +17,7 @@ syntax test [T: static type]([value: integer]) end {
 }
 
 function main(): integer {
+	~experimental := 2
 	variable := multiple 6 4
 	test >integer(variable)
 	test >float(16)

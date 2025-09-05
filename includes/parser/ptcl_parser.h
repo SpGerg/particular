@@ -14,6 +14,7 @@ typedef struct ptcl_parser_variable
     ptcl_expression built_in;
     bool is_built_in;
     bool is_syntax_word;
+    bool is_syntax_variable;
 } ptcl_parser_variable;
 
 typedef struct ptcl_parser_typedata
@@ -120,7 +121,8 @@ static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptc
             .type = type,
             .built_in = built_in,
             .is_built_in = is_built_in,
-            .is_syntax_word = false}};
+            .is_syntax_word = false,
+            .is_syntax_variable = false}};
 }
 
 static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func)

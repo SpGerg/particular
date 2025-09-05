@@ -803,12 +803,16 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             ptcl_parser_syntax_node syntax_node = result.nodes[i];
             if (syntax_node.type != ptcl_parser_syntax_node_variable_type)
             {
+                ptcl_parser_syntax_node_destroy(syntax_node);
                 continue;
             }
 
             ptcl_expression expression = syntax.nodes[i].value;
             ptcl_parser_instance variable = ptcl_parser_variable_create(
                 ptcl_name_create_fast_w(syntax_node.variable.name, false), syntax_node.variable.type, expression, expression.return_type.is_static, parser->root);
+            variable.variable.is_syntax_variable = true;
+            variable.variable.is_built_in = true;
+            variable.variable.built_in = expression;
             if (expression.return_type.is_static && expression.return_type.type == ptcl_value_word_type)
             {
                 // After insert it will be destroyed
@@ -869,7 +873,7 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
     parser->root = temp->root;
     parser->is_in_syntax = false;
     free(temp);
-    ptcl_parser_syntax_destroy(parser->last_syntax);
+    free(parser->last_syntax.nodes);
 }
 
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser)
@@ -2565,10 +2569,20 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
             if (variable->variable.is_built_in)
             {
                 result = ptcl_expression_copy(variable->variable.built_in, current.location);
-                result.return_type.is_static = true;
+                result.return_type.is_static = !variable->variable.is_syntax_variable;
             }
             else
             {
+                char *name_copy = ptcl_string_duplicate(word_name.value);
+                if (name_copy == NULL)
+                {
+                    ptcl_name_word_destroy(word_name);
+                    ptcl_parser_throw_out_of_memory(parser, current.location);
+                    break;
+                }
+
+                word_name.value = name_copy;
+                word_name.is_free = true;
                 result = ptcl_expression_create_variable(word_name, variable->variable.type, current.location);
             }
 
