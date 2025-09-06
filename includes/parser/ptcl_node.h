@@ -593,7 +593,7 @@ static bool ptcl_name_word_compare(ptcl_name_word left, ptcl_name_word right)
 static bool ptcl_value_type_is_name(ptcl_value_type type)
 {
     switch (type)
-    {
+    { 
     case ptcl_value_type_type:
     case ptcl_value_typedata_type:
         return true;
@@ -1084,6 +1084,15 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             .location = location,
             .ctor = ptcl_expression_ctor_create(copy, ctor, target.ctor.count)};
     case ptcl_expression_variable_type:
+        ptcl_name_word word = target.variable.name;
+        word.value = ptcl_string_duplicate(word.value);
+        word.is_free = true;
+
+        return (ptcl_expression){
+            .type = ptcl_expression_variable_type,
+            .return_type = ptcl_type_copy(target.return_type),
+            .location = location,
+            .variable.name = word};
     case ptcl_expression_word_type:
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:

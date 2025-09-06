@@ -809,7 +809,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 
             ptcl_expression expression = syntax.nodes[i].value;
             ptcl_parser_instance variable = ptcl_parser_variable_create(
-                ptcl_name_create_fast_w(syntax_node.variable.name, false), syntax_node.variable.type, expression, expression.return_type.is_static, parser->root);
+                ptcl_name_create_fast_w(syntax_node.variable.name, false), syntax_node.variable.type, expression, true, parser->root);
             variable.variable.is_syntax_variable = true;
             variable.variable.is_built_in = true;
             variable.variable.built_in = expression;

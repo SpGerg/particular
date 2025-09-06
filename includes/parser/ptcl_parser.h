@@ -247,6 +247,13 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         {
             free(instance->variable.built_in.word.value);
         }
+        else
+        {
+            if (instance->variable.is_syntax_variable)
+            {
+                ptcl_expression_destroy(instance->variable.built_in);
+            }
+        }
 
         break;
     case ptcl_parser_instance_syntax_type:
