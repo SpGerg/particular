@@ -16,6 +16,7 @@ typedef struct ptcl_transpiler
     size_t anonymous_count;
     bool from_position;
     bool in_inner;
+    bool add_stdlib;
     int start;
     size_t length;
 } ptcl_transpiler;
@@ -103,6 +104,7 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
     transpiler->anonymous_count = 0;
     transpiler->start = -1;
     transpiler->length = 0;
+    transpiler->add_stdlib = false;
     return transpiler;
 }
 
@@ -110,6 +112,13 @@ char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
 {
     transpiler->main_root = &transpiler->result.body;
     ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false);
+
+    if (transpiler->add_stdlib)
+    {
+        ptcl_string_buffer_set_position(transpiler->string_buffer, 0);
+        transpiler->from_position = true;
+        ptcl_transpiler_append_word_s(transpiler, "#include <stdlib.h>");
+    }
 
     char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
     for (size_t i = 0; i < transpiler->anonymous_count; i++)
@@ -722,6 +731,10 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         break;
     case ptcl_expression_func_call_type:
         ptcl_transpiler_add_func_call(transpiler, expression.func_call);
+        break;
+    case ptcl_expression_null_type:
+        ptcl_transpiler_append_word_s(transpiler, "NULL");
+        transpiler->add_stdlib = true;
         break;
     }
 }

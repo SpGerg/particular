@@ -2,8 +2,9 @@ prototype function printf(content: character*, ...): integer
 typedata statement(statement_type: integer)
 
 function main(): integer {
-	test: statement = statement(0)
-	test = none
+	number := 5
+	address := &number
+	address = null
 
 	return 0
 }

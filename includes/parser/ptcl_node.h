@@ -1936,7 +1936,7 @@ static ptcl_statement_assign ptcl_statement_assign_destroy(ptcl_statement_assign
     ptcl_identifier_destroy(statement.identifier);
     ptcl_expression_destroy(statement.value);
 
-    if (statement.with_type)
+    if (statement.with_type && statement.is_define)
     {
         ptcl_type_destroy(statement.type);
     }
