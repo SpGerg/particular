@@ -2412,6 +2412,7 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
             *target = value.return_type;
             target->is_primitive = false;
             type_value = ptcl_type_create_pointer(target);
+            type_value.pointer.target->is_static = false;
         }
 
         if (type == ptcl_binary_operator_reference_type || type == ptcl_binary_operator_dereference_type)
@@ -2426,6 +2427,7 @@ ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, pt
         *child = value;
         ptcl_expression result = ptcl_expression_unary_create(type, child, value.location);
         result.return_type = type_value;
+        result.return_type.is_static = value.return_type.is_static;
         return ptcl_expression_unary_static_evaluate(result, result.unary);
     }
 
@@ -2816,6 +2818,13 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         result = ptcl_expression_create_object_type(ptcl_type_create_object_type(target), object_type, current.location);
         result.return_type.is_static = true;
         break;
+    case ptcl_token_null_type:
+        ptcl_type null_type = ptcl_type_null_pointer;
+        null_type.is_static = true;
+        return (ptcl_expression){
+            .type = ptcl_expression_null_type,
+            .location = current.location,
+            .return_type = null_type};
     default:
         ptcl_parser_throw_unknown_expression(parser, current.location);
         return (ptcl_expression){};

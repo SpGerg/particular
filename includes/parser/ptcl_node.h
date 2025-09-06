@@ -39,7 +39,8 @@ typedef enum ptcl_expression_type
     ptcl_expression_if_type,
     ptcl_expression_func_call_type,
     ptcl_expression_word_type,
-    ptcl_expression_object_type_type
+    ptcl_expression_object_type_type,
+    ptcl_expression_null_type
 } ptcl_expression_type;
 
 typedef enum ptcl_binary_operator_type
@@ -73,7 +74,7 @@ typedef enum ptcl_value_type
     ptcl_value_double_type,
     ptcl_value_float_type,
     ptcl_value_integer_type,
-    ptcl_value_any_pointer_type,
+    ptcl_value_null_pointer_type,
     ptcl_value_any_type,
     ptcl_value_type_type,
     ptcl_value_void_type,
@@ -119,6 +120,7 @@ typedef struct ptcl_type_pointer
 {
     ptcl_type *target;
     bool is_any;
+    bool is_null;
 } ptcl_type_pointer;
 
 typedef struct ptcl_type_array
@@ -166,7 +168,9 @@ typedef struct ptcl_argument
 
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_any_pointer_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = true, .is_null = false}, .is_primitive = true, .is_static = false};
+
+static ptcl_type ptcl_type_null_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = false, .is_null = true}, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.is_any = true}, .is_primitive = true, .is_static = false};
@@ -268,6 +272,7 @@ typedef struct ptcl_expression
         ptcl_expression_array array;
         ptcl_name_word word;
         char character;
+        long long_n;
         double double_n;
         float float_n;
         int integer_n;
@@ -593,7 +598,7 @@ static bool ptcl_name_word_compare(ptcl_name_word left, ptcl_name_word right)
 static bool ptcl_value_type_is_name(ptcl_value_type type)
 {
     switch (type)
-    { 
+    {
     case ptcl_value_type_type:
     case ptcl_value_typedata_type:
         return true;
@@ -645,7 +650,7 @@ static ptcl_name_word ptcl_expression_get_name(ptcl_expression expression)
         return ptcl_expression_get_name(*expression.unary.child);
     }
 
-    return (ptcl_name_word) {0};
+    return (ptcl_name_word){0};
 }
 
 static ptcl_name_word ptcl_identifier_get_name(ptcl_identifier identifier)
@@ -698,7 +703,6 @@ static ptcl_type ptcl_type_get_common(ptcl_type left, ptcl_type right)
     }
 
     int result_priority = (left_priority > right_priority) ? left_priority : right_priority;
-
     switch (result_priority)
     {
     case TYPE_INT:
@@ -708,6 +712,8 @@ static ptcl_type ptcl_type_get_common(ptcl_type left, ptcl_type right)
     case TYPE_DOUBLE:
         return ptcl_type_double;
     }
+
+    return ptcl_type_integer;
 }
 
 static ptcl_expression ptcl_expression_binary_create(ptcl_binary_operator_type type, ptcl_expression *children, ptcl_location location)
@@ -923,6 +929,11 @@ static ptcl_expression ptcl_expression_unary_static_evaluate(ptcl_expression exp
         return expression;
     }
 
+    if (unary.type == ptcl_binary_operator_reference_type)
+    {
+        return expression;
+    }
+
     ptcl_expression value = unary.child[0];
     ptcl_location location = value.location;
     free(unary.child);
@@ -1043,7 +1054,6 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     case ptcl_value_double_type:
     case ptcl_value_float_type:
     case ptcl_value_integer_type:
-    case ptcl_value_any_pointer_type:
     case ptcl_value_any_type:
     case ptcl_value_type_type:
     case ptcl_value_void_type:
@@ -1083,6 +1093,15 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             .return_type = ptcl_type_create_typedata(target.ctor.name.value, target.ctor.name.is_anonymous),
             .location = location,
             .ctor = ptcl_expression_ctor_create(copy, ctor, target.ctor.count)};
+    case ptcl_expression_unary_type:
+        ptcl_expression *unary = malloc(sizeof(ptcl_expression));
+        *unary = ptcl_expression_copy(*target.unary.child, location);
+        return (ptcl_expression){
+            .type = ptcl_expression_unary_type,
+            .return_type = ptcl_type_copy(target.return_type),
+            .location = location,
+            .unary.type = target.unary.type,
+            .unary.child = unary};
     case ptcl_expression_variable_type:
         ptcl_name_word word = target.variable.name;
         word.value = ptcl_string_duplicate(word.value);
@@ -1124,8 +1143,12 @@ static bool ptcl_expression_binary_static_equals(ptcl_expression left, ptcl_expr
 
         return true;
     }
+    else if (right.type == ptcl_expression_null_type)
+    {
+        return left.type == ptcl_expression_null_type;
+    }
 
-    return left.double_n == right.double_n; // Primitive type in union will have same value in integer
+    return left.long_n == right.long_n; // Primitive type in union will have same value in integer
 }
 
 static ptcl_expression ptcl_expression_binary_static_evaluate(ptcl_expression expression, ptcl_expression_binary binary)
@@ -1531,9 +1554,6 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         name = ptcl_string("pointer_", pointer_name, "_", NULL);
         free(pointer_name);
         break;
-    case ptcl_value_any_pointer_type:
-        name = "pointer";
-        break;
     case ptcl_value_word_type:
         name = "word";
         break;
@@ -1581,9 +1601,6 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         char *pointer_name = ptcl_type_to_present_string_copy(*type.pointer.target);
         name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
         free(pointer_name);
-        break;
-    case ptcl_value_any_pointer_type:
-        name = "pointer";
         break;
     case ptcl_value_word_type:
         name = "word";
@@ -1645,13 +1662,6 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
         return true;
     }
 
-    if (expected.type == ptcl_value_any_pointer_type)
-    {
-        return target.type == ptcl_value_pointer_type ||
-               target.type == ptcl_value_array_type ||
-               target.type == ptcl_value_any_pointer_type;
-    }
-
     if (expected.type != target.type)
     {
         if (expected.type == ptcl_value_float_type &&
@@ -1673,7 +1683,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     switch (expected.type)
     {
     case ptcl_value_pointer_type:
-        if (expected.pointer.is_any || target.pointer.is_any)
+        if (expected.pointer.is_any || target.pointer.is_null)
             return true;
 
         return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
@@ -1813,7 +1823,6 @@ static void ptcl_type_destroy(ptcl_type type)
     case ptcl_value_double_type:
     case ptcl_value_float_type:
     case ptcl_value_integer_type:
-    case ptcl_value_any_pointer_type:
     case ptcl_value_any_type:
     case ptcl_value_type_type:
     case ptcl_value_void_type:

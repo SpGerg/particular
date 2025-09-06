@@ -1,25 +1,10 @@
 prototype function printf(content: character*, ...): integer
 typedata statement(statement_type: integer)
 
-type string: character*
-
-syntax multiple [left: static integer] [right: static integer] end {
-	left * right
-}
-
-syntax test [T: static type]([value: integer]) end {
-	function ~returned(): !T {
-		~variable := value
-		return ~variable
-	}
-
-	~returned()
-}
-
 function main(): integer {
-	~experimental := 2
-	variable := multiple 6 4
-	test >integer(variable)
-	test >float(16)
+	test: static integer = 2
+	any_pointer: static integer* = &test
+	static_condition: static integer = any_pointer == null
+
 	return 0
 }

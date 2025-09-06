@@ -783,14 +783,17 @@ void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool 
 
         break;
     case ptcl_value_pointer_type:
+        if (type.pointer.is_any)
+        {
+            ptcl_transpiler_append_word_s(transpiler, "void*");
+            break;
+        }
+
         ptcl_transpiler_add_type(transpiler, *type.pointer.target, with_array);
         ptcl_transpiler_append_character(transpiler, '*');
         break;
     case ptcl_value_word_type:
         ptcl_transpiler_append_word_s(transpiler, "char*");
-        break;
-    case ptcl_value_any_pointer_type:
-        ptcl_transpiler_append_word_s(transpiler, "void*");
         break;
     case ptcl_value_character_type:
         ptcl_transpiler_append_word_s(transpiler, "char");
