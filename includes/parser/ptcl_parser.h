@@ -329,6 +329,8 @@ ptcl_name_word ptcl_parser_parse_name_word(ptcl_parser *parser);
 
 ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool tokens_allowed, bool *succesful);
 
+ptcl_expression ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, ptcl_location location);
+
 ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
 
 bool ptcl_parser_match(ptcl_parser *parser, ptcl_token_type token_type);

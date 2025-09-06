@@ -74,7 +74,6 @@ typedef enum ptcl_value_type
     ptcl_value_double_type,
     ptcl_value_float_type,
     ptcl_value_integer_type,
-    ptcl_value_null_pointer_type,
     ptcl_value_any_type,
     ptcl_value_type_type,
     ptcl_value_void_type,
@@ -120,7 +119,6 @@ typedef struct ptcl_type_pointer
 {
     ptcl_type *target;
     bool is_any;
-    bool is_null;
 } ptcl_type_pointer;
 
 typedef struct ptcl_type_array
@@ -168,9 +166,7 @@ typedef struct ptcl_argument
 
 static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = true, .is_null = false}, .is_primitive = true, .is_static = false};
-
-static ptcl_type ptcl_type_null_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = false, .is_null = true}, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = true}, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.is_any = true}, .is_primitive = true, .is_static = false};
@@ -482,6 +478,14 @@ static ptcl_name ptcl_name_create_tokens(ptcl_token *tokens, size_t count, ptcl_
         .location = location,
         .tokens.tokens = tokens,
         .tokens.count = count};
+}
+
+static ptcl_expression ptcl_expression_create_null(ptcl_type type, ptcl_location location)
+{
+    return (ptcl_expression){
+        .type = ptcl_expression_null_type,
+        .location = location,
+        .return_type = type};
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
@@ -1598,9 +1602,17 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         free(array_name);
         break;
     case ptcl_value_pointer_type:
-        char *pointer_name = ptcl_type_to_present_string_copy(*type.pointer.target);
-        name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
-        free(pointer_name);
+        if (type.pointer.is_any)
+        {
+            name = ptcl_string(is_static, "pointer", NULL);
+        }
+        else
+        {
+            char *pointer_name = ptcl_type_to_present_string_copy(*type.pointer.target);
+            name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
+            free(pointer_name);
+        }
+
         break;
     case ptcl_value_word_type:
         name = "word";
@@ -1683,7 +1695,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     switch (expected.type)
     {
     case ptcl_value_pointer_type:
-        if (expected.pointer.is_any || target.pointer.is_null)
+        if (expected.pointer.is_any)
             return true;
 
         return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
@@ -2011,7 +2023,7 @@ static void ptcl_expression_array_destroy(ptcl_expression_array array)
 
 static void ptcl_expression_destroy(ptcl_expression expression)
 {
-    if (expression.type != ptcl_expression_variable_type)
+    if (expression.type != ptcl_expression_variable_type && expression.type != ptcl_expression_null_type)
     {
         ptcl_type_destroy(expression.return_type);
     }

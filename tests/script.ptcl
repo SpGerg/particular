@@ -2,9 +2,8 @@ prototype function printf(content: character*, ...): integer
 typedata statement(statement_type: integer)
 
 function main(): integer {
-	test: static integer = 2
-	any_pointer: static integer* = &test
-	static_condition: static integer = any_pointer == null
+	test: statement = statement(0)
+	test = none
 
 	return 0
 }
