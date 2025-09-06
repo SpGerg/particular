@@ -4,7 +4,7 @@ typedata statement(statement_type: integer)
 function main(): integer {
 	number := 5
 	address := &number
-	address = null
+	address = null -- That's null!
 
 	return 0
 }

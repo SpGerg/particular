@@ -188,7 +188,7 @@ ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
             ptcl_lexer_add_token_char(lexer, ptcl_token_character_type, value);
             continue;
         }
-        else if (current == '/' && ptcl_lexer_not_ended(lexer) && lexer->source[lexer->position + 1] == '/')
+        else if (current == '-' && ptcl_lexer_not_ended(lexer) && lexer->source[lexer->position + 1] == '-')
         {
             while (ptcl_lexer_not_ended(lexer) && ptcl_lexer_current(lexer) != '\n')
             {
