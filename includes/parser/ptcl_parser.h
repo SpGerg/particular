@@ -11,7 +11,7 @@ typedef struct ptcl_parser_variable
 {
     ptcl_name_word name;
     ptcl_type type;
-    ptcl_expression built_in;
+    ptcl_expression* built_in;
     bool is_built_in;
     bool is_syntax_word;
     bool is_syntax_variable;
@@ -53,7 +53,7 @@ typedef struct ptcl_parser_syntax_node
         ptcl_parser_syntax_word_node word;
         ptcl_parser_syntax_word_variable variable;
         ptcl_type object_type;
-        ptcl_expression value;
+        ptcl_expression* value;
     };
 } ptcl_parser_syntax_node;
 
@@ -67,7 +67,7 @@ typedef struct ptcl_parser_syntax
 } ptcl_parser_syntax;
 
 typedef struct ptcl_parser ptcl_parser;
-typedef ptcl_expression (*ptcl_built_in_function_t)(ptcl_parser *parser, ptcl_expression *arguments, size_t count, ptcl_location location);
+typedef ptcl_expression* (*ptcl_built_in_function_t)(ptcl_parser *parser, ptcl_expression* *arguments, size_t count, ptcl_location location);
 
 typedef struct ptcl_parser_function
 {
@@ -110,7 +110,7 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptcl_type type, ptcl_expression built_in, bool is_built_in, ptcl_statement_func_body *root)
+static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptcl_type type, ptcl_expression* built_in, bool is_built_in, ptcl_statement_func_body *root)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_variable_type,
@@ -202,7 +202,7 @@ static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_object_type(ptcl_t
         .object_type = type};
 }
 
-static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_value(ptcl_expression value)
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_value(ptcl_expression* value)
 {
     return (ptcl_parser_syntax_node){
         .type = ptcl_parser_syntax_node_value_type,
@@ -245,7 +245,8 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
     case ptcl_parser_instance_variable_type:
         if (instance->variable.is_syntax_word)
         {
-            free(instance->variable.built_in.word.value);
+            free(instance->variable.built_in);
+            free(instance->variable.built_in->word.value);
         }
         else
         {
@@ -275,11 +276,11 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
-                                                   ptcl_expression *old_expression, bool *with_expression);
+                                                   ptcl_expression* *old_expression, bool *with_expression);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
     ptcl_parser *parser, ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
-    ptcl_expression *old_expression, bool *with_expression);
+    ptcl_expression* *old_expression, bool *with_expression);
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
@@ -297,7 +298,7 @@ ptcl_statement_return ptcl_parser_parse_return(ptcl_parser *parser);
 
 ptcl_statement ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
 
-ptcl_expression ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
+ptcl_expression* ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
 
 void ptcl_parser_parse_syntax(ptcl_parser *parser);
 
@@ -311,19 +312,19 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax);
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_any);
 
-ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
-ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+ptcl_expression* ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
 ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_parser_typedata *typedata);
 
@@ -331,7 +332,7 @@ ptcl_name_word ptcl_parser_parse_name_word(ptcl_parser *parser);
 
 ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool tokens_allowed, bool *succesful);
 
-ptcl_expression ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, ptcl_location location);
+ptcl_expression* ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, ptcl_location location);
 
 ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
 
@@ -353,7 +354,7 @@ bool ptcl_parser_try_get_instance_in_root(ptcl_parser *parser, ptcl_name_word na
 
 bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_function **function);
 
-bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression *arguments, size_t count);
+bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression* *arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
 
@@ -385,7 +386,7 @@ void ptcl_parser_throw_unknown_expression(ptcl_parser *parser, ptcl_location loc
 
 void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_location location);
 
-void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression *values, size_t count, ptcl_location location);
+void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression* *values, size_t count, ptcl_location location);
 
 void ptcl_parser_throw_unknown_function(ptcl_parser *parser, char *name, ptcl_location location);
 

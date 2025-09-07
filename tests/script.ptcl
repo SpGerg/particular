@@ -7,24 +7,11 @@ syntax exceptional end {
 	@[public_attribute]
 }
 
-exceptional function main(): integer {
-	syntax Ref([value: any]) end {
-		static if value is >pointer {
-			static if value == null {
-				null
-			}
-			else {
-				none(value)
-			}
-		}
-		else {
-			none(value)
-		}
-	}
+syntax lette [name: static word] end {
+	!name := 0
+}
 
-	value := 2
-	foo := &value
-	foo = null
-	address := Ref(foo)
+function main(): integer {
+	lette a
 	return 0
 }
