@@ -719,7 +719,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 {
     size_t start = down_start >= 0 ? down_start : parser->position;
     size_t stop = parser->position;
-    ptcl_parser_instance instance = ptcl_parser_syntax_create(NULL, nodes, count);
+    ptcl_parser_instance instance = ptcl_parser_syntax_create(NULL, parser->root, nodes, count);
     ptcl_parser_syntax syntax = instance.syntax;
     ptcl_parser_syntax result;
     bool found = false;
