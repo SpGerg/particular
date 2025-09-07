@@ -533,6 +533,10 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
         {
             transpiler->start = previous_start;
         }
+        else
+        {
+            transpiler->in_inner = false;
+        }
 
         if (previous_start != -1)
         {

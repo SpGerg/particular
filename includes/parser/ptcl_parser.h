@@ -165,11 +165,11 @@ static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name_word name, ptc
             .count = count}};
 }
 
-static ptcl_parser_instance ptcl_parser_syntax_create(char *name, ptcl_parser_syntax_node *nodes, size_t count)
+static ptcl_parser_instance ptcl_parser_syntax_create(char *name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_syntax_type,
-        .root = NULL,
+        .root = root,
         .is_out_of_scope = false,
         .syntax = (ptcl_parser_syntax){
             .name = name,

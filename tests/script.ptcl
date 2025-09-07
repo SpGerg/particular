@@ -3,8 +3,13 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
-@[entry_point]
-@[testification]
-function main(): integer {
+syntax exceptional end {
+	@{
+		function ref(): void {}
+	}
+	@[public_attribute]
+}
+
+exceptional function main(): integer {
 	return 0
 }

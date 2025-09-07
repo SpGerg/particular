@@ -437,10 +437,21 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
                 .location = location};
             break;
         case ptcl_statement_func_body_type:
-            ptcl_parser_parse_extra_body(parser, parser->is_in_syntax);
             statement = (ptcl_statement){
                 .type = ptcl_statement_func_body_type,
                 .location = location};
+            // If we in syntax, then it was already parsed
+            if (!parser->is_in_syntax)
+            {
+                ptcl_parser_parse_extra_body(parser, false);
+            }
+            else
+            {
+                ptcl_parser_skip(parser); // Skip '@'
+                ptcl_parser_skip(parser); // Skip '{'
+                ptcl_parser_skip_block_or_expression(parser);
+            }
+
             break;
         }
     }
@@ -1110,11 +1121,12 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
 
 void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
 {
-    if (!ptcl_parser_match(parser, ptcl_token_at_type))
+    if (ptcl_parser_current(parser).type != ptcl_token_at_type || ptcl_parser_peek(parser, 1).type != ptcl_token_left_curly_type)
     {
         return;
     }
 
+    ptcl_parser_skip(parser);
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_statement_func_body body = ptcl_statement_func_body_create(
         NULL, 0,
@@ -1958,7 +1970,7 @@ void ptcl_parser_parse_syntax(ptcl_parser *parser)
 {
     ptcl_parser_match(parser, ptcl_token_syntax_type);
     ptcl_location location = ptcl_parser_current(parser).location;
-    ptcl_parser_instance instance = ptcl_parser_syntax_create(NULL, NULL, 0);
+    ptcl_parser_instance instance = ptcl_parser_syntax_create(NULL, parser->root, NULL, 0);
     ptcl_parser_syntax *syntax = &instance.syntax;
 
     while (true)
@@ -2596,10 +2608,13 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
     {
     case ptcl_token_at_type:
         parser->position--;
-        ptcl_parser_parse_extra_body(parser, parser->is_in_syntax);
-        if (!parser->is_critical)
+        if (ptcl_parser_peek(parser, 1).type == ptcl_token_left_curly_type)
         {
-            return ptcl_parser_parse_binary(parser, except, with_word, true);
+            ptcl_parser_parse_extra_body(parser, parser->is_in_syntax);
+            if (!parser->is_critical)
+            {
+                return ptcl_parser_parse_binary(parser, except, with_word, true);
+            }
         }
     case ptcl_token_word_type:
         ptcl_parser_instance *variable;
