@@ -2250,8 +2250,14 @@ ptcl_expression ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except,
             }
         }
 
+        ptcl_type *except = &left.return_type;
+        if (type == ptcl_binary_operator_type_equals_type)
+        {
+            except = &ptcl_type_any_type;
+        }
+
         ptcl_parser_skip(parser);
-        ptcl_expression right = ptcl_parser_parse_binary(parser, &left.return_type, false, true);
+        ptcl_expression right = ptcl_parser_parse_binary(parser, except, false, true);
         if (parser->is_critical)
         {
             ptcl_expression_destroy(left);
@@ -2879,12 +2885,32 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
             break;
         }
 
+        except->is_static = true;
         return ptcl_expression_create_null(*except, current.location);
     case ptcl_token_none_type:
+        if (ptcl_parser_match(parser, ptcl_token_left_par_type))
+        {
+            ptcl_expression excepted = ptcl_parser_parse_binary(parser, NULL, false, true);
+            if (parser->is_critical)
+            {
+                break;
+            }
+
+            ptcl_parser_except(parser, ptcl_token_right_par_type);
+            if (parser->is_critical)
+            {
+                ptcl_expression_destroy(excepted);
+                break;
+            }
+
+            ptcl_expression default_value = ptcl_parser_get_default(parser, excepted.return_type, current.location); 
+            ptcl_expression_destroy(excepted);
+            return default_value;
+        }
+
         if (except == NULL)
         {
-            ptcl_type received = except == NULL ? ptcl_type_any : *except;
-            ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_any, received, current.location);
+            ptcl_parser_throw_none_type(parser, current.location);
             break;
         }
 
@@ -3605,6 +3631,13 @@ void ptcl_parser_throw_variable_redefination(ptcl_parser *parser, char *name, pt
     char *message = ptcl_string("Redefination variable with '", name, "'", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_variable_redefination_type, false, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_none_type(ptcl_parser *parser, ptcl_location location)
+{
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_none_type_type, true, "Type must be specified to use 'none'", false, location);
     ptcl_parser_add_error(parser, error);
 }
 

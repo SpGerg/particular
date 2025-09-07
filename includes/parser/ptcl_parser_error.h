@@ -8,6 +8,7 @@ typedef enum ptcl_parser_error_type
     ptcl_parser_error_except_type_type,
     ptcl_parser_error_incorrect_type_type,
     ptcl_parser_error_variable_redefination_type,
+    ptcl_parser_error_none_type_type,
     ptcl_parser_error_must_be_variable_type,
     ptcl_parser_error_must_be_static_type,
     ptcl_parser_error_wrong_arguments_type,

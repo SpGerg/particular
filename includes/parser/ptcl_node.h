@@ -55,6 +55,7 @@ typedef enum ptcl_binary_operator_type
     ptcl_binary_operator_or_type,
     ptcl_binary_operator_not_equals_type,
     ptcl_binary_operator_equals_type,
+    ptcl_binary_operator_type_equals_type,
     ptcl_binary_operator_reference_type,
     ptcl_binary_operator_dereference_type,
     ptcl_binary_operator_greater_than_type,
@@ -130,7 +131,6 @@ typedef struct ptcl_type_array
 typedef struct ptcl_type_object_type
 {
     ptcl_type *target;
-    bool is_any;
 } ptcl_type_object_type;
 
 typedef struct ptcl_type_comp_type
@@ -175,24 +175,32 @@ typedef struct ptcl_argument
     bool is_variadic;
 } ptcl_argument;
 
-static ptcl_type ptcl_type_any = {.type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any = {
+    .type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_any_pointer = {.type = ptcl_value_pointer_type, .pointer = {.is_any = true}, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_any_pointer = {
+    .type = ptcl_value_pointer_type, .pointer = {.is_any = true}, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
-    .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.is_any = true}, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.target = &ptcl_type_any}, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_word = {.type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
+static ptcl_type ptcl_type_word = {
+    .type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
 
-static ptcl_type ptcl_type_character = {.type = ptcl_value_character_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_character = {
+    .type = ptcl_value_character_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_double = {.type = ptcl_value_double_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_double = {
+    .type = ptcl_value_double_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_float = {.type = ptcl_value_float_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_float = {
+    .type = ptcl_value_float_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_integer = {.type = ptcl_value_integer_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_integer = {
+    .type = ptcl_value_integer_type, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_void = {.type = ptcl_value_void_type, .is_primitive = true, .is_static = false};
+static ptcl_type ptcl_type_void = {
+    .type = ptcl_value_void_type, .is_primitive = true, .is_static = false};
 
 typedef struct ptcl_expression_variable
 {
@@ -911,6 +919,81 @@ static ptcl_expression ptcl_expression_word_create(ptcl_name_word content, ptcl_
         .word = content};
 }
 
+static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
+{
+    if (expected.is_static && !target.is_static)
+    {
+        return false;
+    }
+
+    if (expected.type == ptcl_value_any_type)
+    {
+        return true;
+    }
+
+    if (expected.type != target.type)
+    {
+        if (expected.type == ptcl_value_float_type &&
+            target.type == ptcl_value_integer_type)
+        {
+            return true;
+        }
+
+        if (expected.type == ptcl_value_double_type &&
+            (target.type == ptcl_value_float_type ||
+             target.type == ptcl_value_integer_type))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    switch (expected.type)
+    {
+    case ptcl_value_pointer_type:
+        if (expected.pointer.is_any)
+            return true;
+
+        return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
+    case ptcl_value_array_type:
+        return ptcl_type_equals(*expected.array.target, *target.array.target);
+    case ptcl_value_object_type_type:
+        return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
+    case ptcl_value_typedata_type:
+        if (!ptcl_name_word_compare(expected.comp_type.identifier, target.comp_type.identifier))
+        {
+            return false;
+        }
+
+        if (expected.comp_type.count != target.comp_type.count)
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < expected.comp_type.count; i++)
+        {
+            if (!ptcl_type_equals(expected.comp_type.types[i], target.comp_type.types[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    case ptcl_value_type_type:
+        return ptcl_name_word_compare(expected.typedata, target.typedata);
+    case ptcl_value_word_type:
+    case ptcl_value_character_type:
+    case ptcl_value_double_type:
+    case ptcl_value_float_type:
+    case ptcl_value_integer_type:
+    case ptcl_value_void_type:
+        return true;
+    default:
+        return true;
+    }
+}
+
 static ptcl_expression ptcl_expression_cast_to_double(ptcl_expression expression)
 {
     switch (expression.type)
@@ -1095,6 +1178,16 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     return copy;
 }
 
+static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
+{
+    if (type == ptcl_expression_variable_type || type == ptcl_expression_null_type)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_location location)
 {
     switch (target.type)
@@ -1138,7 +1231,7 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
 
         return (ptcl_expression){
             .type = ptcl_expression_variable_type,
-            .return_type = ptcl_type_copy(target.return_type),
+            .return_type = target.return_type,
             .location = location,
             .variable.name = word};
     case ptcl_expression_object_type_type:
@@ -1156,6 +1249,16 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
         target.location = location;
         return target;
     }
+}
+
+static bool ptcl_expression_binary_static_type_equals(ptcl_expression left, ptcl_expression right)
+{
+    if (right.return_type.type != ptcl_value_object_type_type)
+    {
+        return false;
+    }
+
+    return ptcl_type_equals(*right.return_type.object_type.target, left.return_type);
 }
 
 static bool ptcl_expression_binary_static_equals(ptcl_expression left, ptcl_expression right)
@@ -1196,6 +1299,17 @@ static ptcl_expression ptcl_expression_binary_static_evaluate(ptcl_expression ex
 
     ptcl_expression left_child = binary.children[0];
     ptcl_expression right_child = binary.children[1];
+    if (binary.type == ptcl_binary_operator_type_equals_type)
+    {
+        ptcl_expression result = ptcl_expression_create_integer(
+            ptcl_expression_binary_static_type_equals(left_child, right_child),
+            expression.location);
+        free(binary.children);
+        ptcl_expression_destroy(left_child);
+        ptcl_expression_destroy(right_child);
+        return result;
+    }
+
     ptcl_location location = left_child.location;
     ptcl_type left_type = left_child.return_type;
     ptcl_type right_type = right_child.return_type;
@@ -1558,6 +1672,8 @@ static ptcl_binary_operator_type ptcl_binary_operator_type_from_token(ptcl_token
         return ptcl_binary_operator_and_type;
     case ptcl_token_or_type:
         return ptcl_binary_operator_or_type;
+    case ptcl_token_is_type:
+        return ptcl_binary_operator_type_equals_type;
     case ptcl_token_equals_type:
         return ptcl_binary_operator_equals_type;
     case ptcl_token_ampersand_type:
@@ -1649,6 +1765,9 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     case ptcl_value_word_type:
         name = "word";
         break;
+    case ptcl_value_object_type_type:
+        name = ptcl_string(is_static, "object type (", ptcl_type_to_present_string_copy(*type.object_type.target), ")", NULL);
+        break;
     case ptcl_value_character_type:
         name = "character";
         break;
@@ -1666,7 +1785,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         break;
     }
 
-    if (type.type != ptcl_value_array_type && type.type != ptcl_value_pointer_type && type.type != ptcl_value_typedata_type)
+    if (type.type != ptcl_value_array_type && type.type != ptcl_value_pointer_type && type.type != ptcl_value_typedata_type && type.type != ptcl_value_object_type_type)
     {
         name = ptcl_string(is_static, name, NULL);
     }
@@ -1692,86 +1811,6 @@ static bool ptcl_func_body_can_access(ptcl_statement_func_body *target, ptcl_sta
     }
 
     return true;
-}
-
-static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
-{
-    if (expected.is_static && !target.is_static)
-    {
-        return false;
-    }
-
-    if (expected.type == ptcl_value_any_type)
-    {
-        return true;
-    }
-
-    if (expected.type != target.type)
-    {
-        if (expected.type == ptcl_value_float_type &&
-            target.type == ptcl_value_integer_type)
-        {
-            return true;
-        }
-
-        if (expected.type == ptcl_value_double_type &&
-            (target.type == ptcl_value_float_type ||
-             target.type == ptcl_value_integer_type))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    switch (expected.type)
-    {
-    case ptcl_value_pointer_type:
-        if (expected.pointer.is_any)
-            return true;
-
-        return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
-    case ptcl_value_array_type:
-        return ptcl_type_equals(*expected.array.target, *target.array.target);
-    case ptcl_value_object_type_type:
-        if (expected.object_type.is_any)
-        {
-            return true;
-        }
-
-        return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
-    case ptcl_value_typedata_type:
-        if (!ptcl_name_word_compare(expected.comp_type.identifier, target.comp_type.identifier))
-        {
-            return false;
-        }
-
-        if (expected.comp_type.count != target.comp_type.count)
-        {
-            return false;
-        }
-
-        for (size_t i = 0; i < expected.comp_type.count; i++)
-        {
-            if (!ptcl_type_equals(expected.comp_type.types[i], target.comp_type.types[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    case ptcl_value_type_type:
-        return ptcl_name_word_compare(expected.typedata, target.typedata);
-    case ptcl_value_word_type:
-    case ptcl_value_character_type:
-    case ptcl_value_double_type:
-    case ptcl_value_float_type:
-    case ptcl_value_integer_type:
-    case ptcl_value_void_type:
-        return true;
-    default:
-        return true;
-    }
 }
 
 static void ptcl_name_word_destroy(ptcl_name_word name)
@@ -2074,7 +2113,7 @@ static void ptcl_expression_array_destroy(ptcl_expression_array array)
 
 static void ptcl_expression_destroy(ptcl_expression expression)
 {
-    if (expression.type != ptcl_expression_variable_type && expression.type != ptcl_expression_null_type)
+    if (ptcl_expression_with_own_type(expression.type))
     {
         ptcl_type_destroy(expression.return_type);
     }

@@ -371,6 +371,8 @@ void ptcl_parser_throw_fast_incorrect_type(ptcl_parser *parser, ptcl_type except
 
 void ptcl_parser_throw_variable_redefination(ptcl_parser *parser, char *name, ptcl_location location);
 
+void ptcl_parser_throw_none_type(ptcl_parser *parser, ptcl_location location);
+
 void ptcl_parser_throw_must_be_variable(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_must_be_static(ptcl_parser *parser, ptcl_location location);

@@ -7,18 +7,24 @@ syntax exceptional end {
 	@[public_attribute]
 }
 
-syntax exceptions end {
-	syntax ref([value: any]) end {
-
-	}
-}
-
 exceptional function main(): integer {
 	syntax Ref([value: any]) end {
-		
+		static if value is >pointer {
+			static if value == null {
+				null
+			}
+			else {
+				none(value)
+			}
+		}
+		else {
+			none(value)
+		}
 	}
 
 	value := 2
-	address := Ref(value)
+	foo := &value
+	foo = null
+	address := Ref(foo)
 	return 0
 }
