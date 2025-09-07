@@ -4,12 +4,21 @@ typedata statement(statement_type: integer)
 type string: character*
 
 syntax exceptional end {
-	@{
-		function ref(): void {}
-	}
 	@[public_attribute]
 }
 
+syntax exceptions end {
+	syntax ref([value: any]) end {
+
+	}
+}
+
 exceptional function main(): integer {
+	syntax Ref([value: any]) end {
+		
+	}
+
+	value := 2
+	address := Ref(value)
 	return 0
 }

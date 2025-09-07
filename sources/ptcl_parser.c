@@ -13,8 +13,8 @@ typedef struct ptcl_parser
     size_t instances_count;
     ptcl_statement_func_body *root;
     ptcl_type *return_type;
-    ptcl_parser_syntax last_syntax;
-    bool is_in_syntax;
+    ptcl_parser_syntax syntaxes[256];
+    size_t syntax_depth;
     bool is_critical;
     bool add_errors;
 } ptcl_parser;
@@ -250,7 +250,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->errors_count = 0;
     parser->instances = NULL;
     parser->instances_count = 0;
-    parser->is_in_syntax = false;
+    parser->syntax_depth = 0;
     parser->add_errors = true;
 
     ptcl_parser_result result = {
@@ -441,7 +441,7 @@ ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser)
                 .type = ptcl_statement_func_body_type,
                 .location = location};
             // If we in syntax, then it was already parsed
-            if (!parser->is_in_syntax)
+            if (parser->syntax_depth == 0)
             {
                 ptcl_parser_parse_extra_body(parser, false);
             }
@@ -859,13 +859,14 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         for (size_t i = 0; i < syntax.count; i++)
         {
             ptcl_parser_syntax_node syntax_node = result.nodes[i];
+            ptcl_parser_syntax_node target_node = syntax.nodes[i];
             if (syntax_node.type != ptcl_parser_syntax_node_variable_type)
             {
-                ptcl_parser_syntax_node_destroy(syntax_node);
+                ptcl_parser_syntax_node_destroy(target_node);
                 continue;
             }
 
-            ptcl_expression expression = syntax.nodes[i].value;
+            ptcl_expression expression = target_node.value;
             ptcl_parser_instance variable = ptcl_parser_variable_create(
                 ptcl_name_create_fast_w(syntax_node.variable.name, false), syntax_node.variable.type, expression, true, parser->root);
             variable.variable.is_syntax_variable = true;
@@ -895,8 +896,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
 
         parser->position = start;
         ptcl_parser_replace_words(parser, start + result.tokens_count);
-        parser->last_syntax = syntax;
-        parser->is_in_syntax = true;
+        parser->syntaxes[parser->syntax_depth++] = syntax;
     }
     else
     {
@@ -929,9 +929,8 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
     ptcl_statement_func_body *temp = parser->root;
     ptcl_statement_func_body_destroy(*temp);
     parser->root = temp->root;
-    parser->is_in_syntax = false;
     free(temp);
-    free(parser->last_syntax.nodes);
+    free(parser->syntaxes[--parser->syntax_depth].nodes);
 }
 
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser)
@@ -1486,7 +1485,7 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
         {
             ptcl_statement_func_decl_destroy(func_decl);
             parser->return_type = previous_type;
-            parser->instances_count--;
+            parser->instances[identifier - 1].is_out_of_scope = true;
             return (ptcl_statement_func_decl){};
         }
 
@@ -2610,7 +2609,7 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
         parser->position--;
         if (ptcl_parser_peek(parser, 1).type == ptcl_token_left_curly_type)
         {
-            ptcl_parser_parse_extra_body(parser, parser->is_in_syntax);
+            ptcl_parser_parse_extra_body(parser, parser->syntax_depth > 0);
             if (!parser->is_critical)
             {
                 return ptcl_parser_parse_binary(parser, except, with_word, true);
@@ -2625,7 +2624,7 @@ ptcl_expression ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, 
             if (variable->variable.is_built_in)
             {
                 result = ptcl_expression_copy(variable->variable.built_in, current.location);
-                result.return_type.is_static = !variable->variable.is_syntax_variable;
+                result.return_type.is_static = variable->variable.built_in.return_type.is_static || !variable->variable.is_syntax_variable;
             }
             else
             {
