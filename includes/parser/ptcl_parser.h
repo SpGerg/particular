@@ -272,6 +272,8 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
 
 ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
 
+ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
+
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
                                                    ptcl_expression *old_expression, bool *with_expression);
 

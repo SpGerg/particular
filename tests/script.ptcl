@@ -1,10 +1,10 @@
 prototype function printf(content: character*, ...): integer
 typedata statement(statement_type: integer)
 
-function main(): integer {
-	number := 5
-	address := &number
-	address = null -- That's null!
+type string: character*
 
+@[entry_point]
+@[testification]
+function main(): integer {
 	return 0
 }

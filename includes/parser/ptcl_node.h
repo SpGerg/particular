@@ -157,6 +157,17 @@ typedef struct ptcl_type
     };
 } ptcl_type;
 
+typedef struct ptcl_attribute
+{
+    ptcl_name_word name;
+} ptcl_attribute;
+
+typedef struct ptcl_attributes
+{
+    ptcl_attribute *attributes;
+    size_t count;
+} ptcl_attributes;
+
 typedef struct ptcl_argument
 {
     ptcl_type type;
@@ -353,6 +364,7 @@ typedef struct ptcl_statement
     ptcl_statement_type type;
     ptcl_location location;
     ptcl_statement_func_body *root;
+    ptcl_attributes attributes;
 
     union
     {
@@ -877,6 +889,19 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name_word name, ptc
         .count = count};
 }
 
+static ptcl_attributes ptcl_attributes_create(ptcl_attribute *attributes, size_t count)
+{
+    return (ptcl_attributes){
+        .attributes = attributes,
+        .count = count};
+}
+
+static ptcl_attribute ptcl_attribute_create(ptcl_name_word name)
+{
+    return (ptcl_attribute){
+        .name = name};
+}
+
 static ptcl_expression ptcl_expression_word_create(ptcl_name_word content, ptcl_location location)
 {
     return (ptcl_expression){
@@ -1116,6 +1141,13 @@ static ptcl_expression ptcl_expression_copy(ptcl_expression target, ptcl_locatio
             .return_type = ptcl_type_copy(target.return_type),
             .location = location,
             .variable.name = word};
+    case ptcl_expression_object_type_type:
+        ptcl_type type = ptcl_type_copy(target.return_type);
+        return (ptcl_expression){
+            .type = ptcl_expression_object_type_type,
+            .return_type = type,
+            .location = location,
+            .object_type.type = *type.object_type.target};
     case ptcl_expression_word_type:
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:
@@ -1767,6 +1799,24 @@ static void ptcl_name_destroy(ptcl_name name)
     }
 }
 
+static void ptcl_attribute_destroy(ptcl_attribute attribute)
+{
+    ptcl_name_word_destroy(attribute.name);
+}
+
+static void ptcl_attributes_destroy(ptcl_attributes attributes)
+{
+    if (attributes.count > 0)
+    {
+        for (size_t i = 0; i < attributes.count; i++)
+        {
+            ptcl_attribute_destroy(attributes.attributes[i]);
+        }
+
+        free(attributes.attributes);
+    }
+}
+
 static void ptcl_statement_func_body_destroy(ptcl_statement_func_body func_body)
 {
     if (func_body.count > 0)
@@ -1963,6 +2013,7 @@ static void ptcl_statement_typedata_decl_destroy(ptcl_statement_typedata_decl ty
 
 static void ptcl_statement_destroy(ptcl_statement statement)
 {
+    ptcl_attributes_destroy(statement.attributes);
     switch (statement.type)
     {
     case ptcl_statement_func_call_type:
