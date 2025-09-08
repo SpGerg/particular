@@ -5,10 +5,11 @@ type string: character*
 
 syntax list([T: static type])() end {
 	@{
-		typedata !<__list_ word(T)>()sdfh
+		~type_name: static word = !<__list_ word(T)>
+		typedata !~type_name()
 	}
 
-	!<__list_ word(T)>()
+	!~type_name()
 }
 
 function main(): integer {

@@ -24,7 +24,7 @@
       "name": "(gdb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/tests/ptcl.exe",
+      "program": "${workspaceFolder}/tests/ptcl2.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests",

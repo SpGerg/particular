@@ -431,7 +431,7 @@ static ptcl_name ptcl_name_create_l(char *value, bool is_anonymous, bool is_free
         .is_name = true,
         .word.value = value,
         .word.is_anonymous = is_anonymous,
-        .word.is_free = false};
+        .word.is_free = is_free};
 }
 
 static ptcl_name_word ptcl_name_create_fast_w(char *value, bool is_anonymous)
@@ -1346,14 +1346,17 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
         return expression;
     case ptcl_expression_word_type:
         expression->word = target->word;
-        char *word_copy = ptcl_string_duplicate(expression->word.value);
-        if (word_copy == NULL)
+        if (expression->word.is_free)
         {
-            free(expression);
-            return NULL;
-        }
+            char *word_copy = ptcl_string_duplicate(expression->word.value);
+            if (word_copy == NULL)
+            {
+                free(expression);
+                return NULL;
+            }
 
-        expression->word = ptcl_name_create_l(word_copy, target->word.is_anonymous, true, location).word;
+            expression->word = ptcl_name_create_l(word_copy, target->word.is_anonymous, true, location).word;
+        }
     case ptcl_expression_null_type:
     case ptcl_expression_character_type:
         expression->character = target->character;

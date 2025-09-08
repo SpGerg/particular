@@ -1078,6 +1078,8 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
         ptcl_statement statement = ptcl_parser_parse_statement(parser);
         if (parser->is_critical)
         {
+            ptcl_parser_clear_scope(parser);
+
             // Already destryoed
             if (statement.type != ptcl_statement_each_type)
             {
@@ -1111,9 +1113,9 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
         func_body_pointer->count++;
     }
 
-    // ptcl_parser_clear_scope(parser);
     if (change_root)
     {
+        ptcl_parser_clear_scope(parser);
         parser->root = previous;
     }
 }
@@ -1252,7 +1254,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
     case ptcl_token_word_type:
         if (ptcl_parser_try_get_instance(parser, ptcl_name_create_fast_w(current.value, false), ptcl_parser_instance_typedata_type, &typedata))
         {
-            target = ptcl_type_create_typedata(current.value, false);
+            target = ptcl_type_create_typedata(typedata->typedata.name.value, false);
             break;
         }
         // Fallthrough
@@ -2572,18 +2574,31 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
         if (ptcl_parser_peek(parser, 1).type == ptcl_token_left_curly_type)
         {
             ptcl_parser_parse_extra_body(parser, parser->syntax_depth > 0);
-            if (!parser->is_critical)
+            if (parser->is_critical)
             {
-                return ptcl_parser_parse_binary(parser, except, with_word, true);
+                return NULL;
             }
+
+            return ptcl_parser_parse_binary(parser, except, with_word, true);
         }
 
         ptcl_parser_throw_unknown_expression(parser, current.location);
         return NULL;
+    case ptcl_token_exclamation_mark_type:
+        parser->position--;
+        ptcl_name_word word_name = ptcl_parser_parse_name_word(parser);
+        if (parser->is_critical)
+        {
+            return NULL;
+        }
     case ptcl_token_word_type:
         ptcl_parser_instance *variable;
         ptcl_parser_instance *typedata;
-        ptcl_name_word word_name = ptcl_name_create_fast_w(current.value, is_anonymous);
+        if (current.type != ptcl_token_exclamation_mark_type)
+        {
+            word_name = ptcl_name_create_fast_w(current.value, is_anonymous);
+        }
+
         if (ptcl_parser_try_get_instance(parser, word_name, ptcl_parser_instance_variable_type, &variable))
         {
             if (variable->variable.is_built_in)
