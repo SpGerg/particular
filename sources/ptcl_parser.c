@@ -1133,7 +1133,6 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_parser_parse_func_body_by_pointer(parser, &body, true, false);
     if (parser->is_critical)
     {
-        ptcl_statement_func_body_destroy(body);
         return;
     }
 
@@ -2578,6 +2577,9 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
                 return ptcl_parser_parse_binary(parser, except, with_word, true);
             }
         }
+
+        ptcl_parser_throw_unknown_expression(parser, current.location);
+        return NULL;
     case ptcl_token_word_type:
         ptcl_parser_instance *variable;
         ptcl_parser_instance *typedata;

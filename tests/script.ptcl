@@ -5,10 +5,7 @@ type string: character*
 
 syntax list([T: static type])() end {
 	@{
-		typedata !<__list_ word(T)>()
-		syntax [left: !<__list_ word(T)>]+append() end {
-
-		}
+		typedata !<__list_ word(T)>()sdfh
 	}
 
 	!<__list_ word(T)>()
@@ -16,6 +13,5 @@ syntax list([T: static type])() end {
 
 function main(): integer {
 	expressionst := list(>integer)()
-	expressionst+append()
 	return 0
 }
