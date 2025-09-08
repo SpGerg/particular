@@ -671,18 +671,18 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, '\'');
         break;
     case ptcl_expression_binary_type:
-        ptcl_transpiler_add_expression(transpiler, expression->binary.children[0], false);
+        ptcl_transpiler_add_expression(transpiler, expression->binary.left, false);
         ptcl_transpiler_add_binary_type(transpiler, expression->binary.type);
-        ptcl_transpiler_add_expression(transpiler, expression->binary.children[1], false);
+        ptcl_transpiler_add_expression(transpiler, expression->binary.right, false);
         break;
     case ptcl_expression_unary_type:
         ptcl_transpiler_add_binary_type(transpiler, expression->unary.type);
         ptcl_transpiler_add_expression(transpiler, expression->unary.child, false);
         break;
     case ptcl_expression_array_element_type:
-        ptcl_transpiler_add_expression(transpiler, expression->array_element.children[0], false);
+        ptcl_transpiler_add_expression(transpiler, expression->array_element.value, false);
         ptcl_transpiler_append_character(transpiler, '[');
-        ptcl_transpiler_add_expression(transpiler, expression->array_element.children[1], false);
+        ptcl_transpiler_add_expression(transpiler, expression->array_element.index, false);
         ptcl_transpiler_append_character(transpiler, ']');
         break;
     case ptcl_expression_double_type:

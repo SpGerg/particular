@@ -3,15 +3,15 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
-syntax exceptional end {
-	@[public_attribute]
-}
+syntax list([T: static type])() end {
+	@{
+		typedata !<__list_ word(T)>()
+	}
 
-syntax lette [name: static word] end {
-	!name := 0
+	!<__list_ word(T)>()
 }
 
 function main(): integer {
-	lette a
+	expressionst := list(>integer)()
 	return 0
 }
