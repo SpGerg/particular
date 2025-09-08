@@ -2210,7 +2210,11 @@ ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except
     while (true)
     {
         ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
-        if (type == ptcl_binary_operator_none_type)
+        if (type == ptcl_binary_operator_none_type ||
+            type == ptcl_binary_operator_multiplicative_type ||
+            type == ptcl_binary_operator_division_type ||
+            type == ptcl_binary_operator_plus_type ||
+            type == ptcl_binary_operator_minus_type)
         {
             break;
         }
