@@ -1,4 +1,4 @@
-NAME = ptcl2
+NAME = ptcl
 CC = gcc
 CFLAGS = -o $(NAME)
 

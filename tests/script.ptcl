@@ -6,13 +6,14 @@ type string: character*
 syntax list([T: static type])() end {
 	@{
 		~type_name: static word = !<__list_ word(T)>
-		typedata !~type_name()
+		typedata !~type_name(entities: !T*)
 	}
 
 	!~type_name()
 }
-
+  
 function main(): integer {
 	expressionst := list(>integer)()
+	expressionst2 := list(>float)()
 	return 0
 }

@@ -297,6 +297,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_assign_type:
+        if (statement->assign.is_define && statement->assign.type.is_static)
+        {
+            return;
+        }
+
         if (ptcl_transpiler_is_inner(transpiler, ptcl_identifier_get_name(statement->assign.identifier)))
         {
             ptcl_transpiler_append_character(transpiler, '*');
@@ -591,7 +596,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
 
     for (size_t i = 0; i < func_call.count; i++)
     {
-        ptcl_expression* argument = func_call.arguments[i];
+        ptcl_expression *argument = func_call.arguments[i];
         ptcl_transpiler_add_expression(transpiler, argument, true);
         // ptcl_transpiler_add_arrays_length(transpiler, argument.return_type);
 
@@ -604,7 +609,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
     ptcl_transpiler_append_character(transpiler, ')');
 }
 
-void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression* expression, bool specify_type)
+void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression *expression, bool specify_type)
 {
     switch (expression->type)
     {
