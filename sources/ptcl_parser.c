@@ -1606,7 +1606,7 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
     ptcl_statement_type_decl decl = ptcl_statement_type_decl_create(name, NULL, 0, NULL, 0, is_prototype);
     while (true)
     {
-        ptcl_type *buffer = realloc(decl.types, (decl.types_count + 1) * sizeof(ptcl_type));
+        ptcl_type_member *buffer = realloc(decl.types, (decl.types_count + 1) * sizeof(ptcl_type_member));
         if (buffer == NULL)
         {
             ptcl_statement_type_decl_destroy(decl);
@@ -1614,6 +1614,7 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
             return (ptcl_statement_type_decl){};
         }
 
+        bool is_up = ptcl_parser_match(parser, ptcl_token_up_type);
         ptcl_type type = ptcl_parser_parse_type(parser, false, false);
         if (parser->is_critical)
         {
@@ -1623,17 +1624,17 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
 
         if (decl.types_count > 0)
         {
-            ptcl_type except = decl.types[decl.types_count - 1];
-            if (!ptcl_type_equals(except, type))
+            ptcl_type_member except = decl.types[decl.types_count - 1];
+            if (!ptcl_type_equals(except.type, type))
             {
-                ptcl_parser_throw_fast_incorrect_type(parser, except, type, location);
+                ptcl_parser_throw_fast_incorrect_type(parser, except.type, type, location);
                 ptcl_statement_type_decl_destroy(decl);
                 return (ptcl_statement_type_decl){};
             }
         }
 
         decl.types = buffer;
-        decl.types[decl.types_count++] = type;
+        decl.types[decl.types_count++] = ptcl_type_member_create(type, is_up);
         if (!ptcl_parser_match(parser, ptcl_token_comma_type))
         {
             break;

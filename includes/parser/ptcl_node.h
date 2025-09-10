@@ -337,10 +337,16 @@ typedef struct ptcl_statement_typedata_decl
     bool is_prototype;
 } ptcl_statement_typedata_decl;
 
+typedef struct ptcl_type_member
+{
+    ptcl_type type;
+    bool is_up;
+} ptcl_type_member;
+
 typedef struct ptcl_statement_type_decl
 {
     ptcl_name_word name;
-    ptcl_type *types;
+    ptcl_type_member *types;
     size_t types_count;
     ptcl_statement_func_decl *functions;
     size_t functions_count;
@@ -622,9 +628,16 @@ static ptcl_expression *ptcl_expression_create_object_type(ptcl_type return_type
     return expression;
 }
 
+static ptcl_type_member ptcl_type_member_create(ptcl_type type, bool is_up)
+{
+    return (ptcl_type_member){
+        .type = type,
+        .is_up = is_up};
+}
+
 static ptcl_statement_type_decl ptcl_statement_type_decl_create(
     ptcl_name_word name,
-    ptcl_type *types, size_t types_count,
+    ptcl_type_member *types, size_t types_count,
     ptcl_statement_func_decl *functions, size_t functions_count,
     bool is_prototype)
 {
@@ -2125,7 +2138,7 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
     {
         for (size_t i = 0; i < type_decl.types_count; i++)
         {
-            ptcl_type_destroy(type_decl.types[i]);
+            ptcl_type_destroy(type_decl.types[i].type);
         }
 
         free(type_decl.types);
