@@ -24,6 +24,5 @@ function main(): integer {
 
 	expressionst := list(>integer)()
 	expressionst2 := list(>float)()
-	__list_integer_append(expressionst)
 	return 0
 }
