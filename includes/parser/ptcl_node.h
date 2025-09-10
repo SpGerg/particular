@@ -306,7 +306,7 @@ typedef struct ptcl_expression
 
 typedef struct ptcl_statement_func_body
 {
-    ptcl_statement *statements;
+    ptcl_statement **statements;
     size_t count;
     ptcl_statement_func_body *root;
 } ptcl_statement_func_body;
@@ -395,7 +395,7 @@ typedef struct ptcl_statement
     };
 } ptcl_statement;
 
-static void ptcl_statement_destroy(ptcl_statement statement);
+static void ptcl_statement_destroy(ptcl_statement *statement);
 static void ptcl_expression_destroy(ptcl_expression *expression);
 
 static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_type return_type, ptcl_location location)
@@ -409,6 +409,48 @@ static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_t
     }
 
     return expression;
+}
+
+static ptcl_statement *ptcl_statement_create(ptcl_statement_type type, ptcl_statement_func_body *root, ptcl_attributes attributes, ptcl_location location)
+{
+    ptcl_statement *statement = malloc(sizeof(ptcl_statement));
+    if (statement != NULL)
+    {
+        statement->type = type;
+        statement->attributes = attributes;
+        statement->root = root;
+        statement->location = location;
+    }
+
+    return statement;
+}
+
+static ptcl_argument ptcl_argument_create(ptcl_type type, ptcl_name_word name)
+{
+    return (ptcl_argument){
+        .type = type,
+        .name = name};
+}
+
+static ptcl_argument ptcl_argument_create_variadic()
+{
+    return (ptcl_argument){
+        .name = "...",
+        .type = ptcl_type_any,
+        .is_variadic = true};
+}
+
+static ptcl_attributes ptcl_attributes_create(ptcl_attribute *attributes, size_t count)
+{
+    return (ptcl_attributes){
+        .attributes = attributes,
+        .count = count};
+}
+
+static ptcl_attribute ptcl_attribute_create(ptcl_name_word name)
+{
+    return (ptcl_attribute){
+        .name = name};
 }
 
 static ptcl_name ptcl_name_create(char *value, bool is_free, ptcl_location location)
@@ -487,7 +529,7 @@ static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
             .is_any = false}};
 }
 
-static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement *statements, size_t count, ptcl_statement_func_body *root)
+static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement **statements, size_t count, ptcl_statement_func_body *root)
 {
     return (ptcl_statement_func_body){
         .statements = statements,
@@ -495,13 +537,15 @@ static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement *
         .root = root};
 }
 
-static ptcl_statement ptcl_statement_func_body_create_stat(ptcl_statement_func_body body, ptcl_location location)
+static ptcl_statement *ptcl_statement_func_body_create_stat(ptcl_statement_func_body body, ptcl_location location)
 {
-    return (ptcl_statement){
-        .type = ptcl_statement_func_body_type,
-        .root = body.root,
-        .body = body,
-        .location = location};
+    ptcl_statement *statement = ptcl_statement_create(ptcl_statement_func_body_type, body.root, ptcl_attributes_create(NULL, 0), location);
+    if (statement != NULL)
+    {
+        statement->body = body;
+    }
+
+    return statement;
 }
 
 static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_identifier identifier, ptcl_expression **arguments, size_t count)
@@ -867,21 +911,6 @@ static ptcl_expression *ptcl_expression_create_integer(int value, ptcl_location 
     return expression;
 }
 
-static ptcl_argument ptcl_argument_create(ptcl_type type, ptcl_name_word name)
-{
-    return (ptcl_argument){
-        .type = type,
-        .name = name};
-}
-
-static ptcl_argument ptcl_argument_create_variadic()
-{
-    return (ptcl_argument){
-        .name = "...",
-        .type = ptcl_type_any,
-        .is_variadic = true};
-}
-
 static ptcl_statement_assign ptcl_statement_assign_create(ptcl_identifier identifier, ptcl_type type, bool with_type, ptcl_expression *value, bool is_define)
 {
     return (ptcl_statement_assign){
@@ -954,19 +983,6 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name_word name, ptc
         .name = name,
         .values = values,
         .count = count};
-}
-
-static ptcl_attributes ptcl_attributes_create(ptcl_attribute *attributes, size_t count)
-{
-    return (ptcl_attributes){
-        .attributes = attributes,
-        .count = count};
-}
-
-static ptcl_attribute ptcl_attribute_create(ptcl_name_word name)
-{
-    return (ptcl_attribute){
-        .name = name};
 }
 
 static ptcl_expression *ptcl_expression_word_create(ptcl_name_word content, ptcl_location location)
@@ -2185,36 +2201,38 @@ static void ptcl_statement_typedata_decl_destroy(ptcl_statement_typedata_decl ty
     }
 }
 
-static void ptcl_statement_destroy(ptcl_statement statement)
+static void ptcl_statement_destroy(ptcl_statement *statement)
 {
-    ptcl_attributes_destroy(statement.attributes);
-    switch (statement.type)
+    ptcl_attributes_destroy(statement->attributes);
+    switch (statement->type)
     {
     case ptcl_statement_func_call_type:
-        ptcl_statement_func_call_destroy(statement.func_call);
+        ptcl_statement_func_call_destroy(statement->func_call);
         break;
     case ptcl_statement_func_decl_type:
-        ptcl_statement_func_decl_destroy(statement.func_decl);
+        ptcl_statement_func_decl_destroy(statement->func_decl);
         break;
     case ptcl_statement_typedata_decl_type:
-        ptcl_statement_typedata_decl_destroy(statement.typedata_decl);
+        ptcl_statement_typedata_decl_destroy(statement->typedata_decl);
         break;
     case ptcl_statement_return_type:
-        ptcl_expression_destroy(statement.ret.value);
+        ptcl_expression_destroy(statement->ret.value);
         break;
     case ptcl_statement_assign_type:
-        ptcl_statement_assign_destroy(statement.assign);
+        ptcl_statement_assign_destroy(statement->assign);
         break;
     case ptcl_statement_if_type:
-        ptcl_statement_if_destroy(statement.if_stat);
+        ptcl_statement_if_destroy(statement->if_stat);
         break;
     case ptcl_statement_type_decl_type:
-        ptcl_statement_type_decl_destroy(statement.type_decl);
+        ptcl_statement_type_decl_destroy(statement->type_decl);
         break;
     case ptcl_statement_func_body_type:
-        ptcl_statement_func_body_destroy(statement.body);
+        ptcl_statement_func_body_destroy(statement->body);
         break;
     }
+
+    free(statement);
 }
 
 static void ptcl_expression_ctor_destroy(ptcl_expression_ctor ctor)

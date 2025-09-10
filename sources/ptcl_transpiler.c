@@ -267,7 +267,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
 
     for (size_t i = 0; i < func_body.count; i++)
     {
-        ptcl_transpiler_add_statement(transpiler, &func_body.statements[i], is_func_body);
+        ptcl_transpiler_add_statement(transpiler, func_body.statements[i], is_func_body);
     }
 
     if (with_brackets)

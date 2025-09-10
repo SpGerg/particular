@@ -271,7 +271,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser);
 
 ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded);
 
-ptcl_statement ptcl_parser_parse_statement(ptcl_parser *parser);
+ptcl_statement* ptcl_parser_parse_statement(ptcl_parser *parser);
 
 ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 
@@ -296,7 +296,7 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser);
 
 ptcl_statement_return ptcl_parser_parse_return(ptcl_parser *parser);
 
-ptcl_statement ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
+ptcl_statement* ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
 
 ptcl_expression* ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
 
