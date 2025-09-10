@@ -170,6 +170,7 @@ static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
         ptcl_parser_except(parser, ptcl_token_right_square_type);
         if (parser->is_critical)
         {
+            ptcl_type_destroy(type);
             return type;
         }
 

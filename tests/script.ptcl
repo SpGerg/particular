@@ -1,4 +1,5 @@
 prototype function printf(content: character*, ...): integer
+prototype function printc(content: character, ...): integer
 typedata statement(statement_type: integer)
 
 type string: character*
@@ -16,6 +17,11 @@ syntax list([T: static type])() end {
 }
   
 function main(): integer {
+	characters: static character[] = "Hello, world"
+	each char, characters {
+		printc(char)
+	}
+
 	expressionst := list(>integer)()
 	expressionst2 := list(>float)()
 	__list_integer_append(expressionst)

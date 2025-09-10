@@ -1023,6 +1023,11 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
             return true;
         }
 
+        if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
+        {
+            return ptcl_type_equals(*expected.pointer.target, *target.array.target);
+        }
+
         return false;
     }
 
@@ -1197,6 +1202,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
             if (copy.object_type.target != NULL)
             {
                 *copy.object_type.target = ptcl_type_copy(*type.object_type.target);
+                copy.object_type.target->is_primitive = false;
             }
             else
             {
@@ -1212,6 +1218,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
             if (copy.pointer.target != NULL)
             {
                 *copy.pointer.target = ptcl_type_copy(*type.pointer.target);
+                copy.pointer.target->is_primitive = false;
             }
             else
             {
@@ -1228,6 +1235,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
             if (copy.array.target != NULL)
             {
                 *copy.array.target = ptcl_type_copy(*type.array.target);
+                copy.array.target->is_primitive = false;
             }
             else
             {
