@@ -1132,13 +1132,21 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_statement_func_body body = ptcl_statement_func_body_create(
         NULL, 0,
         is_syntax ? parser->root->root : parser->root);
+    ptcl_statement_func_body *previous = parser->root;
+    if (is_syntax)
+    {
+        parser->root = body.root;
+    }
+
     ptcl_parser_parse_func_body_by_pointer(parser, &body, true, false);
+    parser->root = previous;
+
     if (parser->is_critical)
     {
         return;
     }
 
-    ptcl_statement_func_body *previous = parser->root;
+    previous = parser->root;
     parser->root = body.root;
 
     ptcl_statement statement = ptcl_statement_func_body_create_stat(body, location);
