@@ -1467,7 +1467,7 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
 
     ptcl_expression *result = NULL;
     ptcl_location location = expression->location;
-    switch (expression->return_type.type)
+    switch (value->return_type.type)
     {
     case ptcl_value_character_type:
         switch (type.type)
@@ -1484,6 +1484,8 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
             result = ptcl_expression_create_integer((int)value->character, location);
             break;
         }
+
+        break;
     case ptcl_value_double_type:
         switch (type.type)
         {
@@ -1499,6 +1501,8 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
             result = ptcl_expression_create_integer((int)value->double_n, location);
             break;
         }
+
+        break;
     case ptcl_value_float_type:
         switch (type.type)
         {
@@ -1514,6 +1518,8 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
             result = ptcl_expression_create_integer((int)value->float_n, location);
             break;
         }
+
+        break;
     case ptcl_value_integer_type:
         switch (type.type)
         {
@@ -1529,6 +1535,8 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
         case ptcl_value_integer_type:
             break;
         }
+
+        break;
     default:
         break;
     }
@@ -2426,6 +2434,10 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
     case ptcl_expression_binary_type:
         ptcl_expression_destroy(expression->binary.left);
         ptcl_expression_destroy(expression->binary.right);
+        break;
+    case ptcl_expression_cast_type:
+        ptcl_expression_destroy(expression->cast.value);
+        ptcl_type_destroy(expression->cast.type);
         break;
     case ptcl_expression_unary_type:
         ptcl_expression_destroy(expression->unary.child);

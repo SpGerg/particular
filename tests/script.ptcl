@@ -2,7 +2,7 @@ prototype function printf(content: character*, ...): integer
 prototype function printc(content: character, ...): integer
 typedata statement(statement_type: integer)
 
-type string: character*
+type string: character* 
 
 function main(): integer {
 	test: static integer = 1
