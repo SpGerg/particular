@@ -348,6 +348,7 @@ typedef struct ptcl_statement_type_decl
     ptcl_name_word name;
     ptcl_type_member *types;
     size_t types_count;
+    ptcl_statement_func_body *body;
     ptcl_statement_func_decl *functions;
     size_t functions_count;
     bool is_prototype;
@@ -681,7 +682,7 @@ static ptcl_type_member ptcl_type_member_create(ptcl_type type, bool is_up)
 
 static ptcl_statement_type_decl ptcl_statement_type_decl_create(
     ptcl_name_word name,
-    ptcl_type_member *types, size_t types_count,
+    ptcl_type_member *types, size_t types_count, ptcl_statement_func_body *body,
     ptcl_statement_func_decl *functions, size_t functions_count,
     bool is_prototype)
 {
@@ -689,6 +690,7 @@ static ptcl_statement_type_decl ptcl_statement_type_decl_create(
         .name = name,
         .types = types,
         .types_count = types_count,
+        .body = NULL,
         .functions = functions,
         .functions_count = functions_count,
         .is_prototype = is_prototype};
@@ -2170,12 +2172,13 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 
     if (type_decl.functions_count > 0)
     {
-        for (size_t i = 0; i < type_decl.functions_count; i++)
-        {
-            ptcl_statement_func_decl_destroy(type_decl.functions[i]);
-        }
-
         free(type_decl.functions);
+    }
+
+    if (type_decl.body != NULL)
+    {
+        ptcl_statement_func_body_destroy(*type_decl.body);
+        free(type_decl.body);
     }
 }
 
@@ -2220,6 +2223,9 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
     case ptcl_statement_func_decl_type:
         ptcl_statement_func_decl_destroy(statement->func_decl);
         break;
+    case ptcl_statement_type_decl_type:
+        ptcl_statement_type_decl_destroy(statement->type_decl);
+        break;
     case ptcl_statement_typedata_decl_type:
         ptcl_statement_typedata_decl_destroy(statement->typedata_decl);
         break;
@@ -2231,9 +2237,6 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         break;
     case ptcl_statement_if_type:
         ptcl_statement_if_destroy(statement->if_stat);
-        break;
-    case ptcl_statement_type_decl_type:
-        ptcl_statement_type_decl_destroy(statement->type_decl);
         break;
     case ptcl_statement_func_body_type:
         ptcl_statement_func_body_destroy(statement->body);

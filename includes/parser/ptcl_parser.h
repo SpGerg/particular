@@ -320,6 +320,8 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax);
 
 ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_any);
 
+ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
+
 ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
 
 ptcl_expression *ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax);
