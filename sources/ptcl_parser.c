@@ -14,7 +14,7 @@ typedef struct ptcl_parser
     ptcl_statement_func_body *root;
     ptcl_statement_func_body *main_root;
     ptcl_type *return_type;
-    ptcl_parser_syntax syntaxes[256];
+    ptcl_parser_syntax syntaxes[PTCL_PARSER_MAX_DEPTH];
     size_t syntax_depth;
     bool is_critical;
     bool add_errors;
@@ -870,6 +870,12 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         if (parser->syntax_depth == 0)
         {
             parser->main_root = parser->root;
+        }
+
+        if (parser->syntax_depth + 1 >= PTCL_PARSER_MAX_DEPTH)
+        {
+            ptcl_parser_throw_max_depth(parser, ptcl_parser_current(parser).location);
+            return false;
         }
 
         ptcl_statement_func_body *temp = malloc(sizeof(ptcl_statement_func_body));
@@ -3849,6 +3855,13 @@ void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_exp
     message = new_message;
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_wrong_arguments_type, true, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_max_depth(ptcl_parser *parser, ptcl_location location)
+{
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_max_depth_type, true, "Max syntaxes depth", false, location);
     ptcl_parser_add_error(parser, error);
 }
 

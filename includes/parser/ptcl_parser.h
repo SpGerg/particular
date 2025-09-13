@@ -5,6 +5,8 @@
 #include <ptcl_parser_error.h>
 #include <ptcl_lexer_configuration.h>
 
+#define PTCL_PARSER_MAX_DEPTH 256
+
 typedef struct ptcl_parser_function ptcl_parser_function;
 
 typedef struct ptcl_parser_variable
@@ -393,6 +395,8 @@ void ptcl_parser_throw_unknown_expression(ptcl_parser *parser, ptcl_location loc
 void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression **values, size_t count, ptcl_location location);
+
+void ptcl_parser_throw_max_depth(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_unknown_function(ptcl_parser *parser, char *name, ptcl_location location);
 

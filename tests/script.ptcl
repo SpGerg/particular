@@ -22,6 +22,7 @@ syntax let [name: static word] end {
 
 syntax create a list end {
 	let y = list(>integer)()
+	__list_integer_append(y)
 }
   
 function main(): integer {
