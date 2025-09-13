@@ -6,6 +6,6 @@ type string: character*
 
 function main(): integer {
 	test: static integer = 1
-	casted := test :: character
+	casted := test :: character :: float
 	return 0
 }

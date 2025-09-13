@@ -2306,6 +2306,10 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
     else
     {
         left = ptcl_parser_parse_binary(parser, except, with_word, false);
+        if (parser->is_critical)
+        {
+            return left;
+        }
     }
 
     while (true)
