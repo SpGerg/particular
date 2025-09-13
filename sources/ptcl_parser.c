@@ -12,6 +12,7 @@ typedef struct ptcl_parser
     ptcl_parser_instance *instances;
     size_t instances_count;
     ptcl_statement_func_body *root;
+    ptcl_statement_func_body *main_root;
     ptcl_type *return_type;
     ptcl_parser_syntax syntaxes[256];
     size_t syntax_depth;
@@ -246,6 +247,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->position = 0;
     parser->is_critical = false;
     parser->root = NULL;
+    parser->main_root = NULL;
     parser->return_type = NULL;
     parser->errors = NULL;
     parser->errors_count = 0;
@@ -326,8 +328,8 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         size_t stop = parser->position;
         parser->position = start;
 
-        ptcl_statement_func_body *body = parser->root->root;
-        while (parser->position != stop)
+        ptcl_statement_func_body *body = parser->main_root;
+        while (parser->position <= stop)
         {
             if (ptcl_parser_ended(parser))
             {
@@ -339,7 +341,28 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
             if (parser->is_critical)
             {
                 ptcl_parser_leave_from_syntax(parser);
+                if (statement == NULL)
+                {
+                    return NULL;
+                }
+
+                if (statement->type == ptcl_statement_each_type)
+                {
+                    free(statement);
+                }
+
                 return NULL;
+            }
+
+            if (statement == NULL)
+            {
+                continue;
+            }
+
+            if (statement->type == ptcl_statement_each_type)
+            {
+                free(statement);
+                continue;
             }
 
             ptcl_statement **buffer = realloc(body->statements, (body->count + 1) * sizeof(ptcl_statement *));
@@ -356,7 +379,6 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         }
 
         ptcl_parser_leave_from_syntax(parser);
-        parser->root = body;
         return NULL;
     }
 
@@ -451,7 +473,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
     {
         ptcl_attributes_destroy(attributes);
         free(statement);
-        return statement;
+        return NULL;
     }
 
     // Syntax decl, body or each
@@ -845,6 +867,11 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
     if (found)
     {
         parser->position = stop;
+        if (parser->syntax_depth == 0)
+        {
+            parser->main_root = parser->root;
+        }
+
         ptcl_statement_func_body *temp = malloc(sizeof(ptcl_statement_func_body));
         *temp = ptcl_statement_func_body_create(NULL, 0, parser->root);
         parser->root = temp;
@@ -1072,6 +1099,11 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
         if (parser->is_critical)
         {
             ptcl_parser_clear_scope(parser);
+            if (statement == NULL)
+            {
+                ptcl_statement_func_body_destroy(*func_body_pointer);
+                break;
+            }
 
             // Already destryoed
             if (statement->type != ptcl_statement_each_type)
@@ -1134,9 +1166,8 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_statement_func_body body = ptcl_statement_func_body_create(
         NULL, 0,
-        is_syntax ? parser->root->root : parser->root);
+        is_syntax ? parser->main_root : parser->root);
     ptcl_parser_parse_func_body_by_pointer(parser, &body, true, false);
-
     if (parser->is_critical)
     {
         return;
@@ -3384,6 +3415,11 @@ bool ptcl_parser_ended(ptcl_parser *parser)
 
 bool ptcl_parser_add_instance(ptcl_parser *parser, ptcl_parser_instance instance)
 {
+    if (parser->syntax_depth > 0 && !instance.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+
     ptcl_parser_instance *buffer = realloc(parser->instances, (parser->instances_count + 1) * sizeof(ptcl_parser_instance));
     if (buffer == NULL)
     {

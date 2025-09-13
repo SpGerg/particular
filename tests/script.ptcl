@@ -15,14 +15,16 @@ syntax list([T: static type])() end {
 
 	!~type_name()
 }
+
+syntax let [name: static word] end {
+	!name:
+}
+
+syntax create a list end {
+	let y = list(>integer)()
+}
   
 function main(): integer {
-	characters: static character[] = "Hello, world"
-	each char, characters {
-		printc(char)
-	}
-
-	expressionst := list(>integer)()
-	expressionst2 := list(>float)()
+	create a list
 	return 0
 }
