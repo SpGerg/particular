@@ -4,28 +4,8 @@ typedata statement(statement_type: integer)
 
 type string: character*
 
-syntax list([T: static type])() end {
-	@{
-		~type_name: static word = !<__list_ word(T)>
-		typedata !~type_name(entities: !T*)
-		function !<!~type_name _append>(instance: !~type_name): void {
-
-		}
-	}
-
-	!~type_name()
-}
-
-syntax let [name: static word] end {
-	!name:
-}
-
-syntax create a list end {
-	let y = list(>integer)()
-	__list_integer_append(y)
-}
-  
 function main(): integer {
-	create a list
+	test: static integer = 1
+	casted := test :: character
 	return 0
 }

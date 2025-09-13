@@ -19,7 +19,8 @@
     "ptcl_transpiler.h": "c",
     "cstdlib": "c",
     "typeinfo": "c",
-    "compare": "c"
+    "compare": "c",
+    "cmath": "c"
   },
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",

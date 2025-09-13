@@ -2308,6 +2308,38 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         left = ptcl_parser_parse_binary(parser, except, with_word, false);
     }
 
+    while (true)
+    {
+        if (ptcl_parser_ended(parser) ||
+            ptcl_parser_current(parser).type != ptcl_token_colon_type ||
+            ptcl_parser_peek(parser, 1).type != ptcl_token_colon_type)
+        {
+            break;
+        }
+
+        ptcl_location location = ptcl_parser_current(parser).location;
+        ptcl_parser_skip(parser);
+        ptcl_parser_skip(parser);
+
+        ptcl_type type = ptcl_parser_parse_type(parser, true, false);
+        if (parser->is_critical)
+        {
+            ptcl_expression_destroy(left);
+            return NULL;
+        }
+
+        ptcl_expression *cast = ptcl_expression_cast_create(left, type, location);
+        if (cast == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            ptcl_expression_destroy(left);
+            ptcl_type_destroy(type);
+            return NULL;
+        }
+
+        left = ptcl_expression_static_cast(cast);
+    }
+
     return left;
 }
 
@@ -2321,6 +2353,11 @@ ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except
 
     while (true)
     {
+        if (ptcl_parser_ended(parser))
+        {
+            break;
+        }
+
         ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
         if (type == ptcl_binary_operator_none_type ||
             type == ptcl_binary_operator_multiplicative_type ||
@@ -2383,7 +2420,7 @@ ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except
         }
     }
 
-    left = ptcl_expression_binary_static_evaluate(left, left->binary);
+    left = ptcl_expression_binary_static_evaluate(left);
     if (left == NULL)
     {
         ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
@@ -2410,6 +2447,11 @@ ptcl_expression *ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *exce
 
     while (true)
     {
+        if (ptcl_parser_ended(parser))
+        {
+            break;
+        }
+
         ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
         if (type != ptcl_binary_operator_plus_type && type != ptcl_binary_operator_minus_type)
         {
@@ -2434,7 +2476,7 @@ ptcl_expression *ptcl_parser_parse_additive(ptcl_parser *parser, ptcl_type *exce
         }
     }
 
-    left = ptcl_expression_binary_static_evaluate(left, left->binary);
+    left = ptcl_expression_binary_static_evaluate(left);
     if (left == NULL)
     {
         ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
@@ -2453,6 +2495,11 @@ ptcl_expression *ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type
 
     while (true)
     {
+        if (ptcl_parser_ended(parser))
+        {
+            break;
+        }
+
         ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
         if (type != ptcl_binary_operator_multiplicative_type && type != ptcl_binary_operator_division_type)
         {
@@ -2477,7 +2524,7 @@ ptcl_expression *ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type
         }
     }
 
-    left = ptcl_expression_binary_static_evaluate(left, left->binary);
+    left = ptcl_expression_binary_static_evaluate(left);
     if (left == NULL)
     {
         ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
@@ -2488,9 +2535,19 @@ ptcl_expression *ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type
 
 ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word, bool with_syntax)
 {
+    if (ptcl_parser_ended(parser))
+    {
+        return ptcl_parser_parse_dot(parser, except, false, with_word, false);
+    }
+
     ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
 
-    if (type != ptcl_binary_operator_none_type && type != ptcl_binary_operator_equals_type && type != ptcl_binary_operator_greater_than_type && type != ptcl_binary_operator_less_than_type && type != ptcl_binary_operator_greater_equals_than_type && type != ptcl_binary_operator_less_equals_than_type)
+    if (type != ptcl_binary_operator_none_type &&
+        type != ptcl_binary_operator_equals_type &&
+        type != ptcl_binary_operator_greater_than_type &&
+        type != ptcl_binary_operator_less_than_type &&
+        type != ptcl_binary_operator_greater_equals_than_type &&
+        type != ptcl_binary_operator_less_equals_than_type)
     {
         ptcl_parser_skip(parser);
         ptcl_expression *value = ptcl_parser_parse_unary(parser, false, NULL, false, false);
@@ -2561,7 +2618,7 @@ ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, p
 ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word, bool with_syntax)
 {
     ptcl_expression *left = ptcl_parser_parse_array_element(parser, except, with_word, with_syntax);
-    if (parser->is_critical || left->return_type.type != ptcl_value_typedata_type)
+    if (parser->is_critical || left->return_type.type != ptcl_value_typedata_type || ptcl_parser_ended(parser))
     {
         return left;
     }
@@ -2624,7 +2681,9 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
 ptcl_expression *ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax)
 {
     ptcl_expression *value = ptcl_parser_parse_value(parser, except, with_word, with_syntax);
-    if (parser->is_critical || (value->return_type.type != ptcl_value_array_type && value->return_type.type != ptcl_value_pointer_type))
+    if (parser->is_critical ||
+        (value->return_type.type != ptcl_value_array_type && value->return_type.type != ptcl_value_pointer_type) ||
+        ptcl_parser_ended(parser))
     {
         return value;
     }

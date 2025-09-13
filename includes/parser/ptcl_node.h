@@ -32,6 +32,7 @@ typedef enum ptcl_expression_type
     ptcl_expression_float_type,
     ptcl_expression_integer_type,
     ptcl_expression_binary_type,
+    ptcl_expression_cast_type,
     ptcl_expression_unary_type,
     ptcl_expression_array_element_type,
     ptcl_expression_dot_type,
@@ -277,6 +278,12 @@ typedef struct ptcl_statement_func_call
     bool is_built_in;
 } ptcl_statement_func_call;
 
+typedef struct ptcl_expression_cast
+{
+    ptcl_expression *value;
+    ptcl_type type;
+} ptcl_expression_cast;
+
 typedef struct ptcl_expression
 {
     ptcl_expression_type type;
@@ -301,6 +308,7 @@ typedef struct ptcl_expression
         ptcl_expression_ctor ctor;
         ptcl_expression_if if_expr;
         ptcl_expression_object_type object_type;
+        ptcl_expression_cast cast;
     };
 } ptcl_expression;
 
@@ -851,6 +859,19 @@ static ptcl_expression *ptcl_expression_binary_create(ptcl_binary_operator_type 
     return expression;
 }
 
+static ptcl_expression *ptcl_expression_cast_create(ptcl_expression *value, ptcl_type type, ptcl_location location)
+{
+    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_cast_type, type, location);
+    if (expression != NULL)
+    {
+        expression->cast = (ptcl_expression_cast){
+            .type = type,
+            .value = value};
+    }
+
+    return expression;
+}
+
 static ptcl_expression *ptcl_expression_unary_create(ptcl_binary_operator_type type, ptcl_expression *child, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_unary_type, child->return_type, location);
@@ -1267,7 +1288,9 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
 
 static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
 {
-    if (type == ptcl_expression_variable_type || type == ptcl_expression_null_type)
+    if (type == ptcl_expression_variable_type ||
+        type == ptcl_expression_null_type ||
+        type == ptcl_expression_cast_type)
     {
         return false;
     }
@@ -1411,6 +1434,114 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
     }
 }
 
+static bool ptcl_type_is_primitive(ptcl_value_type type)
+{
+    switch (type)
+    {
+    case ptcl_value_any_type:
+    case ptcl_value_pointer_type:
+    case ptcl_value_array_type:
+    case ptcl_value_object_type_type:
+    case ptcl_value_typedata_type:
+    case ptcl_value_void_type:
+    case ptcl_value_type_type:
+        return false;
+    default:
+        return true;
+    }
+}
+
+static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
+{
+    if (expression->type != ptcl_expression_cast_type || !expression->cast.value->return_type.is_static)
+    {
+        return expression;
+    }
+
+    ptcl_type type = expression->cast.type;
+    ptcl_expression *value = expression->cast.value;
+    if (!ptcl_type_is_primitive(expression->return_type.type) || !ptcl_type_is_primitive(type.type))
+    {
+        return false;
+    }
+
+    ptcl_expression *result = NULL;
+    ptcl_location location = expression->location;
+    switch (expression->return_type.type)
+    {
+    case ptcl_value_character_type:
+        switch (type.type)
+        {
+        case ptcl_value_character_type:
+            break;
+        case ptcl_value_double_type:
+            result = ptcl_expression_create_double((double)value->character, location);
+            break;
+        case ptcl_value_float_type:
+            result = ptcl_expression_create_float((float)value->character, location);
+            break;
+        case ptcl_value_integer_type:
+            result = ptcl_expression_create_integer((int)value->character, location);
+            break;
+        }
+    case ptcl_value_double_type:
+        switch (type.type)
+        {
+        case ptcl_value_character_type:
+            result = ptcl_expression_create_character((char)value->double_n, location);
+            break;
+        case ptcl_value_double_type:
+            break;
+        case ptcl_value_float_type:
+            result = ptcl_expression_create_float((float)value->double_n, location);
+            break;
+        case ptcl_value_integer_type:
+            result = ptcl_expression_create_integer((int)value->double_n, location);
+            break;
+        }
+    case ptcl_value_float_type:
+        switch (type.type)
+        {
+        case ptcl_value_character_type:
+            result = ptcl_expression_create_character((char)value->float_n, location);
+            break;
+        case ptcl_value_double_type:
+            result = ptcl_expression_create_double((double)value->float_n, location);
+            break;
+        case ptcl_value_float_type:
+            break;
+        case ptcl_value_integer_type:
+            result = ptcl_expression_create_integer((int)value->float_n, location);
+            break;
+        }
+    case ptcl_value_integer_type:
+        switch (type.type)
+        {
+        case ptcl_value_character_type:
+            result = ptcl_expression_create_character((char)value->integer_n, location);
+            break;
+        case ptcl_value_double_type:
+            result = ptcl_expression_create_double((double)value->integer_n, location);
+            break;
+        case ptcl_value_float_type:
+            result = ptcl_expression_create_float((float)value->integer_n, location);
+            break;
+        case ptcl_value_integer_type:
+            break;
+        }
+    default:
+        break;
+    }
+
+    if (result == NULL)
+    {
+        return expression;
+    }
+
+    ptcl_expression_destroy(expression);
+    return result;
+}
+
 static bool ptcl_expression_binary_static_type_equals(ptcl_expression *left, ptcl_expression *right)
 {
     if (right->return_type.type != ptcl_value_object_type_type)
@@ -1450,13 +1581,14 @@ static bool ptcl_expression_binary_static_equals(ptcl_expression *left, ptcl_exp
     return left->long_n == right->long_n; // Primitive type in union will have same value in integer
 }
 
-static ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_expression *expression, ptcl_expression_binary binary)
+static ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_expression *expression)
 {
     if (expression->type != ptcl_expression_binary_type)
     {
         return expression;
     }
 
+    ptcl_expression_binary binary = expression->binary;
     ptcl_expression *left_child = binary.left;
     ptcl_expression *right_child = binary.right;
     if (binary.type == ptcl_binary_operator_type_equals_type)
@@ -1507,14 +1639,14 @@ static ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_expression *
     ptcl_type type = ptcl_type_get_common(left_type, right_type);
     if (left_child->type == ptcl_expression_binary_type)
     {
-        ptcl_expression *new_left = ptcl_expression_binary_static_evaluate(left_child, left_child->binary);
+        ptcl_expression *new_left = ptcl_expression_binary_static_evaluate(left_child);
         ptcl_expression_destroy(left_child);
         left_child = new_left;
     }
 
     if (right_child->type == ptcl_expression_binary_type)
     {
-        ptcl_expression *new_right = ptcl_expression_binary_static_evaluate(right_child, right_child->binary);
+        ptcl_expression *new_right = ptcl_expression_binary_static_evaluate(right_child);
         ptcl_expression_destroy(right_child);
         right_child = new_right;
     }
