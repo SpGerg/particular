@@ -2658,25 +2658,15 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
             return static_value;
         }
 
-        ptcl_expression **child = malloc(sizeof(ptcl_expression *));
-        if (child == NULL)
-        {
-            ptcl_parser_throw_out_of_memory(parser, left->location);
-            ptcl_expression_destroy(left);
-            return NULL;
-        }
-
         ptcl_expression *dot_expr = ptcl_expression_create(ptcl_expression_dot_type, ptcl_type_copy(member->type), left->location);
         if (dot_expr == NULL)
         {
             ptcl_parser_throw_out_of_memory(parser, left->location);
             ptcl_expression_destroy(left);
-            free(child);
             return NULL;
         }
 
-        *child = left;
-        dot_expr->dot = ptcl_expression_dot_create(child, name);
+        dot_expr->dot = ptcl_expression_dot_create(left, name);
     }
 
     return left;

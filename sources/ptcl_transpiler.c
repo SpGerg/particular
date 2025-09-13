@@ -740,7 +740,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, '}');
         break;
     case ptcl_expression_dot_type:
-        ptcl_transpiler_add_expression(transpiler, *expression->dot.left, false);
+        ptcl_transpiler_add_expression(transpiler, expression->dot.left, false);
         ptcl_transpiler_append_character(transpiler, '.');
         ptcl_transpiler_add_name(transpiler, expression->dot.name, false);
         break;

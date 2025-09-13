@@ -2,11 +2,11 @@ prototype function printf(content: character*, ...): integer
 prototype function printc(content: character, ...): integer
 typedata statement(statement_type: integer)
 
-type string: character* 
+type string: character* {}
+typedata instance(name: character*)
 
 function main(): integer {
-	test: static integer = 1
-	casted: static character = test :: character
-	printc(casted)
-	return 0
+	variable: static instance = instance("Hello, world")
+	printf(variable.name)
+	return 0 
 }

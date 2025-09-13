@@ -236,7 +236,7 @@ typedef struct ptcl_expression_array_element
 
 typedef struct ptcl_expression_dot
 {
-    ptcl_expression **left;
+    ptcl_expression *left;
     bool is_end;
 
     union
@@ -984,7 +984,7 @@ static ptcl_expression_if ptcl_expression_if_create(ptcl_expression *condition, 
         .else_body = else_body};
 }
 
-static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression **left, ptcl_name_word name)
+static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptcl_name_word name)
 {
     return (ptcl_expression_dot){
         .left = left,
@@ -2389,7 +2389,6 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
 
 static void ptcl_expression_ctor_destroy(ptcl_expression_ctor ctor)
 {
-    ptcl_name_word_destroy(ctor.name);
     if (ctor.count > 0)
     {
         for (size_t i = 0; i < ctor.count; i++)
@@ -2449,7 +2448,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
             ptcl_name_word_destroy(expression->dot.name);
         }
 
-        ptcl_expression_destroy(*expression->dot.left);
+        ptcl_expression_destroy(expression->dot.left);
         free(expression->dot.left);
         break;
     case ptcl_expression_ctor_type:
