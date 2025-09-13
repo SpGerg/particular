@@ -1539,6 +1539,7 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
     }
 
     ptcl_expression_destroy(expression);
+    result->return_type.is_static = true;
     return result;
 }
 
