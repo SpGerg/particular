@@ -875,6 +875,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         if (parser->syntax_depth + 1 >= PTCL_PARSER_MAX_DEPTH)
         {
             ptcl_parser_throw_max_depth(parser, ptcl_parser_current(parser).location);
+            ptcl_parser_syntax_destroy(syntax);
             return false;
         }
 
@@ -889,7 +890,6 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             if (syntax_node.type != ptcl_parser_syntax_node_variable_type)
             {
                 ptcl_parser_syntax_node_destroy(target_node);
-                ptcl_parser_syntax_destroy(syntax);
                 continue;
             }
 
