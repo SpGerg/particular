@@ -889,6 +889,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             if (syntax_node.type != ptcl_parser_syntax_node_variable_type)
             {
                 ptcl_parser_syntax_node_destroy(target_node);
+                ptcl_parser_syntax_destroy(syntax);
                 continue;
             }
 
