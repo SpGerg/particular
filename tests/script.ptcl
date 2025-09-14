@@ -1,17 +1,11 @@
-prototype function printf(content: character*, ...): integer
-prototype function printc(content: character, ...): integer
-typedata statement(statement_type: integer)
-
-type string: character* {}
-syntax reflect_typedata [name: static word] end {
-	@{
-		typedata !<__meta_ !name>()
-	}
-
-	typedata !name
+unsyntax {
+	prototype function printf(content: character*, ...): integer
+	prototype function printc(content: character, ...): integer
+	typedata statement(statement_type: integer)
 }
 
-reflect_typedata instance(name: character*)
+type string: character* {}
+typedata instance(name: character*)
 
 function main(): integer {
 	variable: static instance = instance("Hello, world")

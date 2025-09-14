@@ -450,7 +450,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
             ptcl_parser_parse_syntax(parser);
             break;
         case ptcl_statement_unsyntax_type:
-            ptcl_attributes_destroy(attributes);
+            statement->type = ptcl_statement_func_body_type;
             statement->body = ptcl_parser_parse_unsyntax(parser);
             break;
         case ptcl_statement_func_body_type:
@@ -1225,7 +1225,12 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
     size_t start = parser->position;
     bool with_expression = false;
     ptcl_expression *expression;
-    bool with_syntax = !parser->is_syntax_body || ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &expression, &with_expression);
+    bool with_syntax = false;
+    if (parser->is_syntax_body)
+    {
+        with_syntax = ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &expression, &with_expression);
+    }
+
     if (with_expression)
     {
         ptcl_expression_destroy(expression);
