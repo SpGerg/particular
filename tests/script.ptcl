@@ -5,10 +5,9 @@ unsyntax {
 }
 
 type string: character* {}
-typedata instance(name: character*)
 
 function main(): integer {
-	variable: static instance = instance("Hello, world")
-	printf(variable.name)
+	printf("Hello, world")
+	undefine printf
 	return 0 
 }
