@@ -20,6 +20,7 @@ typedef enum ptcl_statement_type
     ptcl_statement_return_type,
     ptcl_statement_each_type,
     ptcl_statement_syntax_type,
+    ptcl_statement_unsyntax_type,
     ptcl_statement_if_type
 } ptcl_statement_type;
 

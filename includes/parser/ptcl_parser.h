@@ -308,6 +308,8 @@ ptcl_statement *ptcl_parser_parse_if(ptcl_parser *parser, bool is_static);
 
 ptcl_expression *ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_static);
 
+ptcl_statement_func_body ptcl_parser_parse_unsyntax(ptcl_parser *parser);
+
 void ptcl_parser_parse_syntax(ptcl_parser *parser);
 
 void ptcl_parser_parse_each(ptcl_parser *parser);

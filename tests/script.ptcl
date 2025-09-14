@@ -3,7 +3,15 @@ prototype function printc(content: character, ...): integer
 typedata statement(statement_type: integer)
 
 type string: character* {}
-typedata instance(name: character*)
+syntax reflect_typedata [name: static word] end {
+	@{
+		typedata !<__meta_ !name>()
+	}
+
+	typedata !name
+}
+
+reflect_typedata instance(name: character*)
 
 function main(): integer {
 	variable: static instance = instance("Hello, world")

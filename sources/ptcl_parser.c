@@ -18,6 +18,7 @@ typedef struct ptcl_parser
     size_t syntax_depth;
     bool is_critical;
     bool add_errors;
+    bool is_syntax_body;
 } ptcl_parser;
 
 // TODO: recreate type order to base type -> pointer/array -> ...
@@ -255,6 +256,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->instances_count = 0;
     parser->syntax_depth = 0;
     parser->add_errors = true;
+    parser->is_syntax_body = true;
 
     ptcl_parser_result result = {
         .configuration = parser->configuration,
@@ -307,6 +309,8 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
         return ptcl_statement_each_type;
     case ptcl_token_syntax_type:
         return ptcl_statement_syntax_type;
+    case ptcl_token_unsyntax_type:
+        return ptcl_statement_unsyntax_type;
     case ptcl_token_type_type:
         return ptcl_statement_type_decl_type;
     case ptcl_token_typedata_type:
@@ -323,7 +327,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
 {
     bool placeholder;
     size_t start = parser->position;
-    if (ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
+    if (parser->is_syntax_body && ptcl_parser_parse_try_parse_syntax_usage_here(parser, true, NULL, &placeholder))
     {
         size_t stop = parser->position;
         parser->position = start;
@@ -444,6 +448,10 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
             free(statement);
             statement = NULL;
             ptcl_parser_parse_syntax(parser);
+            break;
+        case ptcl_statement_unsyntax_type:
+            ptcl_attributes_destroy(attributes);
+            statement->body = ptcl_parser_parse_unsyntax(parser);
             break;
         case ptcl_statement_func_body_type:
             ptcl_attributes_destroy(attributes);
@@ -1113,7 +1121,7 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
             }
 
             // Already destryoed
-            if (statement->type != ptcl_statement_each_type)
+            if (statement->type != ptcl_statement_each_type && statement->type != ptcl_statement_unsyntax_type)
             {
                 ptcl_statement_func_body_destroy(*func_body_pointer);
             }
@@ -1217,7 +1225,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
     size_t start = parser->position;
     bool with_expression = false;
     ptcl_expression *expression;
-    bool with_syntax = ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &expression, &with_expression);
+    bool with_syntax = !parser->is_syntax_body || ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &expression, &with_expression);
     if (with_expression)
     {
         ptcl_expression_destroy(expression);
@@ -2063,6 +2071,15 @@ ptcl_expression *ptcl_parser_parse_if_expression(ptcl_parser *parser, bool is_st
     return expression;
 }
 
+ptcl_statement_func_body ptcl_parser_parse_unsyntax(ptcl_parser *parser)
+{
+    ptcl_parser_match(parser, ptcl_token_unsyntax_type);
+    parser->is_syntax_body = false;
+    ptcl_statement_func_body body = ptcl_parser_parse_func_body(parser, true, false);
+    parser->is_syntax_body = true;
+    return body;
+}
+
 void ptcl_parser_parse_syntax(ptcl_parser *parser)
 {
     ptcl_parser_match(parser, ptcl_token_syntax_type);
@@ -2290,7 +2307,7 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
     ptcl_expression *syntax_expression;
     bool with_expression = false;
     size_t start = parser->position;
-    if (with_syntax && ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &syntax_expression, &with_expression))
+    if (parser->is_syntax_body && with_syntax && ptcl_parser_parse_try_parse_syntax_usage_here(parser, false, &syntax_expression, &with_expression))
     {
         parser->position = start;
         ptcl_expression *expression = ptcl_parser_parse_cast(parser, except, with_word, true);
@@ -2820,9 +2837,24 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
                     parser->position--;
                 }
 
+                size_t start = parser->position;
                 ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser);
                 if (parser->is_critical)
                 {
+                    if (!parser->add_errors && with_word)
+                    {
+                        parser->position = start + 1;
+                        parser->is_critical = false;
+                        ptcl_expression *word = ptcl_expression_word_create(ptcl_name_create_fast_w(current.value, false), current.location);
+                        if (word == NULL)
+                        {
+                            break;
+                        }
+
+                        word->return_type.is_static = true;
+                        return word;
+                    }
+
                     break;
                 }
 
