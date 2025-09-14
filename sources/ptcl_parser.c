@@ -2322,6 +2322,7 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
 void ptcl_parser_parse_undefine(ptcl_parser *parser)
 {
     ptcl_parser_match(parser, ptcl_token_undefine_type);
+    ptcl_parser_match(parser, ptcl_token_left_par_type);
     ptcl_name_word name = ptcl_parser_parse_name_word(parser);
     if (parser->is_critical)
     {
@@ -2333,6 +2334,8 @@ void ptcl_parser_parse_undefine(ptcl_parser *parser)
     {
         instance->is_out_of_scope = true;
     }
+
+    ptcl_parser_match(parser, ptcl_token_right_par_type);
 }
 
 ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, bool with_word, bool with_syntax)

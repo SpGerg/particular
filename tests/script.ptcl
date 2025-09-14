@@ -8,6 +8,6 @@ type string: character* {}
 
 function main(): integer {
 	printf("Hello, world")
-	undefine printf
+	undefine(printf)
 	return 0 
 }
