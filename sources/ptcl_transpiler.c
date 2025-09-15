@@ -331,7 +331,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         for (size_t i = 0; i < statement->type_decl.functions_count; i++)
         {
             ptcl_statement_func_decl function = statement->type_decl.functions[i];
-            char *name = ptcl_string("ptcl_", statement->type_decl.name.value, "_", function.name.value, NULL);
+            char *name = ptcl_string("ptcl_t_", statement->type_decl.name.value, "_", function.name.value, NULL);
             ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &ptcl_type_integer);
             free(name);
         }
@@ -930,7 +930,7 @@ char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler)
         return NULL;
     }
 
-    snprintf(anonymous_name, max_digits, "__ptcl_anonymous_%d", transpiler->anonymous_count);
+    snprintf(anonymous_name, max_digits, "__ptcl_t_anonymous_%d", transpiler->anonymous_count);
     return anonymous_name;
 }
 
