@@ -335,7 +335,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         parser->position = start;
 
         ptcl_statement_func_body *body = parser->main_root;
-        while (parser->position <= stop)
+        while (parser->position < stop)
         {
             if (ptcl_parser_ended(parser))
             {
