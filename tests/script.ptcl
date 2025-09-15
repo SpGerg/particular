@@ -4,7 +4,11 @@ unsyntax {
 	typedata statement(statement_type: integer)
 }
 
-type string: character* {}
+type string: character* {
+	function length(): integer {
+
+	}
+}
 
 function main(): integer {
 	printf("Hello, world")
