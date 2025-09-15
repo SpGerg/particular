@@ -923,7 +923,7 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
 
 char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler)
 {
-    const int max_digits = 20; // Cant be more than int
+    const int max_digits = 22; // Cant be more than int
     char *anonymous_name = malloc(max_digits * sizeof(char));
     if (anonymous_name == NULL)
     {
