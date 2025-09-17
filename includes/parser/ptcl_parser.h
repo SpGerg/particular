@@ -303,7 +303,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
-ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser);
+ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function);
 
 ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool is_prototype);
 

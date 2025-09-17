@@ -416,7 +416,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         switch (type)
         {
         case ptcl_statement_func_call_type:
-            statement->func_call = ptcl_parser_parse_func_call(parser);
+            statement->func_call = ptcl_parser_parse_func_call(parser, NULL);
             if (statement->func_call.is_built_in)
             {
                 ptcl_expression_destroy(*statement->func_call.built_in);
@@ -980,10 +980,26 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
     free(parser->syntaxes[--parser->syntax_depth].nodes);
 }
 
-ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser)
+ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function)
 {
     ptcl_location location = ptcl_parser_current(parser).location;
-    ptcl_name_word name = ptcl_parser_parse_name_word(parser);
+    ptcl_name_word name;
+    if (function != NULL)
+    {
+        if (ptcl_parser_current(parser).type == ptcl_token_left_par_type)
+        {
+            name = function->name;
+        }
+        else
+        {
+            name = ptcl_parser_parse_name_word(parser);
+        }
+    }
+    else
+    {
+        name = ptcl_parser_parse_name_word(parser);
+    }
+
     ptcl_parser_except(parser, ptcl_token_left_par_type);
     if (parser->is_critical)
     {
@@ -992,13 +1008,22 @@ ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser)
 
     ptcl_parser_instance *instance_target;
     ptcl_parser_function *target;
-    if (!ptcl_parser_try_get_instance(parser, name, ptcl_parser_instance_function_type, &instance_target))
+    if (function == NULL)
     {
-        ptcl_parser_throw_unknown_function(parser, name.value, location);
-        return (ptcl_statement_func_call){};
+        if (!ptcl_parser_try_get_instance(parser, name, ptcl_parser_instance_function_type, &instance_target))
+        {
+            ptcl_parser_throw_unknown_function(parser, name.value, location);
+            return (ptcl_statement_func_call){};
+        }
+
+        target = &instance_target->function;
+    }
+    else
+    {
+        ptcl_parser_instance placeholder = ptcl_parser_function_create(parser->root, *function);
+        target = &placeholder.function;
     }
 
-    target = &instance_target->function;
     ptcl_statement_func_call func_call = ptcl_statement_func_call_create(ptcl_identifier_create_by_name(name), NULL, 0);
     bool is_variadic_now = false;
     while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
@@ -2727,13 +2752,6 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
         // TODO: Add ability for typedata to func call
         if (left->return_type.type == ptcl_value_type_type)
         {
-            ptcl_parser_except(parser, ptcl_token_left_par_type);
-            if (parser->is_critical)
-            {
-                ptcl_expression_destroy(left);
-                return NULL;
-            }
-
             ptcl_statement_func_decl function;
             bool finded = false;
             ptcl_type_comp_type comp_type = left->return_type.comp_type;
@@ -2756,42 +2774,7 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
                 return NULL;
             }
 
-            ptcl_expression **expressions = malloc(function.count * sizeof(ptcl_expression *));
-            if (expressions == NULL)
-            {
-                ptcl_expression_destroy(left);
-                return NULL;
-            }
-
-            for (size_t i = 0; i < function.count; i++)
-            {
-                expressions[i] = ptcl_parser_parse_cast(parser, &function.arguments[i].type, false, true);
-                if (parser->is_critical)
-                {
-                    if (i > 0)
-                    {
-                        for (size_t j = i; j < i; j++)
-                        {
-                            ptcl_expression_destroy(expressions[i]);
-                        }
-
-                        free(expressions);
-                    }
-
-                    ptcl_expression_destroy(left);
-                    return NULL;
-                }
-            }
-
-            ptcl_statement_func_call func_call = ptcl_statement_func_call_create(ptcl_identifier_create_by_name(function.name), expressions, function.count);
-            ptcl_parser_except(parser, ptcl_token_right_par_type);
-            if (parser->is_critical)
-            {
-                ptcl_statement_func_call_destroy(func_call);
-                ptcl_expression_destroy(left);
-                return NULL;
-            }
-
+            ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser, &function);
             func_call.is_built_in = false;
             func_call.return_type = function.return_type;
             ptcl_expression *expression = ptcl_expression_create(ptcl_expression_dot_type, ptcl_type_copy(func_call.return_type), location);
@@ -2989,7 +2972,7 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
                 }
 
                 size_t start = parser->position;
-                ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser);
+                ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser, NULL);
                 if (parser->is_critical)
                 {
                     if (!parser->add_errors && with_word)
