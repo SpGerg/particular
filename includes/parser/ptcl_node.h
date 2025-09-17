@@ -8,6 +8,8 @@ typedef struct ptcl_expression ptcl_expression;
 typedef struct ptcl_statement_func_body ptcl_statement_func_body;
 typedef struct ptcl_expression_dot ptcl_expression_dot;
 typedef struct ptcl_type ptcl_type;
+typedef struct ptcl_type_member ptcl_type_member;
+typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
 
 typedef enum ptcl_statement_type
 {
@@ -139,8 +141,10 @@ typedef struct ptcl_type_object_type
 typedef struct ptcl_type_comp_type
 {
     ptcl_name_word identifier;
-    ptcl_type *types;
+    ptcl_type_member *types;
     size_t count;
+    ptcl_statement_func_decl *functions;
+    size_t functions_count;
     bool is_any;
 } ptcl_type_comp_type;
 
@@ -236,15 +240,26 @@ typedef struct ptcl_expression_array_element
     ptcl_expression *index;
 } ptcl_expression_array_element;
 
+typedef struct ptcl_statement_func_call
+{
+    ptcl_identifier identifier;
+    ptcl_expression **arguments;
+    size_t count;
+    ptcl_type return_type;
+    ptcl_expression **built_in;
+    bool is_built_in;
+} ptcl_statement_func_call;
+
 typedef struct ptcl_expression_dot
 {
     ptcl_expression *left;
-    bool is_end;
+    bool is_func_call;
 
     union
     {
         ptcl_expression_dot *right;
         ptcl_name_word name;
+        ptcl_statement_func_call func_call;
     };
 } ptcl_expression_dot;
 
@@ -269,16 +284,6 @@ typedef struct ptcl_expression_object_type
 {
     ptcl_type type;
 } ptcl_expression_object_type;
-
-typedef struct ptcl_statement_func_call
-{
-    ptcl_identifier identifier;
-    ptcl_expression **arguments;
-    size_t count;
-    ptcl_type return_type;
-    ptcl_expression **built_in;
-    bool is_built_in;
-} ptcl_statement_func_call;
 
 typedef struct ptcl_expression_cast
 {
@@ -538,6 +543,24 @@ static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
         .pointer = (ptcl_type_pointer){
             .target = type,
             .is_any = false}};
+}
+
+static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl type_decl)
+{
+    return (ptcl_type_comp_type){
+        .identifier = ptcl_name_create_fast_w(type_decl.name.value, false),
+        .types = type_decl.types,
+        .count = type_decl.types_count,
+        .functions = type_decl.functions,
+        .functions_count = type_decl.functions_count,
+        .is_any = false};
+}
+
+static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type type)
+{
+    return (ptcl_type){
+        .type = ptcl_value_type_type,
+        .comp_type = type};
 }
 
 static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement **statements, size_t count, ptcl_statement_func_body *root)
@@ -991,15 +1014,15 @@ static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptc
     return (ptcl_expression_dot){
         .left = left,
         .name = name,
-        .is_end = true};
+        .is_func_call = false};
 }
 
-static ptcl_expression_dot ptcl_expression_dot_create_continue(ptcl_expression_dot left, ptcl_expression_dot *right)
+static ptcl_expression_dot ptcl_expression_dot_call_create(ptcl_expression *left, ptcl_statement_func_call func_call)
 {
-    left.is_end = false;
-    left.right = right;
-
-    return left;
+    return (ptcl_expression_dot){
+        .left = left,
+        .func_call = func_call,
+        .is_func_call = true};
 }
 
 static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name_word name, ptcl_expression **values, size_t count)
@@ -1080,7 +1103,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
 
         for (size_t i = 0; i < expected.comp_type.count; i++)
         {
-            if (!ptcl_type_equals(expected.comp_type.types[i], target.comp_type.types[i]))
+            if (!ptcl_type_equals(expected.comp_type.types[i].type, target.comp_type.types[i].type))
             {
                 return false;
             }
@@ -1288,11 +1311,20 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     return copy;
 }
 
+static ptcl_type ptcl_type_get_base_from_type(ptcl_type type)
+{
+    if (type.type != ptcl_value_type_type)
+    {
+        return type;
+    }
+}
+
 static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
 {
     if (type == ptcl_expression_variable_type ||
         type == ptcl_expression_null_type ||
-        type == ptcl_expression_cast_type)
+        type == ptcl_expression_cast_type ||
+        type == ptcl_expression_func_call_type)
     {
         return false;
     }
@@ -1464,7 +1496,7 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
     ptcl_expression *value = expression->cast.value;
     if (!ptcl_type_is_primitive(expression->return_type.type) || !ptcl_type_is_primitive(type.type))
     {
-        return false;
+        return expression;
     }
 
     ptcl_expression *result = NULL;
@@ -2445,13 +2477,16 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         free(expression->unary.child);
         break;
     case ptcl_expression_dot_type:
-        if (expression->dot.is_end)
+        if (expression->dot.is_func_call)
+        {
+            ptcl_statement_func_call_destroy(expression->dot.func_call);
+        }
+        else
         {
             ptcl_name_word_destroy(expression->dot.name);
         }
 
         ptcl_expression_destroy(expression->dot.left);
-        free(expression->dot.left);
         break;
     case ptcl_expression_ctor_type:
         ptcl_expression_ctor_destroy(expression->ctor);

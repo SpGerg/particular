@@ -328,11 +328,12 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_add_func_decl(transpiler, statement->func_decl, statement->func_decl.name, NULL);
         break;
     case ptcl_statement_type_decl_type:
+        ptcl_type base_type = statement->type_decl.types[0].type;
         for (size_t i = 0; i < statement->type_decl.functions_count; i++)
         {
             ptcl_statement_func_decl function = statement->type_decl.functions[i];
             char *name = ptcl_string("ptcl_t_", statement->type_decl.name.value, "_", function.name.value, NULL);
-            ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &ptcl_type_integer);
+            ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &base_type);
             free(name);
         }
         break;
@@ -633,6 +634,32 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
     ptcl_transpiler_append_character(transpiler, ')');
 }
 
+static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl_expression *expression)
+{
+    if (expression->type != ptcl_expression_dot_type)
+    {
+        ptcl_transpiler_add_expression(transpiler, expression, false);
+        return;
+    }
+
+    bool is_special_func_call = expression->dot.is_func_call &&
+                                expression->dot.left->return_type.type == ptcl_value_type_type;
+
+    if (is_special_func_call)
+    {
+        ptcl_transpiler_add_identifier(transpiler, expression->dot.func_call.identifier, false);
+        ptcl_transpiler_append_character(transpiler, '(');
+        ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
+        ptcl_transpiler_append_character(transpiler, ')');
+    }
+    else
+    {
+        ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
+        ptcl_transpiler_append_character(transpiler, '.');
+        ptcl_transpiler_add_name(transpiler, expression->dot.name, false);
+    }
+}
+
 void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression *expression, bool specify_type)
 {
     switch (expression->type)
@@ -764,9 +791,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, '}');
         break;
     case ptcl_expression_dot_type:
-        ptcl_transpiler_add_expression(transpiler, expression->dot.left, false);
-        ptcl_transpiler_append_character(transpiler, '.');
-        ptcl_transpiler_add_name(transpiler, expression->dot.name, false);
+        ptcl_transpiler_add_dot_expression(transpiler, expression);
         break;
     case ptcl_expression_func_call_type:
         ptcl_transpiler_add_func_call(transpiler, expression->func_call);
@@ -823,6 +848,9 @@ void ptcl_transpiler_add_type(ptcl_transpiler *transpiler, ptcl_type type, bool 
     {
     case ptcl_value_typedata_type:
         ptcl_transpiler_add_name(transpiler, type.typedata, false);
+        break;
+    case ptcl_value_type_type:
+        ptcl_transpiler_add_type(transpiler, type.comp_type.types[0].type, false);
         break;
     case ptcl_value_array_type:
         ptcl_transpiler_add_type(transpiler, *type.array.target, with_array);

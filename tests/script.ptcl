@@ -1,23 +1,18 @@
 unsyntax {
 	prototype function printf(content: character*, ...): integer
+	prototype function printn(content: integer, ...): integer
 	prototype function printc(content: character, ...): integer
 	typedata statement(statement_type: integer)
 }
 
 type string: character* {
 	function length(): integer {
-
+		value := self
 	}
 }
 
-syntax test end {
-	~name := 2
-}
-
 function main(): integer {
-	test
-	test
-	printf("Hello, world")
-	undefine(printf)
-	return 0 
+	casted := "Hello, world" :: string
+	printf(casted.length())
+	return 0
 }

@@ -1324,6 +1324,11 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
             target = ptcl_type_create_typedata(typedata->name.value, false);
             break;
         }
+        else if (ptcl_parser_try_get_instance(parser, ptcl_name_create_fast_w(current.value, false), ptcl_parser_instance_comp_type_type, &typedata))
+        {
+            target = ptcl_type_create_comp_type_t(typedata->comp_type.comp_type);
+            break;
+        }
         // Fallthrough
     default:
         parse_success = false;
@@ -1753,6 +1758,15 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
         decl.body = body;
         decl.functions = functions;
         decl.functions_count = body->count;
+    }
+
+    ptcl_type_comp_type comp_type = ptcl_type_create_comp_type(decl);
+    ptcl_parser_instance instance = ptcl_parser_comp_type_create(comp_type.identifier, parser->root, comp_type);
+    if (!ptcl_parser_add_instance(parser, instance))
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        ptcl_statement_type_decl_destroy(decl);
+        return (ptcl_statement_type_decl){};
     }
 
     return decl;
@@ -2385,6 +2399,18 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
             return NULL;
         }
 
+        if (type.type == ptcl_value_type_type)
+        {
+            ptcl_type base = type.comp_type.types[0].type;
+            if (!ptcl_type_equals(base, left->return_type))
+            {
+                ptcl_parser_throw_fast_incorrect_type(parser, base, left->return_type, location);
+                ptcl_expression_destroy(left);
+                ptcl_type_destroy(type);
+                return NULL;
+            }
+        }
+
         ptcl_expression *cast = ptcl_expression_cast_create(left, type, location);
         if (cast == NULL)
         {
@@ -2675,11 +2701,14 @@ ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, p
 ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word, bool with_syntax)
 {
     ptcl_expression *left = ptcl_parser_parse_array_element(parser, except, with_word, with_syntax);
-    if (parser->is_critical || left->return_type.type != ptcl_value_typedata_type || ptcl_parser_ended(parser))
+    if (parser->is_critical ||
+        (left->return_type.type != ptcl_value_typedata_type && left->return_type.type != ptcl_value_type_type) ||
+        ptcl_parser_ended(parser))
     {
         return left;
     }
 
+    // TODO: Create recursive dot
     while (true)
     {
         if (!ptcl_parser_match(parser, ptcl_token_dot_type))
@@ -2687,12 +2716,96 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
             break;
         }
 
-        ptcl_location location = ptcl_parser_current(parser).location;
         ptcl_name_word name = ptcl_parser_parse_name_word(parser);
+        ptcl_location location = ptcl_parser_current(parser).location;
         if (parser->is_critical)
         {
             ptcl_expression_destroy(left);
             return NULL;
+        }
+
+        // TODO: Add ability for typedata to func call
+        if (left->return_type.type == ptcl_value_type_type)
+        {
+            ptcl_parser_except(parser, ptcl_token_left_par_type);
+            if (parser->is_critical)
+            {
+                ptcl_expression_destroy(left);
+                return NULL;
+            }
+
+            ptcl_statement_func_decl function;
+            bool finded = false;
+            ptcl_type_comp_type comp_type = left->return_type.comp_type;
+            for (size_t i = 0; i < comp_type.functions_count; i++)
+            {
+                function = comp_type.functions[i];
+                if (!ptcl_name_word_compare(function.name, name))
+                {
+                    continue;
+                }
+
+                finded = true;
+                break;
+            }
+
+            if (!finded)
+            {
+                ptcl_parser_throw_unknown_function(parser, name.value, location);
+                ptcl_expression_destroy(left);
+                return NULL;
+            }
+
+            ptcl_expression **expressions = malloc(function.count * sizeof(ptcl_expression *));
+            if (expressions == NULL)
+            {
+                ptcl_expression_destroy(left);
+                return NULL;
+            }
+
+            for (size_t i = 0; i < function.count; i++)
+            {
+                expressions[i] = ptcl_parser_parse_cast(parser, &function.arguments[i].type, false, true);
+                if (parser->is_critical)
+                {
+                    if (i > 0)
+                    {
+                        for (size_t j = i; j < i; j++)
+                        {
+                            ptcl_expression_destroy(expressions[i]);
+                        }
+
+                        free(expressions);
+                    }
+
+                    ptcl_expression_destroy(left);
+                    return NULL;
+                }
+            }
+
+            ptcl_statement_func_call func_call = ptcl_statement_func_call_create(ptcl_identifier_create_by_name(function.name), expressions, function.count);
+            ptcl_parser_except(parser, ptcl_token_right_par_type);
+            if (parser->is_critical)
+            {
+                ptcl_statement_func_call_destroy(func_call);
+                ptcl_expression_destroy(left);
+                return NULL;
+            }
+
+            func_call.is_built_in = false;
+            func_call.return_type = function.return_type;
+            ptcl_expression *expression = ptcl_expression_create(ptcl_expression_dot_type, ptcl_type_copy(func_call.return_type), location);
+            if (expression == NULL)
+            {
+                ptcl_statement_func_call_destroy(func_call);
+                ptcl_expression_destroy(left);
+                ptcl_parser_throw_out_of_memory(parser, location);
+                return NULL;
+            }
+
+            expression->dot = ptcl_expression_dot_call_create(left, func_call);
+            left = expression;
+            break;
         }
 
         ptcl_typedata_member *member;
@@ -2720,6 +2833,8 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, b
         }
 
         dot_expr->dot = ptcl_expression_dot_create(left, name);
+        left = dot_expr;
+        break;
     }
 
     return left;

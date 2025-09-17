@@ -24,6 +24,11 @@ typedef struct ptcl_parser_typedata
     size_t count;
 } ptcl_parser_typedata;
 
+typedef struct ptcl_parser_comp_type
+{
+    ptcl_type_comp_type comp_type;
+} ptcl_parser_comp_type;
+
 typedef enum ptcl_parser_syntax_node_type
 {
     ptcl_parser_syntax_node_word_type,
@@ -78,6 +83,7 @@ typedef struct ptcl_parser_function
 typedef enum ptcl_parser_instance_type
 {
     ptcl_parser_instance_typedata_type,
+    ptcl_parser_instance_comp_type_type,
     ptcl_parser_instance_function_type,
     ptcl_parser_instance_variable_type,
     ptcl_parser_instance_syntax_type
@@ -95,6 +101,7 @@ typedef struct ptcl_parser_instance
         ptcl_parser_typedata typedata;
         ptcl_parser_function function;
         ptcl_parser_variable variable;
+        ptcl_parser_comp_type comp_type;
         ptcl_parser_syntax syntax;
     };
 } ptcl_parser_instance;
@@ -109,6 +116,17 @@ typedef struct ptcl_parser_result
     size_t instances_count;
     bool is_critical;
 } ptcl_parser_result;
+
+static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name_word name, ptcl_statement_func_body *root, ptcl_type_comp_type type)
+{
+    return (ptcl_parser_instance){
+        .type = ptcl_parser_instance_comp_type_type,
+        .root = root,
+        .name = name,
+        .is_out_of_scope = false,
+        .comp_type = (ptcl_parser_comp_type){
+            .comp_type = type}};
+}
 
 static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
 {
