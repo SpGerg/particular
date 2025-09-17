@@ -2,12 +2,18 @@ unsyntax {
 	prototype function printf(content: character*, ...): integer
 	prototype function printn(content: integer, ...): integer
 	prototype function printc(content: character, ...): integer
+	prototype function strlen(content: character*): integer
 	typedata statement(statement_type: integer)
 }
 
 type string: character* {
 	function length(): integer {
-		value := self
+		return strlen(self)
+	}
+
+	function this(): string {
+		g := this.length()
+		return this
 	}
 }
 

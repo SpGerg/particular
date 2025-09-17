@@ -143,8 +143,7 @@ typedef struct ptcl_type_comp_type
     ptcl_name_word identifier;
     ptcl_type_member *types;
     size_t count;
-    ptcl_statement_func_decl *functions;
-    size_t functions_count;
+    ptcl_statement_func_body *functions;
     bool is_any;
 } ptcl_type_comp_type;
 
@@ -156,7 +155,7 @@ typedef struct ptcl_type
 
     union
     {
-        ptcl_type_comp_type comp_type;
+        ptcl_type_comp_type *comp_type;
         ptcl_name_word typedata;
         ptcl_type_pointer pointer;
         ptcl_type_array array;
@@ -364,8 +363,7 @@ typedef struct ptcl_statement_type_decl
     ptcl_type_member *types;
     size_t types_count;
     ptcl_statement_func_body *body;
-    ptcl_statement_func_decl *functions;
-    size_t functions_count;
+    ptcl_statement_func_body *functions;
     bool is_prototype;
 } ptcl_statement_type_decl;
 
@@ -552,11 +550,10 @@ static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl t
         .types = type_decl.types,
         .count = type_decl.types_count,
         .functions = type_decl.functions,
-        .functions_count = type_decl.functions_count,
         .is_any = false};
 }
 
-static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type type)
+static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type *type)
 {
     return (ptcl_type){
         .type = ptcl_value_type_type,
@@ -716,7 +713,7 @@ static ptcl_type_member ptcl_type_member_create(ptcl_type type, bool is_up)
 static ptcl_statement_type_decl ptcl_statement_type_decl_create(
     ptcl_name_word name,
     ptcl_type_member *types, size_t types_count, ptcl_statement_func_body *body,
-    ptcl_statement_func_decl *functions, size_t functions_count,
+    ptcl_statement_func_body *functions,
     bool is_prototype)
 {
     return (ptcl_statement_type_decl){
@@ -725,7 +722,6 @@ static ptcl_statement_type_decl ptcl_statement_type_decl_create(
         .types_count = types_count,
         .body = NULL,
         .functions = functions,
-        .functions_count = functions_count,
         .is_prototype = is_prototype};
 }
 
@@ -1091,19 +1087,19 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     case ptcl_value_object_type_type:
         return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
     case ptcl_value_typedata_type:
-        if (!ptcl_name_word_compare(expected.comp_type.identifier, target.comp_type.identifier))
+        if (!ptcl_name_word_compare(expected.comp_type->identifier, target.comp_type->identifier))
         {
             return false;
         }
 
-        if (expected.comp_type.count != target.comp_type.count)
+        if (expected.comp_type->count != target.comp_type->count)
         {
             return false;
         }
 
-        for (size_t i = 0; i < expected.comp_type.count; i++)
+        for (size_t i = 0; i < expected.comp_type->count; i++)
         {
-            if (!ptcl_type_equals(expected.comp_type.types[i].type, target.comp_type.types[i].type))
+            if (!ptcl_type_equals(expected.comp_type->types[i].type, target.comp_type->types[i].type))
             {
                 return false;
             }
@@ -2254,6 +2250,7 @@ static void ptcl_type_destroy(ptcl_type type)
         }
 
         break;
+    case ptcl_value_type_type:
     case ptcl_value_typedata_type:
     case ptcl_value_word_type:
     case ptcl_value_character_type:
@@ -2261,7 +2258,6 @@ static void ptcl_type_destroy(ptcl_type type)
     case ptcl_value_float_type:
     case ptcl_value_integer_type:
     case ptcl_value_any_type:
-    case ptcl_value_type_type:
     case ptcl_value_void_type:
         break;
     default:
@@ -2343,11 +2339,6 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
         }
 
         free(type_decl.types);
-    }
-
-    if (type_decl.functions_count > 0)
-    {
-        free(type_decl.functions);
     }
 
     if (type_decl.body != NULL)

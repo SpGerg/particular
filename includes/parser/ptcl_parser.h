@@ -26,7 +26,7 @@ typedef struct ptcl_parser_typedata
 
 typedef struct ptcl_parser_comp_type
 {
-    ptcl_type_comp_type comp_type;
+    ptcl_type_comp_type *comp_type;
 } ptcl_parser_comp_type;
 
 typedef enum ptcl_parser_syntax_node_type
@@ -117,7 +117,7 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name_word name, ptcl_statement_func_body *root, ptcl_type_comp_type type)
+static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name_word name, ptcl_statement_func_body *root, ptcl_type_comp_type *type)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_comp_type_type,
@@ -278,6 +278,9 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         break;
     case ptcl_parser_instance_syntax_type:
         ptcl_parser_syntax_destroy(instance->syntax);
+        break;
+    case ptcl_parser_instance_comp_type_type:
+        free(instance->comp_type.comp_type);
         break;
     case ptcl_parser_instance_function_type:
         break;
