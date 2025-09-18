@@ -6,7 +6,7 @@ unsyntax {
 	typedata statement(statement_type: integer)
 }
 
-type string: character* {
+type string: up character* {
 	function length(): integer {
 		return strlen(self)
 	}
@@ -17,13 +17,8 @@ type string: character* {
 	}
 }
 
-syntax multiple [left: integer] [right: integer] end {
-	left * right
-}
-
 function main(): integer {
-	casted := "Hello, world" :: string
+	casted: string = "Hello, world"
 	printn(casted.length())
-	printn(-#multiple 2 2)
 	return 0
 }

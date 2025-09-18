@@ -1051,6 +1051,21 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     {
         return true;
     }
+    else if (expected.type == ptcl_value_type_type)
+    {
+        if (target.type != ptcl_value_type_type)
+        {
+            ptcl_type_member type = expected.comp_type->types[0];
+            if (!type.is_up)
+            {
+                return false;
+            }
+
+            return ptcl_type_equals(type.type, target);
+        }
+
+        return ptcl_name_word_compare(expected.typedata, target.typedata);
+    }
 
     if (expected.type != target.type)
     {
@@ -1087,27 +1102,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     case ptcl_value_object_type_type:
         return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
     case ptcl_value_typedata_type:
-        if (!ptcl_name_word_compare(expected.comp_type->identifier, target.comp_type->identifier))
-        {
-            return false;
-        }
-
-        if (expected.comp_type->count != target.comp_type->count)
-        {
-            return false;
-        }
-
-        for (size_t i = 0; i < expected.comp_type->count; i++)
-        {
-            if (!ptcl_type_equals(expected.comp_type->types[i].type, target.comp_type->types[i].type))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    case ptcl_value_type_type:
-        return ptcl_name_word_compare(expected.typedata, target.typedata);
+        return ptcl_type_equals(*expected.pointer.target, *target.array.target);
     case ptcl_value_word_type:
     case ptcl_value_character_type:
     case ptcl_value_double_type:
@@ -2025,6 +2020,9 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
 
     switch (type.type)
     {
+    case ptcl_value_type_type:
+        name = type.comp_type->identifier.value;
+        break;
     case ptcl_value_typedata_type:
         name = ptcl_string("typedata_", type.typedata.value, "_", NULL);
         break;
@@ -2073,6 +2071,9 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
 
     switch (type.type)
     {
+    case ptcl_value_type_type:
+        name = type.comp_type->identifier.value;
+        break;
     case ptcl_value_typedata_type:
         name = ptcl_string(is_static, "typedata (", type.typedata.value, ")", NULL);
         break;

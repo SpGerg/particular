@@ -2465,6 +2465,13 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         left = ptcl_expression_static_cast(cast);
     }
 
+    if (except != NULL && !ptcl_type_equals(*except, left->return_type))
+    {
+        ptcl_parser_throw_fast_incorrect_type(parser, *except, left->return_type, left->location);
+        ptcl_expression_destroy(left);
+        return NULL;
+    }
+    
     return left;
 }
 
@@ -2550,13 +2557,6 @@ ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except
     {
         ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
         return left;
-    }
-
-    if (except != NULL && !ptcl_type_equals(*except, left->return_type))
-    {
-        ptcl_parser_throw_fast_incorrect_type(parser, *except, left->return_type, left->location);
-        ptcl_expression_destroy(left);
-        return NULL;
     }
 
     return left;
