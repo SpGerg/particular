@@ -1053,18 +1053,23 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     }
     else if (expected.type == ptcl_value_type_type)
     {
-        if (target.type != ptcl_value_type_type)
+        if (target.type != ptcl_value_type_type || !ptcl_name_word_compare(expected.typedata, target.typedata))
         {
-            ptcl_type_member type = expected.comp_type->types[0];
-            if (!type.is_up)
+            for (size_t i = 0; i < expected.comp_type->count; i++)
             {
-                return false;
+                ptcl_type_member type = expected.comp_type->types[0];
+                if (!type.is_up || !ptcl_type_equals(type.type, target))
+                {
+                    continue;;
+                }
+
+                return true;
             }
 
-            return ptcl_type_equals(type.type, target);
+            return false;
         }
 
-        return ptcl_name_word_compare(expected.typedata, target.typedata);
+        return true;
     }
 
     if (expected.type != target.type)

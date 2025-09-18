@@ -11,14 +11,21 @@ type string: up character* {
 		return strlen(self)
 	}
 
-	function this(): string {
-		g := this.length()
-		return this
+	function self(): character* {
+		return self
+	}
+}
+
+type array_string: up string, up character[] {
+	function self(): character* {
+		return self.self()
 	}
 }
 
 function main(): integer {
 	casted: string = "Hello, world"
+	array: array_string = "Hello, world"
 	printn(casted.length())
+	printf(array.self())
 	return 0
 }

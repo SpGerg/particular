@@ -1727,10 +1727,16 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
             return (ptcl_statement_type_decl){};
         }
 
+        decl.types = buffer;
         bool is_up = ptcl_parser_match(parser, ptcl_token_up_type);
         ptcl_type type = ptcl_parser_parse_type(parser, false, false);
         if (parser->is_critical)
         {
+            if (decl.types_count == 0)
+            {
+                free(decl.types);
+            }
+
             ptcl_statement_type_decl_destroy(decl);
             return (ptcl_statement_type_decl){};
         }
@@ -1746,7 +1752,6 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
             }
         }
 
-        decl.types = buffer;
         decl.types[decl.types_count++] = ptcl_type_member_create(type, is_up);
         if (!ptcl_parser_match(parser, ptcl_token_comma_type))
         {
@@ -2471,7 +2476,7 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         ptcl_expression_destroy(left);
         return NULL;
     }
-    
+
     return left;
 }
 
