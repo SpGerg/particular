@@ -17,8 +17,13 @@ type string: character* {
 	}
 }
 
+syntax multiple [left: integer] [right: integer] end {
+	left * right
+}
+
 function main(): integer {
 	casted := "Hello, world" :: string
-	printf(casted.length())
+	printn(casted.length())
+	printn(-#multiple 2 2)
 	return 0
 }

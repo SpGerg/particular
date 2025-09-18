@@ -1174,7 +1174,7 @@ static ptcl_expression *ptcl_expression_unary_static_evaluate(ptcl_expression *e
 
     ptcl_expression value = *unary.child;
     ptcl_location location = value.location;
-    ptcl_expression_destroy(unary.child);
+    ptcl_expression_destroy(expression);
 
     switch (unary.type)
     {
@@ -2465,7 +2465,6 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         break;
     case ptcl_expression_unary_type:
         ptcl_expression_destroy(expression->unary.child);
-        free(expression->unary.child);
         break;
     case ptcl_expression_dot_type:
         if (expression->dot.is_func_call)
