@@ -70,8 +70,10 @@ int main()
         ptcl_transpiler_destroy(transpiler);
         free(transpiled);
     }
-    else {
-        for (size_t i = 0;i < result.count;i++) {
+    else
+    {
+        for (size_t i = 0; i < result.count; i++)
+        {
             printf("%s, at: %d\n", result.errors[i].message, result.errors[i].location.position);
         }
     }

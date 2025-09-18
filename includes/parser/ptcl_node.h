@@ -71,6 +71,7 @@ typedef enum ptcl_binary_operator_type
 
 typedef enum ptcl_value_type
 {
+    ptcl_value_function_pointer_type,
     ptcl_value_object_type_type,
     ptcl_value_typedata_type,
     ptcl_value_array_type,
@@ -147,6 +148,13 @@ typedef struct ptcl_type_comp_type
     bool is_any;
 } ptcl_type_comp_type;
 
+typedef struct ptcl_type_functon_pointer_type
+{
+    ptcl_type *return_type;
+    ptcl_type *types;
+    size_t count;
+} ptcl_type_functon_pointer_type;
+
 typedef struct ptcl_type
 {
     ptcl_value_type type;
@@ -160,6 +168,7 @@ typedef struct ptcl_type
         ptcl_type_pointer pointer;
         ptcl_type_array array;
         ptcl_type_object_type object_type;
+        ptcl_type_functon_pointer_type function_pointer;
     };
 } ptcl_type;
 
@@ -511,6 +520,13 @@ static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name_word name)
         .name = name};
 }
 
+static ptcl_identifier ptcl_identifier_create_by_str(char *value)
+{
+    return (ptcl_identifier){
+        .is_name = true,
+        .name = ptcl_name_create_fast_w(value, false)};
+}
+
 static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
 {
     return (ptcl_type){
@@ -767,6 +783,17 @@ static ptcl_type *ptcl_type_get_target(ptcl_type type)
     default:
         return NULL;
     }
+}
+
+static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_type *types, size_t count)
+{
+    return (ptcl_type){
+        .type = ptcl_value_function_pointer_type,
+        .is_primitive = true,
+        .is_static = false,
+        .function_pointer.return_type = return_type,
+        .function_pointer.types = types,
+        .function_pointer.count = count};
 }
 
 static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
@@ -1060,7 +1087,8 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
                 ptcl_type_member type = expected.comp_type->types[0];
                 if (!type.is_up || !ptcl_type_equals(type.type, target))
                 {
-                    continue;;
+                    continue;
+                    ;
                 }
 
                 return true;
@@ -1271,6 +1299,18 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
         }
 
         copy.pointer.is_any = type.pointer.is_any;
+        break;
+    case ptcl_value_function_pointer_type:
+        ptcl_type *return_type = malloc(sizeof(ptcl_type));
+        *return_type = ptcl_type_copy(*type.function_pointer.return_type);
+        ptcl_type *arguments = malloc(type.function_pointer.count * sizeof(ptcl_type));
+        for (size_t i = 0; i < type.function_pointer.count; i++)
+        {
+            arguments[i] = ptcl_type_copy(type.function_pointer.types[i]);
+        }
+
+        copy.function_pointer.return_type = return_type;
+        copy.function_pointer.types = arguments;
         break;
     case ptcl_value_array_type:
         if (type.array.target != NULL)
@@ -2225,6 +2265,26 @@ static void ptcl_expression_if_destroy(ptcl_expression_if if_expr)
     ptcl_expression_destroy(if_expr.else_body);
 }
 
+static bool ptcl_type_is_function(ptcl_type type, ptcl_type_functon_pointer_type *function)
+{
+    if (type.type == ptcl_value_function_pointer_type)
+    {
+        *function = type.function_pointer;
+        return true;
+    }
+
+    if (type.type == ptcl_value_array_type)
+    {
+        return ptcl_type_is_function(*type.array.target, function);
+    }
+    else if (type.type == ptcl_value_pointer_type)
+    {
+        return ptcl_type_is_function(*type.pointer.target, function);
+    }
+
+    return false;
+}
+
 static void ptcl_type_destroy(ptcl_type type)
 {
     switch (type.type)
@@ -2255,6 +2315,16 @@ static void ptcl_type_destroy(ptcl_type type)
             type.object_type.target = NULL;
         }
 
+        break;
+    case ptcl_value_function_pointer_type:
+        ptcl_type_destroy(*type.function_pointer.return_type);
+        free(type.function_pointer.return_type);
+        for (size_t i = 0; i < type.function_pointer.count; i++)
+        {
+            ptcl_type_destroy(type.function_pointer.types[i]);
+        }
+
+        free(type.function_pointer.types);
         break;
     case ptcl_value_type_type:
     case ptcl_value_typedata_type:

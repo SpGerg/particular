@@ -25,6 +25,7 @@ type array_string: up string, up character[] {
 function main(): integer {
 	casted: string = "Hello, world"
 	array: array_string = "Hello, world"
+	val: void(integer)* = null
 	printn(casted.length())
 	printf(array.self())
 	return 0

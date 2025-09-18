@@ -1408,6 +1408,50 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
 
     if (target.type != ptcl_value_word_type)
     {
+        if (ptcl_parser_match(parser, ptcl_token_left_par_type))
+        {
+            ptcl_type *return_type = malloc(sizeof(ptcl_type));
+            if (return_type == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, current.location);
+                ptcl_type_destroy(target);
+                return (ptcl_type){};
+            }
+
+            *return_type = target;
+            ptcl_type function = ptcl_type_create_func(return_type, NULL, 0);
+            while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
+            {
+                if (ptcl_parser_ended(parser))
+                {
+                    ptcl_parser_except(parser, ptcl_token_right_par_type);
+                    ptcl_type_destroy(function);
+                    return (ptcl_type){};
+                }
+
+                ptcl_type *buffer = realloc(function.function_pointer.types, (function.function_pointer.count + 1) * sizeof(ptcl_type));
+                if (buffer == NULL)
+                {
+                    ptcl_parser_throw_out_of_memory(parser, current.location);
+                    ptcl_type_destroy(function);
+                    return (ptcl_type){};
+                }
+
+                function.function_pointer.types = buffer;
+                function.function_pointer.types[function.function_pointer.count] = ptcl_parser_parse_type(parser, false, false);
+                if (parser->is_critical)
+                {
+                    ptcl_parser_throw_out_of_memory(parser, current.location);
+                    ptcl_type_destroy(function);
+                    return (ptcl_type){};
+                }
+
+                function.function_pointer.count++;
+            }
+
+            target = function;
+        }
+
         ptcl_type parsed_target = ptcl_parser_pointers(parser, target);
         if (parser->is_critical)
         {
@@ -2694,6 +2738,13 @@ ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, p
                 return value;
             }
 
+            if (value->return_type.type != ptcl_value_pointer_type)
+            {
+                ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_any_pointer, value->return_type, value->location);
+                ptcl_expression_destroy(value);
+                return NULL;
+            }
+
             type = ptcl_binary_operator_dereference_type;
             type_value = *ptcl_type_get_target(value->return_type);
         }
@@ -3281,14 +3332,13 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
         result->return_type.is_static = true;
         break;
     case ptcl_token_null_type:
-        if (except == NULL || except->type != ptcl_value_pointer_type)
+        if (except == NULL || (except->type != ptcl_value_pointer_type && except->type != ptcl_value_function_pointer_type))
         {
             ptcl_type received = except == NULL ? ptcl_type_any_pointer : *except;
             ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_any_pointer, received, current.location);
             break;
         }
 
-        except->is_static = true;
         result = ptcl_expression_create_null(*except, current.location);
         break;
     case ptcl_token_none_type:
