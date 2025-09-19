@@ -1447,6 +1447,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
                 }
 
                 function.function_pointer.count++;
+                ptcl_parser_match(parser, ptcl_token_comma_type);
             }
 
             target = function;

@@ -20,6 +20,10 @@ type array_string: up string, up character[] {
 	function self(): character* {
 		return self.self()
 	}
+
+	function func(): void(integer, character*) {
+
+	}
 }
 
 function main(): integer {
