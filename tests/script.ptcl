@@ -16,19 +16,17 @@ optional type string: up character* {
 	}
 }
 
-optional type percent: float
-
-function is_percent(given: percent): integer {
-	if given > 100 {
-		return 0
-	}
-	else {
-		return 1
+optional type percent: float {
+	function is_percent(): integer {
+		if self > 100 {
+			return 0
+		}
+		else {
+			return 1
+		}
 	}
 }
 
 function main(): integer {
-	value: string = "Hello, world!"
-	boolean := is_percent(23)
 	return 0
 }

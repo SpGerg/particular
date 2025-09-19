@@ -2603,6 +2603,11 @@ ptcl_expression *ptcl_parser_parse_binary(ptcl_parser *parser, ptcl_type *except
             ptcl_expression_destroy(right);
             return NULL;
         }
+
+        // Conditions always return integer type
+        bool is_static = left->return_type.is_static;
+        left->return_type = ptcl_type_integer;
+        left->return_type.is_static = is_static;
     }
 
     left = ptcl_expression_binary_static_evaluate(left);

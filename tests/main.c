@@ -56,8 +56,6 @@ int main()
     ptcl_lexer *lexer = ptcl_lexer_create("console", source, &configuration);
     ptcl_tokens_list tokens_list = ptcl_lexer_tokenize(lexer);
 
-    free(source);
-
     ptcl_parser *parser = ptcl_parser_create(&tokens_list, &configuration);
     ptcl_parser_result result = ptcl_parser_parse(parser);
 
@@ -74,10 +72,52 @@ int main()
     {
         for (size_t i = 0; i < result.count; i++)
         {
-            printf("%s, at: %d\n", result.errors[i].message, result.errors[i].location.position);
+            int error_pos = result.errors[i].location.position;
+
+            // Самый тупой способ: ищем начало и конец строки
+            int line_start = 0;
+            int line_end = 0;
+            int line_number = 1;
+
+            // Считаем строки до позиции ошибки
+            for (int j = 0; j < error_pos; j++)
+            {
+                if (source[j] == '\n')
+                {
+                    line_number++;
+                    line_start = j + 1;
+                }
+            }
+
+            // Ищем конец текущей строки
+            line_end = error_pos;
+            while (source[line_end] != '\0' && source[line_end] != '\n')
+            {
+                line_end++;
+            }
+
+            printf("Error at line %d, position %d:\n", line_number, error_pos - line_start);
+            printf("  ");
+
+            // Выводим строку с ошибкой
+            for (int j = line_start; j < line_end; j++)
+            {
+                putchar(source[j]);
+            }
+            printf("\n  ");
+
+            // Выводим указатель на ошибку
+            for (int j = line_start; j < error_pos; j++)
+            {
+                putchar(' ');
+            }
+            printf("^\n");
+
+            printf("Message: %s\n\n", result.errors[i].message);
         }
     }
 
+    free(source);
     ptcl_tokens_list_destroy(tokens_list);
     ptcl_lexer_destroy(lexer);
 
