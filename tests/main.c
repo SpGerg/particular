@@ -73,13 +73,9 @@ int main()
         for (size_t i = 0; i < result.count; i++)
         {
             int error_pos = result.errors[i].location.position;
-
-            // Самый тупой способ: ищем начало и конец строки
             int line_start = 0;
             int line_end = 0;
             int line_number = 1;
-
-            // Считаем строки до позиции ошибки
             for (int j = 0; j < error_pos; j++)
             {
                 if (source[j] == '\n')
@@ -89,7 +85,6 @@ int main()
                 }
             }
 
-            // Ищем конец текущей строки
             line_end = error_pos;
             while (source[line_end] != '\0' && source[line_end] != '\n')
             {
@@ -98,15 +93,12 @@ int main()
 
             printf("Error at line %d, position %d:\n", line_number, error_pos - line_start);
             printf("  ");
-
-            // Выводим строку с ошибкой
             for (int j = line_start; j < line_end; j++)
             {
                 putchar(source[j]);
             }
-            printf("\n  ");
 
-            // Выводим указатель на ошибку
+            printf("\n  ");
             for (int j = line_start; j < error_pos; j++)
             {
                 putchar(' ');
