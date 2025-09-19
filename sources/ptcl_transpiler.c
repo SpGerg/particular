@@ -892,6 +892,22 @@ void ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
         ptcl_transpiler_add_type_and_name(transpiler, *function.return_type, empty, true);
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_append_character(transpiler, '*');
+        ptcl_type next = type;
+        while (next.type == ptcl_value_pointer_type || next.type == ptcl_value_array_type)
+        {
+            if (next.type == ptcl_value_pointer_type)
+            {
+                ptcl_transpiler_append_character(transpiler, '*');
+                next = *type.pointer.target;
+            }
+            else
+            {
+                ptcl_transpiler_append_character(transpiler, '[');
+                ptcl_transpiler_append_character(transpiler, ']');
+                next = *type.array.target;
+            }
+        }
+
         ptcl_transpiler_append_word_s(transpiler, identifier);
         ptcl_transpiler_append_character(transpiler, ')');
         ptcl_transpiler_append_character(transpiler, '(');
