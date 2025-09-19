@@ -448,6 +448,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
             statement->ret = ptcl_parser_parse_return(parser);
             break;
         case ptcl_statement_if_type:
+            free(statement);
             statement = ptcl_parser_parse_if(parser, ptcl_parser_match(parser, ptcl_token_static_type));
             break;
         case ptcl_statement_each_type:

@@ -16,25 +16,19 @@ optional type string: up character* {
 	}
 }
 
-type array_string: up string, character[] {
-	function self(): character* {
-		return self.self()
+optional type percent: float
+
+function is_percent(given: percent): integer {
+	if given > 100 {
+		return 0
 	}
-
-	function func(): void(integer, character*) {
-
+	else {
+		return 1
 	}
-}
-
-function create(content: character*): string {
-	return content
 }
 
 function main(): integer {
-	casted: string = create("Hello, world")
-	array: array_string = "Hello, world"
-	val: void(integer)* = null
-	printn(casted.length())
-	printf(casted)
+	value: string = "Hello, world!"
+	boolean := is_percent(23)
 	return 0
 }

@@ -350,13 +350,17 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         break;
     case ptcl_statement_type_decl_type:
         ptcl_type base_type = statement->type_decl.types[0].type;
-        for (size_t i = 0; i < statement->type_decl.functions->count; i++)
+        if (statement->type_decl.functions != NULL)
         {
-            ptcl_statement_func_decl function = statement->type_decl.functions->statements[i]->func_decl;
-            char *name = ptcl_transpiler_get_func_from_type(statement->type_decl.name.value, function.name.value);
-            ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &base_type);
-            free(name);
+            for (size_t i = 0; i < statement->type_decl.functions->count; i++)
+            {
+                ptcl_statement_func_decl function = statement->type_decl.functions->statements[i]->func_decl;
+                char *name = ptcl_transpiler_get_func_from_type(statement->type_decl.name.value, function.name.value);
+                ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &base_type);
+                free(name);
+            }
         }
+
         break;
     case ptcl_statement_typedata_decl_type:
         const bool last = transpiler->from_position;
@@ -414,10 +418,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_add_expression(transpiler, statement->if_stat.condition, false);
         ptcl_transpiler_append_character(transpiler, ')');
-        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, false, is_func_body);
+        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, true, is_func_body);
         if (statement->if_stat.with_else)
         {
-            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, false, is_func_body);
+            ptcl_transpiler_append_word_s(transpiler, "else");
+            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, true, is_func_body);
         }
 
         break;
