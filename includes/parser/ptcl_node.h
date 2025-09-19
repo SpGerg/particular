@@ -145,6 +145,7 @@ typedef struct ptcl_type_comp_type
     ptcl_type_member *types;
     size_t count;
     ptcl_statement_func_body *functions;
+    bool is_optional;
     bool is_any;
 } ptcl_type_comp_type;
 
@@ -373,6 +374,7 @@ typedef struct ptcl_statement_type_decl
     size_t types_count;
     ptcl_statement_func_body *body;
     ptcl_statement_func_body *functions;
+    bool is_optional;
     bool is_prototype;
 } ptcl_statement_type_decl;
 
@@ -420,6 +422,7 @@ typedef struct ptcl_statement
 
 static void ptcl_statement_destroy(ptcl_statement *statement);
 static void ptcl_expression_destroy(ptcl_expression *expression);
+static bool ptcl_type_equals(ptcl_type expected, ptcl_type target);
 
 static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_type return_type, ptcl_location location)
 {
@@ -566,6 +569,7 @@ static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl t
         .types = type_decl.types,
         .count = type_decl.types_count,
         .functions = type_decl.functions,
+        .is_optional = type_decl.is_optional,
         .is_any = false};
 }
 
@@ -730,6 +734,7 @@ static ptcl_statement_type_decl ptcl_statement_type_decl_create(
     ptcl_name_word name,
     ptcl_type_member *types, size_t types_count, ptcl_statement_func_body *body,
     ptcl_statement_func_body *functions,
+    bool is_optional,
     bool is_prototype)
 {
     return (ptcl_statement_type_decl){
@@ -738,6 +743,7 @@ static ptcl_statement_type_decl ptcl_statement_type_decl_create(
         .types_count = types_count,
         .body = NULL,
         .functions = functions,
+        .is_optional = is_optional,
         .is_prototype = is_prototype};
 }
 
@@ -1067,6 +1073,55 @@ static ptcl_expression *ptcl_expression_word_create(ptcl_name_word content, ptcl
     return expression;
 }
 
+static bool ptcl_comp_type_equals(ptcl_type_comp_type *comp_type, ptcl_type target, bool is_to)
+{
+    if (is_to)
+    {
+        for (size_t i = 0; i < comp_type->count; i++)
+        {
+            ptcl_type_member member = comp_type->types[i];
+            if (member.is_up && ptcl_type_equals(member.type, target))
+            {
+                return true;
+            }
+        }
+
+        if (comp_type->is_optional)
+        {
+            for (size_t i = 0; i < comp_type->count; i++)
+            {
+                if (ptcl_type_equals(comp_type->types[i].type, target))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < comp_type->count; i++)
+        {
+            ptcl_type_member member = comp_type->types[i];
+            if (comp_type->is_optional)
+            {
+                if (ptcl_type_equals(member.type, target))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                if (!member.is_up && ptcl_type_equals(member.type, target))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
 {
     if (expected.is_static && !target.is_static)
@@ -1082,19 +1137,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     {
         if (target.type != ptcl_value_type_type || !ptcl_name_word_compare(expected.typedata, target.typedata))
         {
-            for (size_t i = 0; i < expected.comp_type->count; i++)
-            {
-                ptcl_type_member type = expected.comp_type->types[0];
-                if (!type.is_up || !ptcl_type_equals(type.type, target))
-                {
-                    continue;
-                    ;
-                }
-
-                return true;
-            }
-
-            return false;
+            return ptcl_comp_type_equals(expected.comp_type, target, true);
         }
 
         return true;
@@ -1107,17 +1150,19 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
         {
             return true;
         }
-
-        if (expected.type == ptcl_value_double_type &&
-            (target.type == ptcl_value_float_type ||
-             target.type == ptcl_value_integer_type))
+        else if (expected.type == ptcl_value_double_type &&
+                 (target.type == ptcl_value_float_type ||
+                  target.type == ptcl_value_integer_type))
         {
             return true;
         }
-
-        if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
+        else if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
         {
             return ptcl_type_equals(*expected.pointer.target, *target.array.target);
+        }
+        else if (target.type == ptcl_value_type_type && target.comp_type->is_optional)
+        {
+            return ptcl_comp_type_equals(target.comp_type, expected, false);
         }
 
         return false;

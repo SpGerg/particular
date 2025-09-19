@@ -62,6 +62,7 @@ static ptcl_lexer_configuration ptcl_lexer_configuration_default()
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_float_type, "float");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_integer_type, "integer");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_void_type, "void");
+    PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_optional_type, "optional");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_if_type, "if");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_else_type, "else");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_not_type, "not");

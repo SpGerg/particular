@@ -277,7 +277,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
 ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded)
 {
     ptcl_token current = ptcl_parser_current(parser);
-    if (current.type == ptcl_token_tilde_type)
+    if (current.type == ptcl_token_tilde_type || current.type == ptcl_token_prototype_type)
     {
         ptcl_parser_skip(parser);
         ptcl_statement_type type = ptcl_parser_parse_get_statement(parser, is_finded);
@@ -302,6 +302,8 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
         }
 
         return ptcl_statement_assign_type;
+    case ptcl_token_optional_type:
+        return ptcl_statement_type_decl_type;
     case ptcl_token_return_type:
         return ptcl_statement_return_type;
     case ptcl_token_if_type:
@@ -319,7 +321,6 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
         return ptcl_statement_type_decl_type;
     case ptcl_token_typedata_type:
         return ptcl_statement_typedata_decl_type;
-    case ptcl_token_prototype_type:
     case ptcl_token_function_type:
         return ptcl_statement_func_decl_type;
     default:
@@ -1746,6 +1747,7 @@ ptcl_statement_typedata_decl ptcl_parser_parse_typedata_decl(ptcl_parser *parser
 
 ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool is_prototype)
 {
+    bool is_optional = ptcl_parser_match(parser, ptcl_token_optional_type);
     ptcl_parser_match(parser, ptcl_token_type_type);
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_name_word name = ptcl_parser_parse_name_word(parser);
@@ -1761,7 +1763,7 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
         return (ptcl_statement_type_decl){};
     }
 
-    ptcl_statement_type_decl decl = ptcl_statement_type_decl_create(name, NULL, 0, NULL, 0, is_prototype);
+    ptcl_statement_type_decl decl = ptcl_statement_type_decl_create(name, NULL, 0, NULL, 0, is_optional, is_prototype);
     while (true)
     {
         ptcl_type_member *buffer = realloc(decl.types, (decl.types_count + 1) * sizeof(ptcl_type_member));

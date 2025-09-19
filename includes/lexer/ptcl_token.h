@@ -22,6 +22,7 @@ typedef enum ptcl_token_type
     ptcl_token_character_word_type,
     ptcl_token_word_word_type,
     ptcl_token_type_type,
+    ptcl_token_optional_type,
     ptcl_token_up_type,
     ptcl_token_each_type,
     ptcl_token_undefine_type,

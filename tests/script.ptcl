@@ -6,7 +6,7 @@ unsyntax {
 	typedata statement(statement_type: integer)
 }
 
-type string: up character* {
+optional type string: up character* {
 	function length(): integer {
 		return strlen(self)
 	}
@@ -16,7 +16,7 @@ type string: up character* {
 	}
 }
 
-type array_string: up string, up character[] {
+type array_string: up string, character[] {
 	function self(): character* {
 		return self.self()
 	}
@@ -26,11 +26,15 @@ type array_string: up string, up character[] {
 	}
 }
 
+function create(content: character*): string {
+	return content
+}
+
 function main(): integer {
-	casted: string = "Hello, world"
+	casted: string = create("Hello, world")
 	array: array_string = "Hello, world"
 	val: void(integer)* = null
 	printn(casted.length())
-	printf(array.self())
+	printf(casted)
 	return 0
 }
