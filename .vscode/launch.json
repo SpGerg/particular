@@ -43,6 +43,24 @@
           "description": "Set Disassembly Flavor to Intel",
           "text": "-gdb-set disassembly-flavor intel",
           "ignoreFailures": true
+        },
+        {
+          "text": "-gdb-set breakpoint pending on"
+        },
+        {
+          "text": "-interpreter-exec console \"handle SIGSEGV stop print pass\""
+        },
+        {
+          "text": "-interpreter-exec console \"handle SIGABRT stop print pass\""
+        },
+        {
+          "text": "-interpreter-exec console \"handle SIGFPE stop print pass\""
+        },
+        {
+          "text": "-interpreter-exec console \"handle SIGILL stop print pass\""
+        },
+        {
+          "text": "-interpreter-exec console \"handle SIGBUS stop print pass\""
         }
       ]
     }

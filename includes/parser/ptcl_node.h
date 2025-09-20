@@ -10,6 +10,7 @@ typedef struct ptcl_expression_dot ptcl_expression_dot;
 typedef struct ptcl_type ptcl_type;
 typedef struct ptcl_type_member ptcl_type_member;
 typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
+typedef struct ptcl_argument ptcl_argument;
 
 typedef enum ptcl_statement_type
 {
@@ -86,29 +87,12 @@ typedef enum ptcl_value_type
     ptcl_value_void_type,
 } ptcl_value_type;
 
-typedef struct ptcl_name_word
+typedef struct ptcl_name
 {
+    ptcl_location location;
     char *value;
     bool is_anonymous;
     bool is_free;
-} ptcl_name_word;
-
-typedef struct ptcl_name_tokens
-{
-    ptcl_token *tokens;
-    size_t count;
-} ptcl_name_tokens;
-
-typedef struct ptcl_name
-{
-    bool is_name;
-    ptcl_location location;
-
-    union
-    {
-        ptcl_name_word word;
-        ptcl_name_tokens tokens;
-    };
 } ptcl_name;
 
 typedef struct ptcl_identifier
@@ -117,7 +101,7 @@ typedef struct ptcl_identifier
 
     union
     {
-        ptcl_name_word name;
+        ptcl_name name;
         ptcl_expression **value;
     };
 } ptcl_identifier;
@@ -141,7 +125,7 @@ typedef struct ptcl_type_object_type
 
 typedef struct ptcl_type_comp_type
 {
-    ptcl_name_word identifier;
+    ptcl_name identifier;
     ptcl_type_member *types;
     size_t count;
     ptcl_statement_func_body *functions;
@@ -152,7 +136,7 @@ typedef struct ptcl_type_comp_type
 typedef struct ptcl_type_functon_pointer_type
 {
     ptcl_type *return_type;
-    ptcl_type *types;
+    ptcl_argument *arguments;
     size_t count;
 } ptcl_type_functon_pointer_type;
 
@@ -165,7 +149,7 @@ typedef struct ptcl_type
     union
     {
         ptcl_type_comp_type *comp_type;
-        ptcl_name_word typedata;
+        ptcl_name typedata;
         ptcl_type_pointer pointer;
         ptcl_type_array array;
         ptcl_type_object_type object_type;
@@ -175,7 +159,7 @@ typedef struct ptcl_type
 
 typedef struct ptcl_attribute
 {
-    ptcl_name_word name;
+    ptcl_name name;
 } ptcl_attribute;
 
 typedef struct ptcl_attributes
@@ -187,7 +171,7 @@ typedef struct ptcl_attributes
 typedef struct ptcl_argument
 {
     ptcl_type type;
-    ptcl_name_word name;
+    ptcl_name name;
     bool is_variadic;
 } ptcl_argument;
 
@@ -220,7 +204,7 @@ static ptcl_type ptcl_type_void = {
 
 typedef struct ptcl_expression_variable
 {
-    ptcl_name_word name;
+    ptcl_name name;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -267,7 +251,7 @@ typedef struct ptcl_expression_dot
     union
     {
         ptcl_expression_dot *right;
-        ptcl_name_word name;
+        ptcl_name name;
         ptcl_statement_func_call func_call;
     };
 } ptcl_expression_dot;
@@ -276,7 +260,7 @@ typedef struct ptcl_expression_dot
 typedef struct ptcl_expression_ctor
 {
     // Getted from typedata decl, do not free
-    ptcl_name_word name;
+    ptcl_name name;
     // Ordered by members in typedata
     ptcl_expression **values;
     size_t count;
@@ -310,7 +294,7 @@ typedef struct ptcl_expression
     {
         ptcl_statement_func_call func_call;
         ptcl_expression_array array;
-        ptcl_name_word word;
+        ptcl_name word;
         char character;
         long long_n;
         double double_n;
@@ -337,7 +321,7 @@ typedef struct ptcl_statement_func_body
 
 typedef struct ptcl_statement_func_decl
 {
-    ptcl_name_word name;
+    ptcl_name name;
     ptcl_argument *arguments;
     size_t count;
     ptcl_statement_func_body *func_body;
@@ -348,14 +332,14 @@ typedef struct ptcl_statement_func_decl
 
 typedef struct ptcl_typedata_member
 {
-    ptcl_name_word name;
+    ptcl_name name;
     ptcl_type type;
     size_t index;
 } ptcl_typedata_member;
 
 typedef struct ptcl_statement_typedata_decl
 {
-    ptcl_name_word name;
+    ptcl_name name;
     ptcl_typedata_member *members;
     size_t count;
     bool is_prototype;
@@ -369,7 +353,7 @@ typedef struct ptcl_type_member
 
 typedef struct ptcl_statement_type_decl
 {
-    ptcl_name_word name;
+    ptcl_name name;
     ptcl_type_member *types;
     size_t types_count;
     ptcl_statement_func_body *body;
@@ -451,7 +435,7 @@ static ptcl_statement *ptcl_statement_create(ptcl_statement_type type, ptcl_stat
     return statement;
 }
 
-static ptcl_argument ptcl_argument_create(ptcl_type type, ptcl_name_word name)
+static ptcl_argument ptcl_argument_create(ptcl_type type, ptcl_name name)
 {
     return (ptcl_argument){
         .type = type,
@@ -473,7 +457,7 @@ static ptcl_attributes ptcl_attributes_create(ptcl_attribute *attributes, size_t
         .count = count};
 }
 
-static ptcl_attribute ptcl_attribute_create(ptcl_name_word name)
+static ptcl_attribute ptcl_attribute_create(ptcl_name name)
 {
     return (ptcl_attribute){
         .name = name};
@@ -482,41 +466,38 @@ static ptcl_attribute ptcl_attribute_create(ptcl_name_word name)
 static ptcl_name ptcl_name_create(char *value, bool is_free, ptcl_location location)
 {
     return (ptcl_name){
-        .is_name = true,
         .location = location,
-        .word.value = value,
-        .word.is_anonymous = false,
-        .word.is_free = is_free};
+        .value = value,
+        .is_anonymous = false,
+        .is_free = is_free};
 }
 
 static ptcl_name ptcl_anonymous_name_create(char *value, bool is_free, ptcl_location location)
 {
     return (ptcl_name){
-        .is_name = true,
         .location = location,
-        .word.value = value,
-        .word.is_anonymous = true,
-        .word.is_free = is_free};
+        .value = value,
+        .is_anonymous = true,
+        .is_free = is_free};
 }
 
 static ptcl_name ptcl_name_create_l(char *value, bool is_anonymous, bool is_free, ptcl_location location)
 {
     return (ptcl_name){
-        .is_name = true,
-        .word.value = value,
-        .word.is_anonymous = is_anonymous,
-        .word.is_free = is_free};
+        .value = value,
+        .is_anonymous = is_anonymous,
+        .is_free = is_free};
 }
 
-static ptcl_name_word ptcl_name_create_fast_w(char *value, bool is_anonymous)
+static ptcl_name ptcl_name_create_fast_w(char *value, bool is_anonymous)
 {
-    return (ptcl_name_word){
+    return (ptcl_name){
         .value = value,
         .is_anonymous = is_anonymous,
         .is_free = false};
 }
 
-static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name_word name)
+static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name name)
 {
     return (ptcl_identifier){
         .is_name = true,
@@ -607,22 +588,13 @@ static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_identifier 
         .count = 0};
 }
 
-static ptcl_name ptcl_name_create_tokens(ptcl_token *tokens, size_t count, ptcl_location location)
-{
-    return (ptcl_name){
-        .is_name = false,
-        .location = location,
-        .tokens.tokens = tokens,
-        .tokens.count = count};
-}
-
 static ptcl_expression *ptcl_expression_create_null(ptcl_type type, ptcl_location location)
 {
     return ptcl_expression_create(ptcl_expression_null_type, type, location);
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
-    ptcl_name_word name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body *func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
+    ptcl_name name, ptcl_argument *arguments, size_t count, ptcl_statement_func_body *func_body, ptcl_type return_type, bool is_prototype, bool is_variadic)
 {
     return (ptcl_statement_func_decl){
         .name = name,
@@ -699,7 +671,7 @@ static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expres
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_variable(ptcl_name_word name, ptcl_type type, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_variable_type, type, location);
     if (expression != NULL)
@@ -731,7 +703,7 @@ static ptcl_type_member ptcl_type_member_create(ptcl_type type, bool is_up)
 }
 
 static ptcl_statement_type_decl ptcl_statement_type_decl_create(
-    ptcl_name_word name,
+    ptcl_name name,
     ptcl_type_member *types, size_t types_count, ptcl_statement_func_body *body,
     ptcl_statement_func_body *functions,
     bool is_optional,
@@ -761,7 +733,7 @@ static bool ptcl_value_is_number(ptcl_value_type type)
     }
 }
 
-static bool ptcl_name_word_compare(ptcl_name_word left, ptcl_name_word right)
+static bool ptcl_name_compare(ptcl_name left, ptcl_name right)
 {
     return strcmp(left.value, right.value) == 0 && left.is_anonymous == right.is_anonymous;
 }
@@ -791,14 +763,14 @@ static ptcl_type *ptcl_type_get_target(ptcl_type type)
     }
 }
 
-static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_type *types, size_t count)
+static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_argument *arguments, size_t count)
 {
     return (ptcl_type){
         .type = ptcl_value_function_pointer_type,
         .is_primitive = true,
         .is_static = false,
         .function_pointer.return_type = return_type,
-        .function_pointer.types = types,
+        .function_pointer.arguments = arguments,
         .function_pointer.count = count};
 }
 
@@ -821,7 +793,7 @@ static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
     }
 }
 
-static ptcl_name_word ptcl_expression_get_name(ptcl_expression *expression)
+static ptcl_name ptcl_expression_get_name(ptcl_expression *expression)
 {
     if (expression->type == ptcl_expression_variable_type)
     {
@@ -832,10 +804,10 @@ static ptcl_name_word ptcl_expression_get_name(ptcl_expression *expression)
         return ptcl_expression_get_name(expression->unary.child);
     }
 
-    return (ptcl_name_word){0};
+    return (ptcl_name){0};
 }
 
-static ptcl_name_word ptcl_identifier_get_name(ptcl_identifier identifier)
+static ptcl_name ptcl_identifier_get_name(ptcl_identifier identifier)
 {
     if (identifier.is_name)
     {
@@ -1004,7 +976,7 @@ static ptcl_statement_return ptcl_statement_return_create(ptcl_expression *value
         .value = value};
 }
 
-static ptcl_typedata_member ptcl_typedata_member_create(ptcl_name_word name, ptcl_type type, size_t index)
+static ptcl_typedata_member ptcl_typedata_member_create(ptcl_name name, ptcl_type type, size_t index)
 {
     return (ptcl_typedata_member){
         .name = name,
@@ -1012,7 +984,7 @@ static ptcl_typedata_member ptcl_typedata_member_create(ptcl_name_word name, ptc
         .index = index};
 }
 
-static ptcl_statement_typedata_decl ptcl_statement_typedata_decl_create(ptcl_name_word name, ptcl_typedata_member *members, size_t count, bool is_prototype)
+static ptcl_statement_typedata_decl ptcl_statement_typedata_decl_create(ptcl_name name, ptcl_typedata_member *members, size_t count, bool is_prototype)
 {
     return (ptcl_statement_typedata_decl){
         .name = name,
@@ -1038,7 +1010,7 @@ static ptcl_expression_if ptcl_expression_if_create(ptcl_expression *condition, 
         .else_body = else_body};
 }
 
-static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptcl_name_word name)
+static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptcl_name name)
 {
     return (ptcl_expression_dot){
         .left = left,
@@ -1054,7 +1026,7 @@ static ptcl_expression_dot ptcl_expression_dot_call_create(ptcl_expression *left
         .is_func_call = true};
 }
 
-static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name_word name, ptcl_expression **values, size_t count)
+static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name name, ptcl_expression **values, size_t count)
 {
     return (ptcl_expression_ctor){
         .name = name,
@@ -1062,7 +1034,7 @@ static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name_word name, ptc
         .count = count};
 }
 
-static ptcl_expression *ptcl_expression_word_create(ptcl_name_word content, ptcl_location location)
+static ptcl_expression *ptcl_expression_word_create(ptcl_name content, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_word_type, ptcl_type_word, location);
     if (expression != NULL)
@@ -1135,7 +1107,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     }
     else if (expected.type == ptcl_value_type_type)
     {
-        if (target.type != ptcl_value_type_type || !ptcl_name_word_compare(expected.typedata, target.typedata))
+        if (target.type != ptcl_value_type_type || !ptcl_name_compare(expected.comp_type->identifier, target.comp_type->identifier))
         {
             return ptcl_comp_type_equals(expected.comp_type, target, true);
         }
@@ -1180,7 +1152,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
     case ptcl_value_object_type_type:
         return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
     case ptcl_value_typedata_type:
-        return ptcl_type_equals(*expected.pointer.target, *target.array.target);
+        return ptcl_name_compare(expected.typedata, target.typedata);
     case ptcl_value_word_type:
     case ptcl_value_character_type:
     case ptcl_value_double_type:
@@ -1348,14 +1320,24 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     case ptcl_value_function_pointer_type:
         ptcl_type *return_type = malloc(sizeof(ptcl_type));
         *return_type = ptcl_type_copy(*type.function_pointer.return_type);
-        ptcl_type *arguments = malloc(type.function_pointer.count * sizeof(ptcl_type));
+        ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
-            arguments[i] = ptcl_type_copy(type.function_pointer.types[i]);
+            ptcl_argument target_argument = type.function_pointer.arguments[i];
+            if (target_argument.is_variadic)
+            {
+                arguments[i] = ptcl_argument_create_variadic();
+            }
+            else
+            {
+                arguments[i] = ptcl_argument_create(
+                    ptcl_type_copy(type.function_pointer.arguments[i].type),
+                    ptcl_name_create_fast_w(NULL, false));
+            }
         }
 
         copy.function_pointer.return_type = return_type;
-        copy.function_pointer.types = arguments;
+        copy.function_pointer.arguments = arguments;
         break;
     case ptcl_value_array_type:
         if (type.array.target != NULL)
@@ -1487,7 +1469,7 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
         }
 
         // Original will be freed
-        ptcl_name_word copy = target->ctor.name;
+        ptcl_name copy = target->ctor.name;
         copy.is_free = false;
 
         expression->return_type = ptcl_type_create_typedata(target->ctor.name.value, target->ctor.name.is_anonymous);
@@ -1532,7 +1514,7 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
                 return NULL;
             }
 
-            expression->word = ptcl_name_create_l(word_copy, target->word.is_anonymous, true, location).word;
+            expression->word = ptcl_name_create_l(word_copy, target->word.is_anonymous, true, location);
         }
     case ptcl_expression_null_type:
     case ptcl_expression_character_type:
@@ -2236,7 +2218,7 @@ static bool ptcl_func_body_can_access(ptcl_statement_func_body *target, ptcl_sta
     return true;
 }
 
-static void ptcl_name_word_destroy(ptcl_name_word name)
+static void ptcl_name_destroy(ptcl_name name)
 {
     if (name.is_free)
     {
@@ -2244,26 +2226,9 @@ static void ptcl_name_word_destroy(ptcl_name_word name)
     }
 }
 
-static void ptcl_name_destroy(ptcl_name name)
-{
-    if (name.is_name)
-    {
-        ptcl_name_word_destroy(name.word);
-    }
-    else
-    {
-        for (size_t i = 0; i < name.tokens.count; i++)
-        {
-            ptcl_token_destroy(name.tokens.tokens[i]);
-        }
-
-        free(name.tokens.tokens);
-    }
-}
-
 static void ptcl_attribute_destroy(ptcl_attribute attribute)
 {
-    ptcl_name_word_destroy(attribute.name);
+    ptcl_name_destroy(attribute.name);
 }
 
 static void ptcl_attributes_destroy(ptcl_attributes attributes)
@@ -2326,6 +2291,19 @@ static bool ptcl_type_is_function(ptcl_type type, ptcl_type_functon_pointer_type
     {
         return ptcl_type_is_function(*type.pointer.target, function);
     }
+    else if (type.type == ptcl_value_type_type)
+    {
+        for (size_t i = 0; i < type.comp_type->count; i++)
+        {
+            ptcl_type_member member = type.comp_type->types[i];
+            if (!ptcl_type_is_function(member.type, function))
+            {
+                continue;
+            }
+
+            return true;
+        }
+    }
 
     return false;
 }
@@ -2366,10 +2344,10 @@ static void ptcl_type_destroy(ptcl_type type)
         free(type.function_pointer.return_type);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
-            ptcl_type_destroy(type.function_pointer.types[i]);
+            ptcl_type_destroy(type.function_pointer.arguments[i].type);
         }
 
-        free(type.function_pointer.types);
+        free(type.function_pointer.arguments);
         break;
     case ptcl_value_type_type:
     case ptcl_value_typedata_type:
@@ -2395,7 +2373,7 @@ static void ptcl_identifier_destroy(ptcl_identifier identifier)
     }
     else
     {
-        ptcl_name_word_destroy(identifier.name);
+        ptcl_name_destroy(identifier.name);
     }
 }
 
@@ -2421,7 +2399,7 @@ static void ptcl_statement_func_call_destroy(ptcl_statement_func_call func_call)
 
 static void ptcl_argument_destroy(ptcl_argument argument)
 {
-    ptcl_name_word_destroy(argument.name);
+    ptcl_name_destroy(argument.name);
     if (!argument.is_variadic)
     {
         ptcl_type_destroy(argument.type);
@@ -2430,7 +2408,7 @@ static void ptcl_argument_destroy(ptcl_argument argument)
 
 static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
 {
-    ptcl_name_word_destroy(func_decl.name);
+    ptcl_name_destroy(func_decl.name);
     ptcl_type_destroy(func_decl.return_type);
     if (!func_decl.is_prototype)
     {
@@ -2451,7 +2429,7 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
 
 static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 {
-    ptcl_name_word_destroy(type_decl.name);
+    ptcl_name_destroy(type_decl.name);
     if (type_decl.types_count > 0)
     {
         for (size_t i = 0; i < type_decl.types_count; i++)
@@ -2482,7 +2460,7 @@ static ptcl_statement_assign ptcl_statement_assign_destroy(ptcl_statement_assign
 
 static void ptcl_typedata_member_destroy(ptcl_typedata_member typedata)
 {
-    ptcl_name_word_destroy(typedata.name);
+    ptcl_name_destroy(typedata.name);
     ptcl_type_destroy(typedata.type);
 }
 
@@ -2594,7 +2572,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         }
         else
         {
-            ptcl_name_word_destroy(expression->dot.name);
+            ptcl_name_destroy(expression->dot.name);
         }
 
         ptcl_expression_destroy(expression->dot.left);
@@ -2606,10 +2584,10 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         ptcl_expression_if_destroy(expression->if_expr);
         break;
     case ptcl_expression_word_type:
-        ptcl_name_word_destroy(expression->word);
+        ptcl_name_destroy(expression->word);
         break;
     case ptcl_expression_variable_type:
-        ptcl_name_word_destroy(expression->variable.name);
+        ptcl_name_destroy(expression->variable.name);
         break;
     }
 

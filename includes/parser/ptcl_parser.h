@@ -93,7 +93,7 @@ typedef struct ptcl_parser_instance
 {
     ptcl_statement_func_body *root;
     ptcl_parser_instance_type type;
-    ptcl_name_word name;
+    ptcl_name name;
     bool is_out_of_scope;
 
     union
@@ -117,7 +117,7 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name_word name, ptcl_statement_func_body *root, ptcl_type_comp_type *type)
+static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_type_comp_type *type)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_comp_type_type,
@@ -128,7 +128,7 @@ static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name_word name, pt
             .comp_type = type}};
 }
 
-static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name_word name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
+static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_variable_type,
@@ -156,7 +156,7 @@ static ptcl_parser_instance ptcl_parser_function_create(ptcl_statement_func_body
         }};
 }
 
-static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body *root, ptcl_name_word name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
+static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
@@ -172,7 +172,7 @@ static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body
                 .return_type = return_type}}};
 }
 
-static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name_word name, ptcl_typedata_member *members, size_t count)
+static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name name, ptcl_typedata_member *members, size_t count)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_typedata_type,
@@ -184,7 +184,7 @@ static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name_word name, ptc
             .count = count}};
 }
 
-static ptcl_parser_instance ptcl_parser_syntax_create(ptcl_name_word name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count)
+static ptcl_parser_instance ptcl_parser_syntax_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_syntax_type,
@@ -297,11 +297,10 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 
 ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 
-bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement,
-                                                   ptcl_expression **old_expression, bool *with_expression);
+bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, ptcl_expression **old_expression, bool *with_expression);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
-    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count, bool is_free, int down_start, bool skip_first, bool is_statement,
+    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count, bool is_free, int down_start, bool skip_first,
     ptcl_expression **old_expression, bool *with_expression);
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
@@ -354,11 +353,13 @@ ptcl_expression *ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type 
 
 ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word);
 
-ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_typedata *typedata);
+ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata *typedata);
 
-ptcl_name_word ptcl_parser_parse_name_word(ptcl_parser *parser);
+ptcl_name ptcl_parser_parse_name_word(ptcl_parser *parser);
 
-ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool tokens_allowed, bool *succesful);
+ptcl_name ptcl_parser_parse_name_word_or_type(ptcl_parser *parser);
+
+ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool with_type);
 
 ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, ptcl_location location);
 
@@ -376,19 +377,19 @@ bool ptcl_parser_ended(ptcl_parser *parser);
 
 bool ptcl_parser_add_instance(ptcl_parser *parser, ptcl_parser_instance instance);
 
-bool ptcl_parser_try_get_instance(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
+bool ptcl_parser_try_get_instance(ptcl_parser *parser, ptcl_name name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
 
-bool ptcl_parser_try_get_instance_any(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_instance **instance);
+bool ptcl_parser_try_get_instance_any(ptcl_parser *parser, ptcl_name name, ptcl_parser_instance **instance);
 
-bool ptcl_parser_try_get_instance_in_root(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
+bool ptcl_parser_try_get_instance_in_root(ptcl_parser *parser, ptcl_name name, ptcl_parser_instance_type type, ptcl_parser_instance **instance);
 
-bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name_word name, ptcl_parser_function **function);
+bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_parser_function **function);
 
 bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression **arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
 
-bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name_word name, char *member_name, ptcl_typedata_member **member);
+bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, char *member_name, ptcl_typedata_member **member);
 
 void ptcl_parser_clear_scope(ptcl_parser *parser);
 

@@ -6,27 +6,52 @@ unsyntax {
 	typedata statement(statement_type: integer)
 }
 
-optional type string: up character* {
-	function length(): integer {
-		return strlen(self)
-	}
-
-	function self(): character* {
-		return self
-	}
+syntax list_name([T: static type]) end {
+	!<__list_ word(T)>
 }
 
-optional type percent: float {
-	function is_percent(): integer {
-		if self > 100 {
-			return 0
-		}
-		else {
-			return 1
-		}
+syntax list_object_name([T: static type]) end {
+	!<__list_object_ word(T)>
+}
+
+syntax list([T: static type]) end {
+	@{
+		~type_name: static word = #list_name(T)
+		~type_object_name: static word = #list_object_name(T)
+		typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
+		type !~type_name: !~type_object_name
 	}
+
+	!~type_name
+}
+
+syntax list([T: static type])([capacity: integer]) end {
+	#list_object_name(T)(null, 0, capacity)
+}
+
+syntax list([T: static type])() end {
+	#list(T)(0) :: #list_name(T)
+}
+
+optional type listener_func: integer(...)
+typedata listener_object(
+	listeners: #list(>listener_func),
+	capacity: integer,
+	count: integer
+)
+
+type listener: listener_object {
+	function subscribe(subscriber: listener_func): void {}
+	function unsubscribe(unsubscriber: listener_func): void {}
+	function invoke(...): integer {}
+}
+
+syntax listener.create() end {
+	listener_object(#list(>listener_func)(), 0, 0) :: listener
 }
 
 function main(): integer {
+	event := #listener.create()
+	i_cant_just_dot := event.invoke("Test event was invoked")
 	return 0
 }
