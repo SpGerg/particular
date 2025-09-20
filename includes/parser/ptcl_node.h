@@ -406,7 +406,8 @@ typedef struct ptcl_statement
 
 static void ptcl_statement_destroy(ptcl_statement *statement);
 static void ptcl_expression_destroy(ptcl_expression *expression);
-static bool ptcl_type_equals(ptcl_type expected, ptcl_type target);
+static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target);
+static bool ptcl_type_equals(ptcl_type left, ptcl_type right);
 
 static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_type return_type, ptcl_location location)
 {
@@ -1052,7 +1053,7 @@ static bool ptcl_comp_type_equals(ptcl_type_comp_type *comp_type, ptcl_type targ
         for (size_t i = 0; i < comp_type->count; i++)
         {
             ptcl_type_member member = comp_type->types[i];
-            if (member.is_up && ptcl_type_equals(member.type, target))
+            if (member.is_up && ptcl_type_is_castable(member.type, target))
             {
                 return true;
             }
@@ -1062,7 +1063,7 @@ static bool ptcl_comp_type_equals(ptcl_type_comp_type *comp_type, ptcl_type targ
         {
             for (size_t i = 0; i < comp_type->count; i++)
             {
-                if (ptcl_type_equals(comp_type->types[i].type, target))
+                if (ptcl_type_is_castable(comp_type->types[i].type, target))
                 {
                     return true;
                 }
@@ -1076,14 +1077,14 @@ static bool ptcl_comp_type_equals(ptcl_type_comp_type *comp_type, ptcl_type targ
             ptcl_type_member member = comp_type->types[i];
             if (comp_type->is_optional)
             {
-                if (ptcl_type_equals(member.type, target))
+                if (ptcl_type_is_castable(member.type, target))
                 {
                     return true;
                 }
             }
             else
             {
-                if (!member.is_up && ptcl_type_equals(member.type, target))
+                if (!member.is_up && ptcl_type_is_castable(member.type, target))
                 {
                     return true;
                 }
@@ -1094,7 +1095,49 @@ static bool ptcl_comp_type_equals(ptcl_type_comp_type *comp_type, ptcl_type targ
     return false;
 }
 
-static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
+static bool ptcl_type_function_equals(ptcl_type_functon_pointer_type left, ptcl_type_functon_pointer_type right)
+{
+    if (left.count != right.count || !ptcl_type_equals(*left.return_type, *right.return_type))
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < left.count; i++)
+    {
+        if (ptcl_type_equals(left.arguments[i].type, right.arguments[i].type))
+        {
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
+{
+    if (left.type != right.type)
+    {
+        return false;
+    }
+
+    switch (left.type)
+    {
+    case ptcl_value_pointer_type:
+        return ptcl_type_equals(*left.pointer.target, *right.pointer.target);
+    case ptcl_value_array_type:
+        return ptcl_type_equals(*left.array.target, *right.array.target);
+    case ptcl_value_object_type_type:
+        return ptcl_type_equals(*left.object_type.target, *right.object_type.target);
+    case ptcl_value_function_pointer_type:
+        return ptcl_type_function_equals(left.function_pointer, right.function_pointer);
+    }
+
+    return true;
+}
+
+static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 {
     if (expected.is_static && !target.is_static)
     {
@@ -1130,7 +1173,7 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
         }
         else if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
         {
-            return ptcl_type_equals(*expected.pointer.target, *target.array.target);
+            return ptcl_type_is_castable(*expected.pointer.target, *target.array.target);
         }
         else if (target.type == ptcl_value_type_type && target.comp_type->is_optional)
         {
@@ -1146,11 +1189,11 @@ static bool ptcl_type_equals(ptcl_type expected, ptcl_type target)
         if (expected.pointer.is_any)
             return true;
 
-        return ptcl_type_equals(*expected.pointer.target, *target.pointer.target);
+        return ptcl_type_is_castable(*expected.pointer.target, *target.pointer.target);
     case ptcl_value_array_type:
-        return ptcl_type_equals(*expected.array.target, *target.array.target);
+        return ptcl_type_is_castable(*expected.array.target, *target.array.target);
     case ptcl_value_object_type_type:
-        return ptcl_type_equals(*expected.object_type.target, *target.object_type.target);
+        return ptcl_type_is_castable(*expected.object_type.target, *target.object_type.target);
     case ptcl_value_typedata_type:
         return ptcl_name_compare(expected.typedata, target.typedata);
     case ptcl_value_word_type:
@@ -1655,7 +1698,7 @@ static bool ptcl_expression_binary_static_type_equals(ptcl_expression *left, ptc
         return false;
     }
 
-    return ptcl_type_equals(*right->return_type.object_type.target, left->return_type);
+    return ptcl_type_is_castable(*right->return_type.object_type.target, left->return_type);
 }
 
 static bool ptcl_expression_binary_static_equals(ptcl_expression *left, ptcl_expression *right)

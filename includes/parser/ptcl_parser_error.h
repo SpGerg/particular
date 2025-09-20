@@ -6,6 +6,7 @@ typedef enum ptcl_parser_error_type
     ptcl_parser_error_out_of_memory_type,
     ptcl_parser_error_except_token_type,
     ptcl_parser_error_except_type_type,
+    ptcl_parser_error_except_type_specifier_type,
     ptcl_parser_error_incorrect_type_type,
     ptcl_parser_error_variable_redefination_type,
     ptcl_parser_error_none_type_type,

@@ -3,12 +3,11 @@
 #include <ptcl_parser.h>
 #include <ptcl_lexer.h>
 
-
-
 int main()
 {
     char *source;
     FILE *target = fopen("script.ptcl", "rb");
+    void (*func)(char *, ...);
     if (!target)
     {
         perror("Failed to open file");

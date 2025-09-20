@@ -469,7 +469,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
                 continue;
             }
 
-            if (i != 0)
+            if (added)
             {
                 ptcl_transpiler_append_character(transpiler, ',');
             }
@@ -632,7 +632,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
                 continue;
             }
 
-            if (!variable.is_inner)
+            if (!variable.is_inner || variable.is_this)
             {
                 continue;
             }
@@ -687,10 +687,10 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
         ptcl_transpiler_append_word_s(transpiler, name);
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
-        if (expression->dot.right->func_call.count > 0)
+        if (expression->dot.func_call.count > 0)
         {
             ptcl_transpiler_append_character(transpiler, ',');
-            for (size_t i = 0; i < expression->dot.func_call.count;i++)
+            for (size_t i = 0; i < expression->dot.func_call.count; i++)
             {
                 ptcl_transpiler_add_expression(transpiler, expression->dot.func_call.arguments[i], false);
                 if (i != expression->dot.func_call.count - 1)
@@ -911,7 +911,17 @@ void ptcl_transpiler_add_func_type_args(ptcl_transpiler *transpiler, ptcl_type_f
     ptcl_transpiler_append_character(transpiler, '(');
     for (size_t i = 0; i < type.count; i++)
     {
-        ptcl_transpiler_add_type_and_name(transpiler, type.arguments[i].type, ptcl_name_create_fast_w(NULL, false), NULL, true);
+        ptcl_argument argument = type.arguments[i];
+        if (argument.is_variadic)
+        {
+            ptcl_transpiler_append_word_s(transpiler, "...");
+            transpiler->add_stdlib = true;
+        }
+        else
+        {
+            ptcl_transpiler_add_type_and_name(transpiler, argument.type, ptcl_name_create_fast_w(NULL, false), NULL, true);
+        }
+
         if (i != type.count - 1)
         {
             ptcl_transpiler_append_character(transpiler, ',');
@@ -956,6 +966,7 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
         {
             ptcl_transpiler_append_word_s(transpiler, identifier);
             ptcl_transpiler_append_character(transpiler, ')');
+            ptcl_transpiler_add_func_type_args(transpiler, function);
         }
 
         return true;

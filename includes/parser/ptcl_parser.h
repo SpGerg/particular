@@ -353,7 +353,7 @@ ptcl_expression *ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type 
 
 ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word);
 
-ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata *typedata);
+ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata typedata);
 
 ptcl_name ptcl_parser_parse_name_word(ptcl_parser *parser);
 
@@ -396,6 +396,8 @@ void ptcl_parser_clear_scope(ptcl_parser *parser);
 void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_except_token(ptcl_parser *parser, char *value, ptcl_location location);
+
+void ptcl_parser_throw_except_type_specifier(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_incorrect_type(ptcl_parser *parser, char *excepted, char *received, ptcl_location location);
 

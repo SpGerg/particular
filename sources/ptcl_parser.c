@@ -1346,6 +1346,14 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
                 ptcl_argument argument;
                 if (ptcl_parser_match(parser, ptcl_token_elipsis_type))
                 {
+                    if (function.function_pointer.count == 0)
+                    {
+                        ptcl_parser_throw_except_type_specifier(parser, current.location);
+                        ptcl_type_destroy(function);
+                        free(buffer);
+                        return (ptcl_type){};
+                    }
+
                     argument = ptcl_argument_create_variadic();
                 }
                 else
@@ -1466,6 +1474,14 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
 
         if (ptcl_parser_match(parser, ptcl_token_elipsis_type))
         {
+            if (func_decl.count == 0)
+            {
+                ptcl_parser_throw_except_type_specifier(parser, location);
+                free(func_decl.func_body);
+                free(buffer);
+                return (ptcl_statement_func_decl){};
+            }
+
             func_decl.arguments = buffer;
             func_decl.arguments[func_decl.count++] = ptcl_argument_create_variadic();
             is_variadic = true;
@@ -1722,7 +1738,7 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
         if (decl.types_count > 0)
         {
             ptcl_type_member except = decl.types[decl.types_count - 1];
-            if (!ptcl_type_equals(except.type, type))
+            if (!ptcl_type_is_castable(except.type, type))
             {
                 ptcl_parser_throw_fast_incorrect_type(parser, except.type, type, location);
                 ptcl_statement_type_decl_destroy(decl);
@@ -2429,7 +2445,7 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         if (type.type == ptcl_value_type_type)
         {
             ptcl_type base = type.comp_type->types[0].type;
-            if (!ptcl_type_equals(base, left->return_type))
+            if (!ptcl_type_is_castable(base, left->return_type))
             {
                 ptcl_parser_throw_fast_incorrect_type(parser, base, left->return_type, location);
                 ptcl_expression_destroy(left);
@@ -2450,7 +2466,7 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         left = ptcl_expression_static_cast(cast);
     }
 
-    if (except != NULL && !ptcl_type_equals(*except, left->return_type))
+    if (except != NULL && !ptcl_type_is_castable(*except, left->return_type))
     {
         ptcl_parser_throw_fast_incorrect_type(parser, *except, left->return_type, left->location);
         ptcl_expression_destroy(left);
@@ -2975,7 +2991,7 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
                     break;
                 }
 
-                result->ctor = ptcl_parser_parse_ctor(parser, typedata->name, &typedata->typedata);
+                result->ctor = ptcl_parser_parse_ctor(parser, typedata->name, typedata->typedata);
                 if (parser->is_critical)
                 {
                     free(result);
@@ -3343,7 +3359,7 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
     return result;
 }
 
-ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata *typedata)
+ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata typedata)
 {
     ptcl_parser_except(parser, ptcl_token_left_par_type);
     if (parser->is_critical)
@@ -3355,7 +3371,7 @@ ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name,
     ptcl_expression_ctor ctor = ptcl_expression_ctor_create(name, NULL, 0);
     while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
     {
-        if (ptcl_parser_ended(parser) || (ctor.count + 1) > typedata->count)
+        if (ptcl_parser_ended(parser) || (ctor.count + 1) > typedata.count)
         {
             ptcl_expression_ctor_destroy(ctor);
             ptcl_parser_throw_except_token(
@@ -3371,7 +3387,7 @@ ptcl_expression_ctor ptcl_parser_parse_ctor(ptcl_parser *parser, ptcl_name name,
             return (ptcl_expression_ctor){};
         }
 
-        ptcl_expression *value = ptcl_parser_parse_cast(parser, &typedata->members[ctor.count].type, false);
+        ptcl_expression *value = ptcl_parser_parse_cast(parser, &typedata.members[ctor.count].type, false);
         if (parser->is_critical)
         {
             if (ctor.count == 0)
@@ -3832,7 +3848,7 @@ bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *func
             break;
         }
 
-        if (ptcl_type_equals(argument.type, arguments[j]->return_type))
+        if (ptcl_type_is_castable(argument.type, arguments[j]->return_type))
         {
             continue;
         }
@@ -3856,14 +3872,14 @@ static bool compare_syntax_nodes(ptcl_parser_syntax_node *left, ptcl_parser_synt
         return strcmp(left->word.name.value, right->word.name.value) == 0;
     case ptcl_parser_syntax_node_variable_type:
         return right->type == ptcl_parser_syntax_node_value_type &&
-               ptcl_type_equals(left->variable.type, right->value->return_type);
+               ptcl_type_is_castable(left->variable.type, right->value->return_type);
     case ptcl_parser_syntax_node_object_type_type:
         if (right->type != ptcl_parser_syntax_node_value_type)
         {
             return false;
         }
 
-        return ptcl_type_equals(left->object_type, right->value->return_type);
+        return ptcl_type_is_castable(left->object_type, right->value->return_type);
     default:
         return false;
     }
@@ -3999,6 +4015,13 @@ void ptcl_parser_throw_except_token(ptcl_parser *parser, char *value, ptcl_locat
     char *message = ptcl_string("Except token '", value, "'", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_except_token_type, true, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_except_type_specifier(ptcl_parser *parser, ptcl_location location)
+{
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_except_type_specifier_type, true, "Expect type specifier", false, location);
     ptcl_parser_add_error(parser, error);
 }
 
