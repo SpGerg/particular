@@ -687,6 +687,19 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
         ptcl_transpiler_append_word_s(transpiler, name);
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
+        if (expression->dot.right->func_call.count > 0)
+        {
+            ptcl_transpiler_append_character(transpiler, ',');
+            for (size_t i = 0; i < expression->dot.func_call.count;i++)
+            {
+                ptcl_transpiler_add_expression(transpiler, expression->dot.func_call.arguments[i], false);
+                if (i != expression->dot.func_call.count - 1)
+                {
+                    ptcl_transpiler_append_character(transpiler, ',');
+                }
+            }
+        }
+
         ptcl_transpiler_append_character(transpiler, ')');
         free(name);
     }

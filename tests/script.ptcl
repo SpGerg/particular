@@ -44,6 +44,7 @@ type listener: listener_object {
 	function subscribe(subscriber: listener_func): void {}
 	function unsubscribe(unsubscriber: listener_func): void {}
 	function invoke(...): integer {}
+	
 }
 
 syntax listener.create() end {
