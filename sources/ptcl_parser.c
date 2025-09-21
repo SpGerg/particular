@@ -567,10 +567,11 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
             const bool last_mode = parser->add_errors;
             parser->add_errors = false;
             ptcl_expression *value = ptcl_parser_parse_cast(parser, NULL, true);
+            parser->add_errors = last_mode;
             if (parser->is_critical)
             {
                 parser->is_critical = false;
-                parser->add_errors = last_mode;
+                break;
             }
             else
             {
@@ -2610,6 +2611,12 @@ static ptcl_expression *ptcl_parser_parse_type_dot(ptcl_parser *parser, ptcl_exp
     }
 
     ptcl_statement_func_call func_call = ptcl_parser_parse_func_call(parser, &function);
+    if (parser->is_critical)
+    {
+        ptcl_expression_destroy(left);
+        return NULL;
+    }
+
     func_call.is_built_in = false;
     func_call.return_type = function.return_type;
     ptcl_expression *func = ptcl_expression_create(
