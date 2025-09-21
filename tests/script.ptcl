@@ -48,7 +48,7 @@ syntax list([T: static type])() end {
 }
 
 function main(): integer {
-	list: #list(>#list(integer)) = #list(>#list(>integer))()
+	list: #list(#list(>integer)) = #list(>#list(>integer))()
 	list.add(#list(>integer)())
 	return 0
 }
