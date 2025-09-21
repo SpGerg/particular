@@ -22,135 +22,6 @@ typedef struct ptcl_parser
     bool is_type_body;
 } ptcl_parser;
 
-// TODO: recreate type order to base type -> pointer/array -> ...
-static ptcl_token *ptcl_parser_create_tokens_from_type(ptcl_parser *parser, ptcl_type type, size_t *result_count)
-{
-    size_t count = 0;
-    ptcl_type *target = &type;
-    while (target != NULL)
-    {
-        count++;
-        if (target->type == ptcl_value_array_type)
-        {
-            count++;
-        }
-
-        if (target->type == ptcl_value_pointer_type && target->pointer.target != NULL)
-        {
-            target = target->pointer.target;
-        }
-        else if (target->type == ptcl_value_array_type && target->array.target != NULL)
-        {
-            target = target->array.target;
-        }
-        else if (target->type == ptcl_value_object_type_type && target->object_type.target != NULL)
-        {
-            target = target->object_type.target;
-        }
-        else
-        {
-            target = NULL;
-        }
-    }
-
-    ptcl_token *tokens = malloc(count * sizeof(ptcl_token));
-    if (tokens == NULL)
-    {
-        *result_count = 0;
-        return NULL;
-    }
-
-    ptcl_location location = ptcl_parser_current(parser).location;
-    ptcl_type *base_type = &type;
-    size_t modifiers_count = 0;
-    while (true)
-    {
-        if (base_type->type == ptcl_value_pointer_type && base_type->pointer.target != NULL)
-        {
-            modifiers_count++;
-            base_type = base_type->pointer.target;
-        }
-        else if (base_type->type == ptcl_value_array_type && base_type->array.target != NULL)
-        {
-            modifiers_count += 2;
-            base_type = base_type->array.target;
-        }
-        else if (base_type->type == ptcl_value_object_type_type && base_type->object_type.target != NULL)
-        {
-            base_type = base_type->object_type.target;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    size_t index = 0;
-    ptcl_token_type token_type = ptcl_value_type_to_token(base_type->type);
-    char *value;
-    if (base_type->type == ptcl_value_typedata_type)
-    {
-        value = base_type->comp_type->identifier.value;
-    }
-    else if (base_type->type == ptcl_value_word_type)
-    {
-        value = base_type->typedata.value;
-    }
-    else
-    {
-        value = ptcl_lexer_configuration_get_value(parser->configuration, token_type);
-    }
-
-    tokens[index++] = ptcl_token_create(token_type, value, location, false);
-    target = &type;
-    while (target != base_type)
-    {
-        if (target->type == ptcl_value_pointer_type)
-        {
-            tokens[index++] = ptcl_token_create(
-                ptcl_token_asterisk_type,
-                ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_asterisk_type),
-                location,
-                false);
-
-            if (target->pointer.target != NULL)
-            {
-                target = target->pointer.target;
-            }
-        }
-        else if (target->type == ptcl_value_array_type)
-        {
-            tokens[index++] = ptcl_token_create(
-                ptcl_token_left_square_type,
-                ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_left_square_type),
-                location,
-                false);
-            tokens[index++] = ptcl_token_create(
-                ptcl_token_right_square_type,
-                ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_right_square_type),
-                location,
-                false);
-
-            if (target->array.target != NULL)
-            {
-                target = target->array.target;
-            }
-        }
-        else if (target->type == ptcl_value_object_type_type && target->object_type.target != NULL)
-        {
-            target = target->object_type.target;
-        }
-
-        if (target == base_type)
-        {
-            break;
-        }
-    }
-
-    *result_count = index;
-    return tokens;
-}
-
 static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
 {
     if (ptcl_parser_match(parser, ptcl_token_asterisk_type))
@@ -1031,7 +902,7 @@ void ptcl_parser_parse_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_
         if (parser->is_critical)
         {
             ptcl_parser_clear_scope(parser);
-            
+
             if (statement == NULL)
             {
                 ptcl_statement_func_body_destroy(*func_body_pointer);
