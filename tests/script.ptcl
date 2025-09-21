@@ -20,6 +20,10 @@ syntax list([T: static type]) end {
 		~type_object_name: static word = #list_object_name(T)
 		typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
 		type !~type_name: !~type_object_name {
+			function add(entity: !T): void {
+				self.entities[0] = entity
+			}
+			
 			function at(index: integer): !T {}
 		}
 	}
@@ -28,11 +32,11 @@ syntax list([T: static type]) end {
 }
 
 syntax list([T: static type])([capacity: integer]) end {
-	#list_object_name(T)(null, 0, capacity)
+	#list_object_name(T)(null, 0, capacity) :: #list_name(T)
 }
 
 syntax list([T: static type])() end {
-	#list(T)(0) :: #list_name(T)
+	#list(T)(0)
 }
 
 optional type listener_func: integer(integer, ...)
@@ -50,11 +54,11 @@ type listener: listener_object {
 }
 
 syntax listener.create() end {
-	listener_object(#list(>listener_func)(), 0, 0) :: listener
+	listener_object(#list(>listener_func)(4), 0, 0) :: listener
 }
 
 function main(): integer {
-	event := #listener.create(4)
+	event := #listener.create()
 	i_cant_just_dot := event.invoke(1, "Test event was invoked")
 	return 0
 }

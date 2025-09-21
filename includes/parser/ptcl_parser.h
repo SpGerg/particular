@@ -318,11 +318,10 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 
 ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 
-bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, ptcl_expression **old_expression, bool *with_expression);
+bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
-    ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, bool is_free, int down_start, bool skip_first,
-    ptcl_expression **old_expression, bool *with_expression);
+    ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, int down_start, bool skip_first);
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
@@ -368,9 +367,9 @@ ptcl_expression *ptcl_parser_parse_multiplicative(ptcl_parser *parser, ptcl_type
 
 ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word);
 
-ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, bool only_dot, bool with_word);
+ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word);
 
-ptcl_expression *ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression *ptcl_parser_parse_array_element(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word);
 
 ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except, bool with_word);
 

@@ -676,24 +676,24 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
         return;
     }
 
-    bool is_special_func_call = expression->dot.is_func_call &&
-                                expression->dot.left->return_type.type == ptcl_value_type_type;
+    bool is_special_func_call = expression->dot.left->return_type.type == ptcl_value_type_type;
     if (is_special_func_call)
     {
+        ptcl_statement_func_call func_call = expression->dot.right->func_call;
         char *name = ptcl_transpiler_get_func_from_type(
             expression->dot.left->return_type.comp_type->identifier.value,
-            expression->dot.func_call.identifier.name.value);
+            func_call.identifier.name.value);
 
         ptcl_transpiler_append_word_s(transpiler, name);
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
-        if (expression->dot.func_call.count > 0)
+        if (func_call.count > 0)
         {
             ptcl_transpiler_append_character(transpiler, ',');
-            for (size_t i = 0; i < expression->dot.func_call.count; i++)
+            for (size_t i = 0; i < func_call.count; i++)
             {
-                ptcl_transpiler_add_expression(transpiler, expression->dot.func_call.arguments[i], false);
-                if (i != expression->dot.func_call.count - 1)
+                ptcl_transpiler_add_expression(transpiler, func_call.arguments[i], false);
+                if (i != func_call.count - 1)
                 {
                     ptcl_transpiler_append_character(transpiler, ',');
                 }
@@ -873,6 +873,10 @@ void ptcl_transpiler_add_identifier(ptcl_transpiler *transpiler, ptcl_identifier
     {
         ptcl_transpiler_add_name(transpiler, identifier.name, is_declare);
     }
+    else
+    {
+        ptcl_transpiler_add_expression(transpiler, identifier.value, false);
+    }
 }
 
 void ptcl_transpiler_add_name(ptcl_transpiler *transpiler, ptcl_name name, bool is_declare)
@@ -936,12 +940,6 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
     ptcl_type_functon_pointer_type function;
     if (ptcl_type_is_function(type, &function))
     {
-        char *identifier = "ptcl_t_func_t";
-        if (name.value != NULL && func_decl == NULL)
-        {
-            identifier = name.value;
-        }
-
         ptcl_name empty = ptcl_name_create_fast_w(NULL, false);
         ptcl_transpiler_add_type_and_name(transpiler, *function.return_type, empty, NULL, true);
         ptcl_transpiler_append_character(transpiler, '(');
@@ -964,7 +962,7 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
 
         if (func_decl == NULL)
         {
-            ptcl_transpiler_append_word_s(transpiler, identifier);
+            ptcl_transpiler_add_name(transpiler, name, false);
             ptcl_transpiler_append_character(transpiler, ')');
             ptcl_transpiler_add_func_type_args(transpiler, function);
         }

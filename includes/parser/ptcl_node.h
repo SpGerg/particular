@@ -102,7 +102,7 @@ typedef struct ptcl_identifier
     union
     {
         ptcl_name name;
-        ptcl_expression **value;
+        ptcl_expression *value;
     };
 } ptcl_identifier;
 
@@ -246,13 +246,12 @@ typedef struct ptcl_statement_func_call
 typedef struct ptcl_expression_dot
 {
     ptcl_expression *left;
-    bool is_func_call;
+    bool is_name;
 
     union
     {
-        ptcl_expression_dot *right;
+        ptcl_expression *right;
         ptcl_name name;
-        ptcl_statement_func_call func_call;
     };
 } ptcl_expression_dot;
 
@@ -503,6 +502,13 @@ static ptcl_identifier ptcl_identifier_create_by_name(ptcl_name name)
     return (ptcl_identifier){
         .is_name = true,
         .name = name};
+}
+
+static ptcl_identifier ptcl_identifier_create_by_expr(ptcl_expression *expression)
+{
+    return (ptcl_identifier){
+        .is_name = false,
+        .value = expression};
 }
 
 static ptcl_identifier ptcl_identifier_create_by_str(char *value)
@@ -804,6 +810,14 @@ static ptcl_name ptcl_expression_get_name(ptcl_expression *expression)
     {
         return ptcl_expression_get_name(expression->unary.child);
     }
+    else if (expression->type == ptcl_expression_array_element_type)
+    {
+        return ptcl_expression_get_name(expression->array_element.value);
+    }
+    else if (expression->type == ptcl_expression_dot_type)
+    {
+        return ptcl_expression_get_name(expression->dot.left);
+    }
 
     return (ptcl_name){0};
 }
@@ -815,7 +829,7 @@ static ptcl_name ptcl_identifier_get_name(ptcl_identifier identifier)
         return identifier.name;
     }
 
-    return ptcl_expression_get_name(*identifier.value);
+    return ptcl_expression_get_name(identifier.value);
 }
 
 static ptcl_type ptcl_type_get_common(ptcl_type left, ptcl_type right)
@@ -912,9 +926,9 @@ static ptcl_expression *ptcl_expression_unary_create(ptcl_binary_operator_type t
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_array_element_create(ptcl_expression *value, ptcl_expression *index, ptcl_location location)
+static ptcl_expression *ptcl_expression_array_element_create(ptcl_expression *value, ptcl_type type, ptcl_expression *index, ptcl_location location)
 {
-    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_element_type, value->return_type, location);
+    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_element_type, type, location);
     if (expression != NULL)
     {
         expression->array_element = (ptcl_expression_array_element){
@@ -1016,15 +1030,15 @@ static ptcl_expression_dot ptcl_expression_dot_create(ptcl_expression *left, ptc
     return (ptcl_expression_dot){
         .left = left,
         .name = name,
-        .is_func_call = false};
+        .is_name = true};
 }
 
-static ptcl_expression_dot ptcl_expression_dot_call_create(ptcl_expression *left, ptcl_statement_func_call func_call)
+static ptcl_expression_dot ptcl_expression_dot_expression_create(ptcl_expression *left, ptcl_expression *expression)
 {
     return (ptcl_expression_dot){
         .left = left,
-        .func_call = func_call,
-        .is_func_call = true};
+        .right = expression,
+        .is_name = false};
 }
 
 static ptcl_expression_ctor ptcl_expression_ctor_create(ptcl_name name, ptcl_expression **values, size_t count)
@@ -1430,7 +1444,9 @@ static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
     if (type == ptcl_expression_variable_type ||
         type == ptcl_expression_null_type ||
         type == ptcl_expression_cast_type ||
-        type == ptcl_expression_func_call_type)
+        type == ptcl_expression_func_call_type ||
+        type == ptcl_expression_dot_type ||
+        type == ptcl_expression_array_element_type)
     {
         return false;
     }
@@ -2411,8 +2427,7 @@ static void ptcl_identifier_destroy(ptcl_identifier identifier)
 {
     if (!identifier.is_name)
     {
-        ptcl_expression_destroy(*identifier.value);
-        free(identifier.value);
+        ptcl_expression_destroy(identifier.value);
     }
     else
     {
@@ -2609,13 +2624,13 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         ptcl_expression_destroy(expression->unary.child);
         break;
     case ptcl_expression_dot_type:
-        if (expression->dot.is_func_call)
+        if (expression->dot.is_name)
         {
-            ptcl_statement_func_call_destroy(expression->dot.func_call);
+            ptcl_name_destroy(expression->dot.name);
         }
         else
         {
-            ptcl_name_destroy(expression->dot.name);
+            ptcl_expression_destroy(expression->dot.right);
         }
 
         ptcl_expression_destroy(expression->dot.left);
@@ -2628,6 +2643,10 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         break;
     case ptcl_expression_word_type:
         ptcl_name_destroy(expression->word);
+        break;
+    case ptcl_expression_array_element_type:
+        ptcl_expression_destroy(expression->array_element.value);
+        ptcl_expression_destroy(expression->array_element.index);
         break;
     case ptcl_expression_variable_type:
         ptcl_name_destroy(expression->variable.name);
