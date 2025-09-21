@@ -30,6 +30,10 @@ syntax list([T: static type]) end {
 				return self.entities[index]
 			}
 		}
+
+		syntax [left: !~type_name][[index: integer]] end {
+			left.at(index)
+		}
 	}
 
 	!~type_name
@@ -50,5 +54,6 @@ syntax list([T: static type])() end {
 function main(): integer {
 	list: #list(>#list(>integer)) = #list(>#list(>integer))()
 	list.add(#list(>integer)())
+	element := #list[0]
 	return 0
 }

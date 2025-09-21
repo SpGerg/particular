@@ -565,17 +565,10 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
 
             parser->position = position;
             const bool last_mode = parser->add_errors;
-            parser->add_errors = !found;
+            parser->add_errors = false;
             ptcl_expression *value = ptcl_parser_parse_cast(parser, NULL, true);
             if (parser->is_critical)
             {
-                if (!found)
-                {
-                    syntax.count--;
-                    ptcl_parser_syntax_destroy(syntax);
-                    break;
-                }
-
                 parser->is_critical = false;
                 parser->add_errors = last_mode;
             }
@@ -2087,25 +2080,8 @@ void ptcl_parser_parse_syntax(ptcl_parser *parser)
                 parser->position = start;
                 break;
             default:
-                parser->position--; // comeback to start
-                ptcl_expression *expression = ptcl_parser_parse_cast(parser, NULL, false);
-                if (parser->is_critical)
-                {
-                    ptcl_parser_syntax_destroy(*syntax);
-                    return;
-                }
-
-                ptcl_parser_except(parser, ptcl_token_right_square_type);
-                if (parser->is_critical)
-                {
-                    ptcl_expression_destroy(expression);
-                    ptcl_parser_syntax_destroy(*syntax);
-                    return;
-                }
-
-                node = ptcl_parser_syntax_node_create_object_type(expression->return_type);
-                expression->type = ptcl_expression_variable_type; // Avoid type destroying
-                ptcl_expression_destroy(expression);
+                parser->position--;
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
                 break;
             }
 
