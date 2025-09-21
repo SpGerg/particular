@@ -10,7 +10,7 @@ typedef struct ptcl_transpiler_variable
     ptcl_name name;
     ptcl_type type;
     bool is_inner;
-    bool is_this;
+    bool is_self;
     ptcl_statement_func_body *root;
 } ptcl_transpiler_variable;
 
@@ -33,7 +33,7 @@ static ptcl_transpiler_variable ptcl_transpiler_variable_create(ptcl_name name, 
         .name = name,
         .type = type,
         .is_inner = is_inner,
-        .is_this = false,
+        .is_self = false,
         .root = root};
 }
 
@@ -43,7 +43,7 @@ static ptcl_transpiler_variable ptcl_transpiler_variable_create_this(ptcl_type t
         .name = ptcl_name_create_fast_w("this", false),
         .type = type,
         .is_inner = true,
-        .is_this = true,
+        .is_self = true,
         .root = root};
 }
 

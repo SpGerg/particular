@@ -324,9 +324,21 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
             return;
         }
 
-        if (ptcl_transpiler_is_inner(transpiler, ptcl_identifier_get_name(statement->assign.identifier)))
+        ptcl_transpiler_variable *variable = NULL;
+        ptcl_name name = ptcl_identifier_get_name(statement->assign.identifier);
+        if (ptcl_transpiler_try_get_variable(transpiler, name, &variable))
         {
-            ptcl_transpiler_append_character(transpiler, '*');
+            if (variable->is_self)
+            {
+                ptcl_transpiler_append_character(transpiler, '(');
+                ptcl_transpiler_append_character(transpiler, '*');
+                ptcl_transpiler_append_word_s(transpiler, "self");
+                ptcl_transpiler_append_character(transpiler, ')');
+            }
+            else if (variable->is_inner)
+            {
+                ptcl_transpiler_append_character(transpiler, '*');
+            }
         }
 
         if (statement->assign.is_define)
@@ -338,7 +350,17 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         }
         else
         {
-            ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier, false);
+            if (variable == NULL)
+            {
+                ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier, false);
+            }
+            else
+            {
+                if (!statement->assign.identifier.is_name)
+                {
+                    ptcl_transpiler_add_expression(transpiler, statement->assign.identifier.value, false);
+                }
+            }
         }
 
         ptcl_transpiler_append_character(transpiler, '=');
@@ -516,7 +538,8 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
 
     if (self != NULL)
     {
-        ptcl_argument argument = ptcl_argument_create(*self, ptcl_name_create_fast_w("self", false));
+        ptcl_type pointer = ptcl_type_create_pointer(self);
+        ptcl_argument argument = ptcl_argument_create(pointer, ptcl_name_create_fast_w("self", false));
         ptcl_transpiler_add_argument(transpiler, argument);
         if (func_decl.count > 0)
         {
@@ -632,7 +655,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
                 continue;
             }
 
-            if (!variable.is_inner || variable.is_this)
+            if (!variable.is_inner || variable.is_self)
             {
                 continue;
             }
@@ -686,6 +709,7 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
 
         ptcl_transpiler_append_word_s(transpiler, name);
         ptcl_transpiler_append_character(transpiler, '(');
+        ptcl_transpiler_append_character(transpiler, '&');
         ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
         if (func_call.count > 0)
         {
@@ -752,11 +776,26 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         break;
     case ptcl_expression_variable_type:
         ptcl_transpiler_variable *variable;
+        if (strcmp(expression->variable.name.value, "self") == 0)
+        {
+            if (ptcl_transpiler_try_get_variable(transpiler, ptcl_name_create_fast_w("this", false), &variable))
+            {
+                ptcl_transpiler_append_character(transpiler, '(');
+                ptcl_transpiler_append_character(transpiler, '*');
+                ptcl_transpiler_append_word_s(transpiler, "self");
+                ptcl_transpiler_append_character(transpiler, ')');
+                break;
+            }
+        }
+
         if (ptcl_transpiler_try_get_variable(transpiler, expression->variable.name, &variable))
         {
-            if (variable->is_this)
+            if (variable->is_self)
             {
+                ptcl_transpiler_append_character(transpiler, '(');
+                ptcl_transpiler_append_character(transpiler, '*');
                 ptcl_transpiler_append_word_s(transpiler, "self");
+                ptcl_transpiler_append_character(transpiler, ')');
                 break;
             }
             else if (variable->is_inner)
