@@ -111,7 +111,6 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
     parser->input = input;
     parser->tokens = input->tokens;
     parser->count = input->count;
-
     return parser;
 }
 
