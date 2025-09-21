@@ -440,6 +440,8 @@ void ptcl_parser_throw_unknown_expression(ptcl_parser *parser, ptcl_location loc
 
 void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_location location);
 
+void ptcl_parser_throw_unknown_syntax(ptcl_parser *parser, ptcl_parser_syntax syntax, ptcl_location location);
+
 void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression **values, size_t count, ptcl_location location);
 
 void ptcl_parser_throw_max_depth(ptcl_parser *parser, ptcl_location location);

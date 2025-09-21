@@ -54,7 +54,7 @@ syntax listener.create() end {
 }
 
 function main(): integer {
-	event := #listener.create()
+	event := #listener.create(4)
 	i_cant_just_dot := event.invoke(1, "Test event was invoked")
 	return 0
 }

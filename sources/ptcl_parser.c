@@ -854,6 +854,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
 
         if (is_free)
         {
+            ptcl_parser_throw_unknown_syntax(parser, syntax, parser->tokens[start].location);
             ptcl_parser_syntax_destroy(syntax);
         }
         else
@@ -1171,6 +1172,11 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
     if (parser->is_syntax_body)
     {
         with_syntax = ptcl_parser_parse_try_parse_syntax_usage_here(parser, &expression, &with_expression);
+    }
+
+    if (parser->is_critical)
+    {
+        return (ptcl_type){};
     }
 
     if (with_expression)
@@ -2433,6 +2439,11 @@ ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, 
         ptcl_expression *expression = ptcl_parser_parse_cast(parser, except, with_word);
         ptcl_parser_leave_from_syntax(parser);
         return expression;
+    }
+
+    if (parser->is_critical)
+    {
+        return NULL;
     }
 
     ptcl_expression *left;
@@ -4126,6 +4137,36 @@ void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_lo
     char *message = ptcl_string("Unknown variable with '", name, "' name", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_unknown_variable_type, true, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_unknown_syntax(ptcl_parser *parser, ptcl_parser_syntax syntax, ptcl_location location)
+{
+    char *message = ptcl_string("Unknown syntax: '", NULL);
+    for (size_t i = 0; i < syntax.count; i++)
+    {
+        ptcl_parser_syntax_node node = syntax.nodes[i];
+        if (node.type == ptcl_parser_syntax_node_word_type)
+        {
+            message = ptcl_string_append(message, node.word.name.value, NULL);
+        }
+        else if (node.type == ptcl_parser_syntax_node_value_type)
+        {
+            char *type = ptcl_type_to_present_string_copy(node.value->return_type);
+            message = ptcl_string_append(message, "[", type, "]", NULL);
+            free(type);
+        }
+
+        if (i != syntax.count - 1)
+        {
+            message = ptcl_string_append(message, " ", NULL);
+        }
+    }
+
+    message = ptcl_string_append(message, "'", NULL);
+
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_unknown_syntax_type, true, message, true, location);
     ptcl_parser_add_error(parser, error);
 }
 
