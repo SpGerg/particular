@@ -642,6 +642,12 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
 void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call)
 {
     ptcl_transpiler_add_identifier(transpiler, func_call.identifier, false);
+    // Dot already have func call expression
+    if (!func_call.identifier.is_name)
+    {
+        return;
+    }
+
     ptcl_transpiler_append_character(transpiler, '(');
 
     if (ptcl_transpiler_is_inner_function(transpiler, ptcl_identifier_get_name(func_call.identifier)))

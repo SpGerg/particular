@@ -300,6 +300,14 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
         {
             return ptcl_statement_func_call_type;
         }
+        else if (ptcl_parser_peek(parser, 1).type == ptcl_token_dot_type)
+        {
+            ptcl_parser_skip(parser);
+            ptcl_parser_skip(parser);
+            ptcl_statement_type type = ptcl_parser_parse_get_statement(parser, is_finded);
+            parser->position -= 2;
+            return type;
+        }
 
         return ptcl_statement_assign_type;
     case ptcl_token_optional_type:
@@ -680,6 +688,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
 
             if (parser->is_critical)
             {
+                // Already destroyed in func below
                 return false;
             }
 
@@ -691,6 +700,8 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
             {
                 if (!found)
                 {
+                    syntax.count--;
+                    ptcl_parser_syntax_destroy(syntax);
                     break;
                 }
 
@@ -830,6 +841,7 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
 ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function)
 {
     ptcl_location location = ptcl_parser_current(parser).location;
+    ptcl_identifier identifier;
     ptcl_name name;
     if (function != NULL)
     {
@@ -841,15 +853,31 @@ ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_s
         {
             name = ptcl_parser_parse_name_word(parser);
         }
+
+        identifier = ptcl_identifier_create_by_name(name);
     }
     else
     {
+        size_t start = parser->position;
         name = ptcl_parser_parse_name_word(parser);
-    }
+        if (parser->is_critical)
+        {
+            return (ptcl_statement_func_call){};
+        }
 
-    if (parser->is_critical)
-    {
-        return (ptcl_statement_func_call){};
+        // TODO: avoid reparsing
+        if (ptcl_parser_current(parser).type != ptcl_token_left_par_type)
+        {
+            parser->position = start;
+            ptcl_name_destroy(name);
+            identifier = ptcl_identifier_create_by_expr(ptcl_parser_parse_dot(parser, NULL, NULL, false));
+            if (parser->is_critical)
+            {
+                return (ptcl_statement_func_call){};
+            }
+
+            return ptcl_statement_func_call_create(identifier, NULL, 0);
+        }
     }
 
     ptcl_parser_except(parser, ptcl_token_left_par_type);
@@ -876,7 +904,7 @@ ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_s
         target = placeholder.function;
     }
 
-    ptcl_statement_func_call func_call = ptcl_statement_func_call_create(ptcl_identifier_create_by_name(name), NULL, 0);
+    ptcl_statement_func_call func_call = ptcl_statement_func_call_create(identifier, NULL, 0);
     bool is_variadic_now = false;
     while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
     {
@@ -2866,7 +2894,7 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, p
         return left;
     }
 
-    while (ptcl_parser_match(parser, ptcl_token_dot_type))
+    if (ptcl_parser_match(parser, ptcl_token_dot_type))
     {
         ptcl_name name = ptcl_parser_parse_name_word(parser);
         ptcl_location location = ptcl_parser_current(parser).location;
@@ -2895,11 +2923,11 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, p
         ptcl_token current = ptcl_parser_current(parser);
         if (current.type == ptcl_token_left_square_type)
         {
-            return ptcl_parser_parse_array_element(parser, except, left, false);
+            left = ptcl_parser_parse_array_element(parser, except, left, false);
         }
         else if (current.type == ptcl_token_dot_type)
         {
-            return ptcl_parser_parse_dot(parser, except, left, false);
+            left = ptcl_parser_parse_dot(parser, except, left, false);
         }
     }
 

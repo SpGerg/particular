@@ -26,11 +26,17 @@ syntax list([T: static type]) end {
 				self.length = self.length + 1
 			}
 
-			function at(index: integer): !T {}
+			function at(index: integer): !T {
+				return self.entities[index]
+			}
 		}
 	}
 
 	!~type_name
+}
+
+syntax list([T: any]) end {
+	you_forgot_about_type
 }
 
 syntax list([T: static type])([capacity: integer]) end {
@@ -41,26 +47,8 @@ syntax list([T: static type])() end {
 	#list(T)(0)
 }
 
-optional type listener_func: integer(integer, ...)
-typedata listener_object(
-	listeners: #list(>listener_func),
-	capacity: integer,
-	count: integer
-)
-
-type listener: listener_object {
-	function subscribe(subscriber: listener_func): void {}
-	function unsubscribe(unsubscriber: listener_func): void {}
-	function invoke(count: integer, ...): integer {}
-	function at(index: integer): listener_func {}
-}
-
-syntax listener.create() end {
-	listener_object(#list(>listener_func)(4), 0, 0) :: listener
-}
-
 function main(): integer {
-	event := #listener.create()
-	i_cant_just_dot := event.invoke(1, "Test event was invoked")
+	list: #list(>#list(integer)) = #list(>#list(>integer))()
+	list.add(#list(>integer)())
 	return 0
 }
