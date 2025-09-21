@@ -2348,6 +2348,11 @@ static bool ptcl_type_is_function(ptcl_type type, ptcl_type_functon_pointer_type
     }
     else if (type.type == ptcl_value_pointer_type)
     {
+        if (type.pointer.is_any)
+        {
+            return false;
+        }
+
         return ptcl_type_is_function(*type.pointer.target, function);
     }
     else if (type.type == ptcl_value_type_type)

@@ -1903,7 +1903,7 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser)
     }
 
     ptcl_statement_assign assign = ptcl_statement_assign_create(identifier, type, with_type, value, define);
-    if (created == NULL)
+    if (identifier.is_name && created == NULL)
     {
         ptcl_parser_instance variable = ptcl_parser_variable_create(name, type, value, type.is_static, parser->root);
         if (!ptcl_parser_add_instance(parser, variable))
@@ -1915,7 +1915,10 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser)
     }
     else
     {
-        created->variable.built_in = value;
+        if (created != NULL)
+        {
+            created->variable.built_in = value;
+        }
     }
 
     return assign;
@@ -2760,13 +2763,16 @@ static ptcl_expression *ptcl_parser_parse_type_dot(ptcl_parser *parser, ptcl_exp
     ptcl_type_comp_type *comp_type = left->return_type.comp_type;
     ptcl_statement_func_decl function;
     bool function_found = false;
-    for (size_t i = 0; i < comp_type->functions->count; i++)
+    if (comp_type->functions != NULL)
     {
-        function = comp_type->functions->statements[i]->func_decl;
-        if (ptcl_name_compare(function.name, name))
+        for (size_t i = 0; i < comp_type->functions->count; i++)
         {
-            function_found = true;
-            break;
+            function = comp_type->functions->statements[i]->func_decl;
+            if (ptcl_name_compare(function.name, name))
+            {
+                function_found = true;
+                break;
+            }
         }
     }
 
@@ -2863,7 +2869,6 @@ ptcl_expression *ptcl_parser_parse_dot(ptcl_parser *parser, ptcl_type *except, p
     {
         ptcl_name name = ptcl_parser_parse_name_word(parser);
         ptcl_location location = ptcl_parser_current(parser).location;
-
         if (parser->is_critical)
         {
             ptcl_expression_destroy(left);
@@ -3005,6 +3010,7 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
             word_name = ptcl_name_create_fast_w(current.value, is_anonymous);
         }
 
+        // TODO: create type search in one loop
         if (ptcl_parser_current(parser).type == ptcl_token_left_par_type)
         {
             if (ptcl_parser_try_get_instance(parser, word_name, ptcl_parser_instance_typedata_type, &typedata))

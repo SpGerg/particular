@@ -3,6 +3,7 @@ unsyntax {
 	prototype function printn(content: integer, ...): integer
 	prototype function printc(content: character, ...): integer
 	prototype function strlen(content: character*): integer
+	prototype function malloc(size: integer): pointer
 	typedata statement(statement_type: integer)
 }
 
@@ -21,9 +22,10 @@ syntax list([T: static type]) end {
 		typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
 		type !~type_name: !~type_object_name {
 			function add(entity: !T): void {
-				self.entities[0] = entity
+				self.entities[self.length] = entity
+				self.length = self.length + 1
 			}
-			
+
 			function at(index: integer): !T {}
 		}
 	}
