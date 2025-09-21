@@ -7,7 +7,6 @@ int main()
 {
     char *source;
     FILE *target = fopen("script.ptcl", "rb");
-    void (*func)(char *, ...);
     if (!target)
     {
         perror("Failed to open file");

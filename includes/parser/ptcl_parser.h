@@ -15,6 +15,7 @@ typedef struct ptcl_parser_variable
     ptcl_expression *built_in;
     bool is_built_in;
     bool is_syntax_word;
+    bool is_function_pointer;
     bool is_syntax_variable;
 } ptcl_parser_variable;
 
@@ -140,6 +141,22 @@ static ptcl_parser_instance ptcl_parser_variable_create(ptcl_name name, ptcl_typ
             .built_in = built_in,
             .is_built_in = is_built_in,
             .is_syntax_word = false,
+            .is_function_pointer = false,
+            .is_syntax_variable = false}};
+}
+
+static ptcl_parser_instance ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_statement_func_body *root)
+{
+    return (ptcl_parser_instance){
+        .type = ptcl_parser_instance_variable_type,
+        .root = root,
+        .name = name,
+        .is_out_of_scope = false,
+        .variable = (ptcl_parser_variable){
+            .type = type,
+            .is_built_in = false,
+            .is_syntax_word = false,
+            .is_function_pointer = true,
             .is_syntax_variable = false}};
 }
 
@@ -266,6 +283,10 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         {
             free(instance->variable.built_in->word.value);
             free(instance->variable.built_in);
+        }
+        else if (instance->variable.is_function_pointer)
+        {
+            free(instance->variable.type.function_pointer.return_type);
         }
         else
         {

@@ -1546,11 +1546,26 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
     func_decl.is_variadic = is_variadic;
     ptcl_parser_instance function = ptcl_parser_function_create(parser->root, func_decl);
     size_t identifier = parser->instances_count;
+
+    ptcl_name variable_name = function.name;
+    variable_name.is_free = false;
+    ptcl_type *variable_return_type = malloc(sizeof(ptcl_type));
+    if (variable_return_type == NULL)
+    {
+        ptcl_statement_func_decl_destroy(func_decl);
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return (ptcl_statement_func_decl){};
+    }
+
+    *variable_return_type = return_type;
+    ptcl_type variable_type = ptcl_type_create_func(variable_return_type, func_decl.arguments, func_decl.count);
+    ptcl_parser_instance function_pointer = ptcl_parser_func_variable_create(variable_name, variable_type, parser->root);
     if (!parser->is_type_body)
     {
-        if (!ptcl_parser_add_instance(parser, function))
+        if (!ptcl_parser_add_instance(parser, function) || !ptcl_parser_add_instance(parser, function_pointer))
         {
             ptcl_statement_func_decl_destroy(func_decl);
+            free(variable_return_type);
             ptcl_parser_throw_out_of_memory(parser, location);
             return (ptcl_statement_func_decl){};
         }
@@ -1567,6 +1582,7 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
             if (!ptcl_parser_add_instance(parser, variable))
             {
                 ptcl_statement_func_decl_destroy(func_decl);
+                free(variable_return_type);
                 ptcl_parser_throw_out_of_memory(parser, location);
                 return (ptcl_statement_func_decl){};
             }
@@ -1580,6 +1596,7 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
             if (!parser->is_type_body)
             {
                 parser->instances[identifier - 1].is_out_of_scope = true;
+                parser->instances[identifier].is_out_of_scope = true;
             }
 
             return (ptcl_statement_func_decl){};
