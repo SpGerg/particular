@@ -6,7 +6,55 @@ unsyntax {
 	typedata statement(statement_type: integer)
 }
 
+syntax list_name([T: static type]) end {
+	!<__list_ word(T)>
+}
+
+syntax list_object_name([T: static type]) end {
+	!<__list_object_ word(T)>
+}
+
+syntax list([T: static type]) end {
+	@{
+		~type_name: static word = #list_name(T)
+		~type_object_name: static word = #list_object_name(T)
+		typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
+		type !~type_name: !~type_object_name {
+			function at(index: integer): !T {}
+		}
+	}
+
+	!~type_name
+}
+
+syntax list([T: static type])([capacity: integer]) end {
+	#list_object_name(T)(null, 0, capacity)
+}
+
+syntax list([T: static type])() end {
+	#list(T)(0) :: #list_name(T)
+}
+
+optional type listener_func: integer(integer, ...)
+typedata listener_object(
+	listeners: #list(>listener_func),
+	capacity: integer,
+	count: integer
+)
+
+type listener: listener_object {
+	function subscribe(subscriber: listener_func): void {}
+	function unsubscribe(unsubscriber: listener_func): void {}
+	function invoke(count: integer, ...): integer {}
+	function at(index: integer): listener_func {}
+}
+
+syntax listener.create() end {
+	listener_object(#list(>listener_func)(), 0, 0) :: listener
+}
+
 function main(): integer {
-	variable := printc
+	event := #listener.create()
+	i_cant_just_dot := event.invoke(1, "Test event was invoked")
 	return 0
 }

@@ -330,9 +330,10 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
 
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
 {
-    bool placeholder;
+    bool placeholder = false;
+    ptcl_expression *expr_placeholder = NULL;
     size_t start = parser->position;
-    if (parser->is_syntax_body && ptcl_parser_parse_try_parse_syntax_usage_here(parser, NULL, &placeholder))
+    if (parser->is_syntax_body && ptcl_parser_parse_try_parse_syntax_usage_here(parser, &expr_placeholder, &placeholder))
     {
         size_t stop = parser->position;
         parser->position = start;
@@ -629,11 +630,10 @@ static bool ptcl_parser_insert_syntax(
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser,
                                                    ptcl_expression **old_expression, bool *with_expression)
 {
-    return ptcl_parser_parse_try_parse_syntax_usage(parser, NULL, NULL, 0, true, -1, false, old_expression, with_expression);
+    return ptcl_parser_parse_try_parse_syntax_usage(parser, NULL, 0, true, -1, false, old_expression, with_expression);
 }
 
-bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
-                                              ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count,
+bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count,
                                               bool is_free, int down_start, bool skip_first,
                                               ptcl_expression **old_expression,
                                               bool *with_expression)
@@ -647,7 +647,10 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
     size_t start = down_start >= 0 ? down_start : parser->position;
     size_t stop = parser->position;
     size_t original_count = count;
-    ptcl_parser_instance instance = ptcl_parser_syntax_create(ptcl_name_create_fast_w("", false), parser->root, nodes, count);
+    ptcl_parser_instance instance = ptcl_parser_syntax_create(
+        ptcl_name_create_fast_w("", false),
+        parser->root, nodes == NULL ? NULL : *nodes,
+        count);
     ptcl_parser_syntax syntax = instance.syntax;
     ptcl_parser_syntax result;
     bool found = false;
@@ -682,18 +685,19 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             if (checked)
             {
                 bool with_par_expression = false;
-                ptcl_expression *par_expression;
-                syntax.nodes[syntax.count++] = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
-                ptcl_parser_syntax_node *reallocated_value = syntax.nodes;
+                ptcl_expression *par_expression = NULL;
+                syntax.nodes[syntax.count++] =
+                    ptcl_parser_syntax_node_create_word(
+                        current.type,
+                        ptcl_name_create(current.value, false, current.location));
                 ptcl_parser_skip(parser);
-                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, true, &par_expression, &with_par_expression))
+                if (ptcl_parser_parse_try_parse_syntax_usage(parser, &syntax.nodes, syntax.count, false, start, true, &par_expression, &with_par_expression))
                 {
                     parser->add_errors = last;
                     return true;
                 }
 
                 parser->position = position;
-                syntax.nodes = reallocated_value;
                 syntax.count--;
             }
 
@@ -723,15 +727,14 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
             syntax.nodes[syntax.count++] = node;
             if (node.type == ptcl_parser_syntax_node_value_type && !checked)
             {
-                bool placeholder;
-                ptcl_parser_syntax_node *reallocated_value = syntax.nodes;
-                if (ptcl_parser_parse_try_parse_syntax_usage(parser, syntax.nodes, &reallocated_value, syntax.count, false, start, false, NULL, &placeholder))
+                bool placeholder = false;
+                ptcl_expression *exp_placeholder = NULL;
+                if (ptcl_parser_parse_try_parse_syntax_usage(parser, &syntax.nodes, syntax.count, false, start, false, &exp_placeholder, &placeholder))
                 {
                     parser->add_errors = last;
                     return true;
                 }
 
-                syntax.nodes = reallocated_value;
                 if (parser->is_critical)
                 {
                     return false;
@@ -755,7 +758,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         }
 
         ptcl_parser_syntax *target = NULL;
-        bool can_continue;
+        bool can_continue = false;
         bool current_found = ptcl_parser_syntax_try_find(parser, syntax.nodes, syntax.count, &target, &can_continue);
         if (current_found)
         {
@@ -786,9 +789,16 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         }
 
         ptcl_statement_func_body *temp = malloc(sizeof(ptcl_statement_func_body));
+        if (temp == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+            ptcl_parser_syntax_destroy(syntax);
+            return false;
+        }
+
         *temp = ptcl_statement_func_body_create(NULL, 0, parser->root);
         parser->root = temp;
-        for (size_t i = 0; i < syntax.count; i++)
+        for (size_t i = 0; i < result.count; i++)
         {
             ptcl_parser_syntax_node syntax_node = result.nodes[i];
             ptcl_parser_syntax_node target_node = syntax.nodes[i];
@@ -848,7 +858,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser,
         }
         else
         {
-            *reallocated = syntax.nodes;
+            *nodes = syntax.nodes;
             for (size_t i = original_count; i < syntax.count; i++)
             {
                 ptcl_parser_syntax_node_destroy(syntax.nodes[i]);
@@ -1156,7 +1166,7 @@ ptcl_type ptcl_parser_parse_type(ptcl_parser *parser, bool with_word, bool with_
 {
     size_t start = parser->position;
     bool with_expression = false;
-    ptcl_expression *expression;
+    ptcl_expression *expression = NULL;
     bool with_syntax = false;
     if (parser->is_syntax_body)
     {
@@ -2414,7 +2424,7 @@ void ptcl_parser_parse_undefine(ptcl_parser *parser)
 
 ptcl_expression *ptcl_parser_parse_cast(ptcl_parser *parser, ptcl_type *except, bool with_word)
 {
-    ptcl_expression *syntax_expression;
+    ptcl_expression *syntax_expression = NULL;
     bool with_expression = false;
     size_t start = parser->position;
     if (parser->is_syntax_body && ptcl_parser_parse_try_parse_syntax_usage_here(parser, &syntax_expression, &with_expression))

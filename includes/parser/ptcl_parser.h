@@ -321,7 +321,7 @@ ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, ptcl_expression **old_expression, bool *with_expression);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
-    ptcl_parser *parser, ptcl_parser_syntax_node *nodes, ptcl_parser_syntax_node **reallocated, size_t count, bool is_free, int down_start, bool skip_first,
+    ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, bool is_free, int down_start, bool skip_first,
     ptcl_expression **old_expression, bool *with_expression);
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
