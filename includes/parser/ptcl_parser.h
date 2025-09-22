@@ -290,8 +290,9 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         }
         else
         {
-            if (instance->variable.is_syntax_variable)
+            if (instance->variable.is_built_in || instance->variable.is_syntax_variable)
             {
+                instance->variable.built_in->is_original = true;
                 ptcl_expression_destroy(instance->variable.built_in);
             }
         }

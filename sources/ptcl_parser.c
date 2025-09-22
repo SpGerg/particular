@@ -666,17 +666,16 @@ bool ptcl_parser_parse_try_parse_syntax_usage(ptcl_parser *parser, ptcl_parser_s
             }
 
             ptcl_expression *expression = target_node.value;
+            expression->is_original = false;
             ptcl_parser_instance variable = ptcl_parser_variable_create(
                 ptcl_name_create_fast_w(syntax_node.variable.name, false),
                 syntax_node.variable.type,
                 expression,
                 true,
                 parser->root);
-
             variable.variable.is_syntax_variable = true;
             variable.variable.is_built_in = true;
             variable.variable.built_in = expression;
-
             if (expression->return_type.is_static && expression->return_type.type == ptcl_value_word_type)
             {
                 variable.variable.built_in->word.value = ptcl_string_duplicate(variable.variable.built_in->word.value);
@@ -1784,10 +1783,12 @@ ptcl_statement_assign ptcl_parser_parse_assign(ptcl_parser *parser)
         ptcl_parser_set_arrays_length(&type, &value->return_type);
     }
 
-    ptcl_statement_assign assign = ptcl_statement_assign_create(identifier, type, with_type, value, define);
+    const bool is_static = type.is_static;
+    ptcl_statement_assign assign = ptcl_statement_assign_create(identifier, type, with_type, is_static ? NULL : value, define);
     if (identifier.is_name && created == NULL)
     {
-        ptcl_parser_instance variable = ptcl_parser_variable_create(name, type, value, type.is_static, parser->root);
+        value->is_original = !type.is_static;
+        ptcl_parser_instance variable = ptcl_parser_variable_create(name, type, value, is_static, parser->root);
         if (!ptcl_parser_add_instance(parser, variable))
         {
             ptcl_statement_assign_destroy(assign);
@@ -2216,7 +2217,9 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
     size_t position = parser->position;
     for (size_t i = 0; i < value->array.count; i++)
     {
-        ptcl_parser_instance variable = ptcl_parser_variable_create(name, *ptcl_type_get_target(value->return_type), value->array.expressions[i], true, &empty);
+        ptcl_expression *expression = value->array.expressions[i];
+        expression->is_original = false;
+        ptcl_parser_instance variable = ptcl_parser_variable_create(name, *ptcl_type_get_target(value->return_type), expression, true, &empty);
         if (!ptcl_parser_add_instance(parser, variable))
         {
             ptcl_parser_throw_out_of_memory(parser, location);
@@ -2231,6 +2234,7 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
             parser->position = position;
         }
 
+        expression->is_original = true;
         if (parser->is_critical)
         {
             ptcl_expression_destroy(value);

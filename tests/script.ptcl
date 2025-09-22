@@ -51,11 +51,8 @@ syntax list([T: static type])() end {
 }
 
 function main(): integer {
-	body := {
-		variable := 2
-		printn(variable)
-
-		return
-	}
+	list: #list(>#list(>integer)*) = #list(>#list(>integer)*)()
+	list.add(null) 
+	element := #list[0]
 	return 0
 }

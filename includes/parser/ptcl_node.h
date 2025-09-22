@@ -296,6 +296,7 @@ typedef struct ptcl_expression
     ptcl_expression_type type;
     ptcl_type return_type;
     ptcl_location location;
+    bool is_original;
 
     union
     {
@@ -418,6 +419,7 @@ static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_t
         expression->type = type;
         expression->return_type = return_type;
         expression->location = location;
+        expression->is_original = true;
     }
 
     return expression;
@@ -1463,138 +1465,15 @@ static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
 
 static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_location location)
 {
-    ptcl_expression *expression = ptcl_expression_create(target->type, (ptcl_type){}, location);
-    if (expression == NULL)
+    ptcl_expression *expression = ptcl_expression_create(target->type, target->return_type, location);
+    if (expression != NULL)
     {
-        return NULL;
+        *expression = *target;
+        expression->return_type = ptcl_type_copy(target->return_type);
+        expression->location = location;
     }
 
-    switch (target->type)
-    {
-    case ptcl_expression_array_type:
-        expression->array.expressions = malloc(target->array.count * sizeof(ptcl_expression *));
-        if (expression->array.expressions == NULL)
-        {
-            free(expression);
-            return NULL;
-        }
-
-        for (size_t i = 0; i < target->array.count; i++)
-        {
-            ptcl_expression *element = ptcl_expression_copy(target->array.expressions[i], location);
-            if (element == NULL)
-            {
-                for (size_t j = 0; j < i; j++)
-                {
-                    ptcl_expression_destroy(expression->array.expressions[j]);
-                }
-
-                free(expression->array.expressions);
-                free(expression);
-                return NULL;
-            }
-
-            expression->array.expressions[i] = element;
-        }
-
-        expression->return_type = ptcl_type_copy(target->return_type);
-        expression->array.type = ptcl_type_character;
-        expression->array.count = target->array.count;
-        return expression;
-    case ptcl_expression_dot_type:
-        free(expression);
-        return NULL;
-    case ptcl_expression_array_element_type:
-        expression->array_element.value = ptcl_expression_copy(target->array_element.value, location);
-        if (expression->array_element.value == NULL)
-        {
-            free(expression);
-            return NULL;
-        }
-
-        expression->array_element.index = ptcl_expression_copy(target->array_element.index, location);
-        if (expression->array_element.index == NULL)
-        {
-            free(expression);
-            ptcl_expression_destroy(expression->array_element.value);
-            return NULL;
-        }
-
-        return expression;
-    case ptcl_expression_ctor_type:
-        expression->ctor.values = malloc(target->ctor.count * sizeof(ptcl_expression *));
-        if (expression->ctor.values == NULL)
-        {
-            free(expression);
-            return NULL;
-        }
-
-        for (size_t i = 0; i < target->ctor.count; i++)
-        {
-            expression->ctor.values[i] = ptcl_expression_copy(target->ctor.values[i], location);
-        }
-
-        // Original will be freed
-        ptcl_name copy = target->ctor.name;
-        copy.is_free = false;
-
-        expression->return_type = ptcl_type_create_typedata(target->ctor.name.value, target->ctor.name.is_anonymous);
-        expression->ctor.count = target->ctor.count;
-        return expression;
-    case ptcl_expression_unary_type:
-        expression->unary.child = ptcl_expression_copy(target->unary.child, location);
-        if (expression->unary.child == NULL)
-        {
-            free(expression);
-            return NULL;
-        }
-
-        expression->return_type = ptcl_type_copy(target->return_type);
-        expression->unary.type = target->unary.type;
-        return expression;
-    case ptcl_expression_variable_type:
-        expression->variable.name = target->variable.name;
-        expression->variable.name.value = ptcl_string_duplicate(expression->variable.name.value);
-        if (expression->variable.name.value == NULL)
-        {
-            free(expression);
-            return NULL;
-        }
-
-        expression->return_type = ptcl_type_copy(target->return_type);
-        expression->variable.name.is_free = true;
-        expression->return_type = target->return_type;
-        return expression;
-    case ptcl_expression_object_type_type:
-        expression->return_type = ptcl_type_copy(target->return_type);
-        expression->object_type.type = *expression->return_type.object_type.target;
-        return expression;
-    case ptcl_expression_word_type:
-        expression->word = target->word;
-        if (expression->word.is_free)
-        {
-            char *word_copy = ptcl_string_duplicate(expression->word.value);
-            if (word_copy == NULL)
-            {
-                free(expression);
-                return NULL;
-            }
-
-            expression->word = ptcl_name_create_l(word_copy, target->word.is_anonymous, true, location);
-        }
-    case ptcl_expression_null_type:
-    case ptcl_expression_character_type:
-        expression->character = target->character;
-    case ptcl_expression_double_type:
-        expression->double_n = target->double_n;
-    case ptcl_expression_float_type:
-        expression->float_n = target->float_n;
-    case ptcl_expression_integer_type:
-        expression->integer_n = target->integer_n;
-    default:
-        expression->return_type = ptcl_type_copy(target->return_type);
-        return expression;
-    }
+    return expression;
 }
 
 static bool ptcl_type_is_primitive(ptcl_value_type type)
@@ -2213,6 +2092,9 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
     case ptcl_value_any_type:
         name = "any";
         break;
+    case ptcl_value_void_type:
+        name = "void";
+        break;
     }
 
     if (type.type != ptcl_value_array_type &&
@@ -2247,7 +2129,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         break;
     case ptcl_value_function_pointer_type:
         char *return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
-        name = ptcl_string("function (", return_type, ") ", NULL);
+        name = ptcl_string("function (", return_type, ") (", NULL);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
@@ -2296,6 +2178,9 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         break;
     case ptcl_value_any_type:
         name = "any";
+        break;
+    case ptcl_value_void_type:
+        name = "void";
         break;
     }
 
@@ -2623,7 +2508,7 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         {
             ptcl_expression_destroy(statement->ret.value);
         }
-        
+
         break;
     case ptcl_statement_assign_type:
         ptcl_statement_assign_destroy(statement->assign);
@@ -2669,6 +2554,18 @@ static void ptcl_expression_array_destroy(ptcl_expression_array array)
 
 static void ptcl_expression_destroy(ptcl_expression *expression)
 {
+    if (expression == NULL)
+    {
+        return;
+    }
+
+    if (!expression->is_original)
+    {
+        ptcl_type_destroy(expression->return_type);
+        free(expression);
+        return;
+    }
+
     if (ptcl_expression_with_own_type(expression->type))
     {
         ptcl_type_destroy(expression->return_type);
