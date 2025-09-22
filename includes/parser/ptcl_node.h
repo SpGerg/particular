@@ -525,13 +525,13 @@ static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
         .typedata = ptcl_name_create_fast_w(identifier, is_anonymous)};
 }
 
-static ptcl_type ptcl_type_create_array(ptcl_type *type, size_t count)
+static ptcl_type ptcl_type_create_array(ptcl_type *type)
 {
     return (ptcl_type){
         .type = ptcl_value_array_type,
+        .is_static = true,
         .array = (ptcl_type_array){
-            .target = type,
-            .count = count}};
+            .target = type}};
 }
 
 static ptcl_type ptcl_type_create_object_type(ptcl_type *type)
@@ -652,7 +652,7 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){}, location);
     if (expression != NULL)
     {
-        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, count);
+        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character);
         array_type.array.target->is_static = true;
         expression->return_type = array_type;
         expression->array = (ptcl_expression_array){

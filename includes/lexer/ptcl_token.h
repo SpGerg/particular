@@ -28,7 +28,6 @@ typedef enum ptcl_token_type
     ptcl_token_undefine_type,
     ptcl_token_unsyntax_type,
     ptcl_token_syntax_type,
-    ptcl_token_new_type,
     ptcl_token_null_type,
     ptcl_token_none_type,
     ptcl_token_is_type,
