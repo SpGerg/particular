@@ -1393,6 +1393,9 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
         ptcl_parser_parse_func_body_by_pointer(parser, func_decl.func_body, true, true);
         if (parser->is_critical)
         {
+            free(func_decl.func_body);
+            func_decl.func_body = NULL;
+            func_decl.is_prototype = true;
             ptcl_statement_func_decl_destroy(func_decl);
             parser->return_type = previous_type;
             if (!parser->is_type_body)
@@ -2970,7 +2973,7 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
         }
 
         ptcl_parser_throw_unknown_variable(parser, current.value, current.location);
-        break;
+        return NULL;
     case ptcl_token_word_word_type:
         parser->position--;
         ptcl_name value = ptcl_parser_parse_name_word(parser);

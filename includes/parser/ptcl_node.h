@@ -2478,7 +2478,11 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
         ptcl_statement_func_body_destroy(*func_decl.func_body);
     }
 
-    free(func_decl.func_body);
+    if (func_decl.func_body != NULL)
+    {
+        free(func_decl.func_body);
+    }
+    
     if (func_decl.count > 0)
     {
         for (size_t i = 0; i < func_decl.count; i++)
