@@ -432,7 +432,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         break;
     case ptcl_statement_return_type:
         ptcl_transpiler_append_word_s(transpiler, "return");
-        ptcl_transpiler_add_expression(transpiler, statement->ret.value, false);
+        if (statement->ret.value != NULL)
+        {
+            ptcl_transpiler_add_expression(transpiler, statement->ret.value, false);
+        }
+        
         ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_if_type:

@@ -51,6 +51,11 @@ syntax list([T: static type])() end {
 }
 
 function main(): integer {
-	string := "Hello, world"
+	body := {
+		variable := 2
+		printn(variable)
+
+		return
+	}
 	return 0
 }

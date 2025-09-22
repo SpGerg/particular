@@ -30,6 +30,7 @@ typedef enum ptcl_statement_type
 
 typedef enum ptcl_expression_type
 {
+    ptcl_expression_func_body_type,
     ptcl_expression_array_type,
     ptcl_expression_variable_type,
     ptcl_expression_character_type,
@@ -283,6 +284,13 @@ typedef struct ptcl_expression_cast
     ptcl_type type;
 } ptcl_expression_cast;
 
+typedef struct ptcl_statement_func_body
+{
+    ptcl_statement **statements;
+    size_t count;
+    ptcl_statement_func_body *root;
+} ptcl_statement_func_body;
+
 typedef struct ptcl_expression
 {
     ptcl_expression_type type;
@@ -291,6 +299,7 @@ typedef struct ptcl_expression
 
     union
     {
+        ptcl_statement_func_body body;
         ptcl_statement_func_call func_call;
         ptcl_expression_array array;
         ptcl_name word;
@@ -310,13 +319,6 @@ typedef struct ptcl_expression
         ptcl_expression_cast cast;
     };
 } ptcl_expression;
-
-typedef struct ptcl_statement_func_body
-{
-    ptcl_statement **statements;
-    size_t count;
-    ptcl_statement_func_body *root;
-} ptcl_statement_func_body;
 
 typedef struct ptcl_statement_func_decl
 {
@@ -1154,6 +1156,11 @@ static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
 static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 {
     if (expected.is_static && !target.is_static)
+    {
+        return false;
+    }
+
+    if (target.type == ptcl_value_function_pointer_type && target.is_static && !expected.is_static)
     {
         return false;
     }
@@ -2167,6 +2174,27 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         name = ptcl_string("pointer_", pointer_name, "_", NULL);
         free(pointer_name);
         break;
+    case ptcl_value_function_pointer_type:
+        char *return_type = ptcl_type_to_word_copy(*type.function_pointer.return_type);
+        name = ptcl_string("function_", return_type, "_", NULL);
+        for (size_t i = 0; i < type.function_pointer.count; i++)
+        {
+            char *argument = ptcl_type_to_word_copy(type.function_pointer.arguments[i].type);
+            name = ptcl_string_append(name, argument, NULL);
+            if (i != type.function_pointer.count - 1)
+            {
+                name = ptcl_string_append(name, "_", NULL);
+            }
+
+            free(argument);
+        }
+
+        name = ptcl_string_append(name, "_", NULL);
+        free(return_type);
+        break;
+    case ptcl_value_object_type_type:
+        name = ptcl_string("type_", ptcl_type_to_word_copy(*type.object_type.target), "_", NULL);
+        break;
     case ptcl_value_word_type:
         name = "word";
         break;
@@ -2187,7 +2215,11 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         break;
     }
 
-    if (type.type != ptcl_value_array_type && type.type != ptcl_value_pointer_type && type.type != ptcl_value_typedata_type)
+    if (type.type != ptcl_value_array_type &&
+        type.type != ptcl_value_pointer_type &&
+        type.type != ptcl_value_typedata_type &&
+        type.type != ptcl_value_object_type_type &&
+        type.type != ptcl_value_function_pointer_type)
     {
         name = ptcl_string(name, NULL);
     }
@@ -2212,6 +2244,24 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         char *array_name = ptcl_type_to_present_string_copy(*type.array.target);
         name = ptcl_string(is_static, "array (", array_name, ")", NULL);
         free(array_name);
+        break;
+    case ptcl_value_function_pointer_type:
+        char *return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
+        name = ptcl_string("function (", return_type, ") ", NULL);
+        for (size_t i = 0; i < type.function_pointer.count; i++)
+        {
+            char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
+            name = ptcl_string_append(name, argument, NULL);
+            if (i != type.function_pointer.count - 1)
+            {
+                name = ptcl_string_append(name, ", ", NULL);
+            }
+
+            free(argument);
+        }
+
+        name = ptcl_string_append(name, ")", NULL);
+        free(return_type);
         break;
     case ptcl_value_pointer_type:
         if (type.pointer.is_any)
@@ -2249,7 +2299,11 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         break;
     }
 
-    if (type.type != ptcl_value_array_type && type.type != ptcl_value_pointer_type && type.type != ptcl_value_typedata_type && type.type != ptcl_value_object_type_type)
+    if (type.type != ptcl_value_array_type &&
+        type.type != ptcl_value_pointer_type &&
+        type.type != ptcl_value_typedata_type &&
+        type.type != ptcl_value_object_type_type &&
+        type.type != ptcl_value_function_pointer_type)
     {
         name = ptcl_string(is_static, name, NULL);
     }
@@ -2404,8 +2458,12 @@ static void ptcl_type_destroy(ptcl_type type)
 
         break;
     case ptcl_value_function_pointer_type:
-        ptcl_type_destroy(*type.function_pointer.return_type);
-        free(type.function_pointer.return_type);
+        if (!type.function_pointer.return_type->is_primitive)
+        {
+            ptcl_type_destroy(*type.function_pointer.return_type);
+            free(type.function_pointer.return_type);
+        }
+
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             ptcl_type_destroy(type.function_pointer.arguments[i].type);
@@ -2443,7 +2501,6 @@ static void ptcl_identifier_destroy(ptcl_identifier identifier)
 static void ptcl_statement_func_call_destroy(ptcl_statement_func_call func_call)
 {
     ptcl_identifier_destroy(func_call.identifier);
-
     if (func_call.count > 0)
     {
         for (size_t i = 0; i < func_call.count; i++)
@@ -2482,7 +2539,7 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
     {
         free(func_decl.func_body);
     }
-    
+
     if (func_decl.count > 0)
     {
         for (size_t i = 0; i < func_decl.count; i++)
@@ -2562,7 +2619,11 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         ptcl_statement_typedata_decl_destroy(statement->typedata_decl);
         break;
     case ptcl_statement_return_type:
-        ptcl_expression_destroy(statement->ret.value);
+        if (statement->ret.value != NULL)
+        {
+            ptcl_expression_destroy(statement->ret.value);
+        }
+        
         break;
     case ptcl_statement_assign_type:
         ptcl_statement_assign_destroy(statement->assign);
@@ -2615,6 +2676,9 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
 
     switch (expression->type)
     {
+    case ptcl_expression_func_body_type:
+        ptcl_statement_func_body_destroy(expression->body);
+        break;
     case ptcl_expression_func_call_type:
         ptcl_statement_func_call_destroy(expression->func_call);
         break;
