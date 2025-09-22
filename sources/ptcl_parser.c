@@ -2620,7 +2620,7 @@ static ptcl_expression *ptcl_parser_parse_type_dot(ptcl_parser *parser, ptcl_exp
     func_call.return_type = function.return_type;
     ptcl_expression *func = ptcl_expression_create(
         ptcl_expression_func_call_type,
-        ptcl_type_copy(func_call.return_type),
+        func_call.return_type,
         location);
     if (func == NULL)
     {
@@ -2970,6 +2970,17 @@ ptcl_expression *ptcl_parser_parse_value(ptcl_parser *parser, ptcl_type *except,
         }
 
         ptcl_parser_throw_unknown_variable(parser, current.value, current.location);
+        break;
+    case ptcl_token_word_word_type:
+        parser->position--;
+        ptcl_name value = ptcl_parser_parse_name_word(parser);
+        result = ptcl_expression_word_create(value, current.location);
+        if (result == NULL)
+        {
+            break;
+        }
+
+        result->return_type.is_static = true;
         break;
     case ptcl_token_string_type:
         size_t length = strlen(current.value);
@@ -3416,10 +3427,40 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool with_type)
             return (ptcl_name){};
         }
 
-        ptcl_name target = ptcl_parser_parse_name_word(parser);
-        if (parser->is_critical)
+        ptcl_expression *object_type = NULL;
+        ptcl_name target;
+        if (ptcl_parser_current(parser).type == ptcl_token_greater_than_type)
         {
-            return (ptcl_name){};
+            object_type = ptcl_parser_parse_value(parser, NULL, false);
+            if (parser->is_critical)
+            {
+                return (ptcl_name){};
+            }
+
+            ptcl_parser_except(parser, ptcl_token_right_par_type);
+            if (parser->is_critical)
+            {
+                ptcl_expression_destroy(object_type);
+                return (ptcl_name){};
+            }
+
+            char *value = ptcl_type_to_word_copy(object_type->object_type.type);
+            ptcl_expression_destroy(object_type);
+            if (value == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, location);
+                return (ptcl_name){};
+            }
+
+            return ptcl_name_create(value, true, location);
+        }
+        else
+        {
+            target = ptcl_parser_parse_name_word(parser);
+            if (parser->is_critical)
+            {
+                return (ptcl_name){};
+            }
         }
 
         ptcl_parser_except(parser, ptcl_token_right_par_type);
@@ -3451,6 +3492,13 @@ ptcl_name ptcl_parser_parse_name(ptcl_parser *parser, bool with_type)
             case ptcl_value_object_type_type:
                 is_free = true;
                 value = ptcl_type_to_word_copy(variable->variable.built_in->object_type.type);
+                if (value == NULL)
+                {
+                    ptcl_parser_throw_out_of_memory(parser, location);
+                    ptcl_name_destroy(target);
+                    return (ptcl_name){};
+                }
+
                 break;
             case ptcl_value_word_type:
                 value = variable->variable.built_in->word.value;

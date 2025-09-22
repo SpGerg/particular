@@ -4,7 +4,6 @@ unsyntax {
 	prototype function printc(content: character, ...): integer
 	prototype function strlen(content: character*): integer
 	prototype function malloc(size: integer): pointer
-	typedata statement(statement_type: integer)
 }
 
 syntax list_name([T: static type]) end {
@@ -52,8 +51,9 @@ syntax list([T: static type])() end {
 }
 
 function main(): integer {
+	value := word(>integer)
 	list: #list(>#list(>integer)*) = #list(>#list(>integer)*)()
-	list.add(null)
+	list.add(null) 
 	element := #list[0]
 	return 0
 }
