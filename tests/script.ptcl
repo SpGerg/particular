@@ -50,9 +50,13 @@ syntax list([T: static type])() end {
 	#list(T)(0)
 }
 
+syntax using([name: static word]=[value: any]) [body: void() static] end {
+	!name := value
+}
+
+function test(): void {}
+
 function main(): integer {
-	list: #list(>#list(>integer)*) = #list(>#list(>integer)*)()
-	list.add(null) 
-	element := #list[0]
+	#using (left = 2) test
 	return 0
 }

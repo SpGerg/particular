@@ -319,10 +319,10 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 
 ptcl_attributes ptcl_parser_parse_attributes(ptcl_parser *parser);
 
-bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser);
+bool ptcl_parser_parse_try_parse_syntax_usage_here(ptcl_parser *parser, bool is_statement);
 
 bool ptcl_parser_parse_try_parse_syntax_usage(
-    ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, int down_start, bool skip_first);
+    ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, int down_start, bool skip_first, bool is_statement);
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
