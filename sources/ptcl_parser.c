@@ -164,12 +164,25 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
     ptcl_expression *function = arguments[0];
     ptcl_type array = ptcl_type_create_array(&ptcl_statement_t_type, -1);
     ptcl_expression *result = ptcl_expression_create(ptcl_expression_array_type, array, location);
+    if (result == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return NULL;
+    }
+
     switch (function->type)
     {
     case ptcl_expression_func_body_type:
         ptcl_statement_func_body func_body = function->body;
         array.array.count = func_body.count;
         ptcl_expression **statements = malloc(func_body.count * sizeof(ptcl_expression *));
+        if (statements == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            free(result);
+            return NULL;
+        }
+
         for (size_t i = 0; i < func_body.count; i++)
         {
             ptcl_expression *expression = ptcl_create_ctor_from_statement(func_body.statements[i], location);
@@ -222,6 +235,12 @@ static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expre
 {
     ptcl_expression *name_argument = arguments[0];
     ptcl_name name = ptcl_name_create_fast_w(ptcl_from_array(name_argument->array), false);
+    if (name.value == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return NULL;
+    }
+
     ptcl_parser_instance *instance;
     bool is_defined = ptcl_parser_try_get_instance_any(parser, name, &instance);
     free(name.value);
