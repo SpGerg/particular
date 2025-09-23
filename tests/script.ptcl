@@ -57,6 +57,10 @@ syntax using([name: static word]=[value: any]) [body: void() static] end {
 function test(): void {}
 
 function main(): integer {
-	#using (left = 2) test
-	return 0
+	statements := ptcl_get_statements({
+		printf("Hello, world!")
+		return
+	})
+	
+	return 0 
 }

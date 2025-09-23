@@ -185,7 +185,7 @@ static ptcl_type ptcl_type_any_pointer = {
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.target = &ptcl_type_any}, .is_primitive = true, .is_static = false};
 
-static ptcl_type ptcl_type_word = {
+static ptcl_type const ptcl_type_word = {
     .type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
 
 static ptcl_type ptcl_type_character = {
@@ -240,7 +240,7 @@ typedef struct ptcl_statement_func_call
     ptcl_expression **arguments;
     size_t count;
     ptcl_type return_type;
-    ptcl_expression **built_in;
+    ptcl_expression *built_in;
     bool is_built_in;
 } ptcl_statement_func_call;
 
@@ -529,13 +529,14 @@ static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
         .typedata = ptcl_name_create_fast_w(identifier, is_anonymous)};
 }
 
-static ptcl_type ptcl_type_create_array(ptcl_type *type)
+static ptcl_type ptcl_type_create_array(ptcl_type *type, int count)
 {
     return (ptcl_type){
         .type = ptcl_value_array_type,
         .is_static = true,
         .array = (ptcl_type_array){
-            .target = type}};
+            .target = type,
+            .count = count}};
 }
 
 static ptcl_type ptcl_type_create_object_type(ptcl_type *type)
@@ -656,7 +657,7 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){}, location);
     if (expression != NULL)
     {
-        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character);
+        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int) count);
         array_type.array.target->is_static = true;
         expression->return_type = array_type;
         expression->array = (ptcl_expression_array){
@@ -1162,16 +1163,17 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
         return false;
     }
 
+    if (expected.type == ptcl_value_any_type)
+    {
+        return true;
+    }
+
     if (target.type == ptcl_value_function_pointer_type && target.is_static && !expected.is_static)
     {
         return false;
     }
 
-    if (expected.type == ptcl_value_any_type)
-    {
-        return true;
-    }
-    else if (expected.type == ptcl_value_type_type)
+    if (expected.type == ptcl_value_type_type)
     {
         if (target.type != ptcl_value_type_type || !ptcl_name_compare(expected.comp_type->identifier, target.comp_type->identifier))
         {
@@ -1386,6 +1388,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     case ptcl_value_function_pointer_type:
         ptcl_type *return_type = malloc(sizeof(ptcl_type));
         *return_type = ptcl_type_copy(*type.function_pointer.return_type);
+        return_type->is_primitive = false;
         ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
@@ -2394,11 +2397,6 @@ static void ptcl_statement_func_call_destroy(ptcl_statement_func_call func_call)
         }
 
         free(func_call.arguments);
-    }
-
-    if (func_call.is_built_in)
-    {
-        free(func_call.built_in);
     }
 }
 

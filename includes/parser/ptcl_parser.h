@@ -6,6 +6,23 @@
 #include <ptcl_lexer_configuration.h>
 
 #define PTCL_PARSER_MAX_DEPTH 256
+#define PTCL_PARSER_STATEMENT_TYPEDATA_COUNT 1
+#define PTCL_PARSER_STATEMENT_TYPEDATA_NAME "ptcl_statement_t"
+
+static ptcl_name ptcl_statement_t_name = (ptcl_name){
+    .value = PTCL_PARSER_STATEMENT_TYPEDATA_NAME,
+    .location = {0},
+    .is_free = false,
+    .is_anonymous = false};
+
+static ptcl_type ptcl_statement_t_type = (ptcl_type){
+    .type = ptcl_value_typedata_type,
+    .is_primitive = true,
+    .is_static = false,
+    .typedata.value = PTCL_PARSER_STATEMENT_TYPEDATA_NAME,
+    .typedata.location = {0},
+    .typedata.is_free = false,
+    .typedata.is_anonymous = false};
 
 typedef struct ptcl_parser_function ptcl_parser_function;
 
@@ -189,7 +206,7 @@ static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body
                 .return_type = return_type}}};
 }
 
-static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_name name, ptcl_typedata_member *members, size_t count)
+static ptcl_parser_instance ptcl_parser_typedata_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_typedata_member *members, size_t count)
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_typedata_type,
@@ -326,7 +343,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
-ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function);
+ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_parser_function *function);
 
 ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool is_prototype);
 

@@ -67,11 +67,14 @@ static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, p
     }
 
     ptcl_transpiler_append_character(transpiler, '[');
-    char *number = ptcl_from_long(type.array.count);
-    if (number != NULL)
+    if (type.array.count >= 0)
     {
-        ptcl_transpiler_append_word_s(transpiler, number);
-        free(number);
+        char *number = ptcl_from_long(type.array.count);
+        if (number != NULL)
+        {
+            ptcl_transpiler_append_word_s(transpiler, number);
+            free(number);
+        }
     }
 
     ptcl_transpiler_append_character(transpiler, ']');
@@ -436,7 +439,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         {
             ptcl_transpiler_add_expression(transpiler, statement->ret.value, false);
         }
-        
+
         ptcl_transpiler_append_character(transpiler, ';');
         break;
     case ptcl_statement_if_type:
