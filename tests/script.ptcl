@@ -63,8 +63,10 @@ function main(): integer {
 	})
 
 	each statement, statements {
-		printn(statement.type)
+		printn(statement.statement_type)
 	}
 
+	value := ptcl_defined("statements")
+	value_other := ptcl_defined("other")
 	return 0
 }

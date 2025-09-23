@@ -202,6 +202,32 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
     return result;
 }
 
+static char *ptcl_from_array(ptcl_expression_array array)
+{
+    char *buffer = malloc(array.count * sizeof(char));
+    if (buffer == NULL)
+    {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < array.count; i++)
+    {
+        buffer[i] = array.expressions[i]->character;
+    }
+
+    return buffer;
+}
+
+static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location)
+{
+    ptcl_expression *name_argument = arguments[0];
+    ptcl_name name = ptcl_name_create_fast_w(ptcl_from_array(name_argument->array), false);
+    ptcl_parser_instance *instance;
+    bool is_defined = ptcl_parser_try_get_instance_any(parser, name, &instance);
+    free(name.value);
+    return ptcl_expression_create_integer(is_defined, location);
+}
+
 ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuration *configuration)
 {
     ptcl_parser *parser = malloc(sizeof(ptcl_parser));
@@ -250,6 +276,12 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     ptcl_func_built_in_builder_return(&get_statements_builder, array_statements);
     ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&get_statements_builder));
 
+    ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined");
+    ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);
+    ptcl_func_built_in_builder_add_argument(&defined_builder, ptcl_type_create_array(&ptcl_type_character, -1));
+    ptcl_func_built_in_builder_return(&defined_builder, ptcl_type_integer);
+    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&defined_builder));
+
     ptcl_parser_result result = {
         .configuration = parser->configuration,
         .body = ptcl_parser_parse_func_body(parser, false, true),
@@ -260,6 +292,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
         .is_critical = parser->is_critical};
 
     ptcl_func_built_in_builder_destroy(&get_statements_builder);
+    ptcl_func_built_in_builder_destroy(&defined_builder);
     ptcl_typedata_builder_destroy(&token_typedata_builder);
     ptcl_typedata_builder_destroy(&statement_builder);
     parser->input->tokens = parser->tokens;

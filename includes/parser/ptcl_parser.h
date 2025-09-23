@@ -194,6 +194,7 @@ static ptcl_parser_instance ptcl_parser_built_in_create(ptcl_statement_func_body
 {
     return (ptcl_parser_instance){
         .type = ptcl_parser_instance_function_type,
+        .name = name,
         .root = root,
         .is_out_of_scope = false,
         .function = (ptcl_parser_function){
