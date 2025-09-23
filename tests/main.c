@@ -110,10 +110,11 @@ int main()
     }
 
     free(source);
-    ptcl_tokens_list_destroy(tokens_list);
-    ptcl_lexer_destroy(lexer);
 
     ptcl_parser_result_destroy(result);
     ptcl_parser_destroy(parser);
+    
+    ptcl_tokens_list_destroy(tokens_list);
+    ptcl_lexer_destroy(lexer);
     return 0;
 }

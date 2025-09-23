@@ -46,6 +46,7 @@ static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
 
         *target = type;
         target->is_primitive = false;
+        target->is_static = false;
         type = ptcl_type_create_pointer(target);
         return ptcl_parser_pointers(parser, type);
     }
@@ -76,8 +77,10 @@ static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
         }
 
         *target = type;
+        target->is_static = false;
         target->is_primitive = false;
         type = ptcl_type_create_array(target, -1);
+        type.is_static = true;
         return ptcl_parser_pointers(parser, type);
     }
 
@@ -2336,6 +2339,7 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
         ptcl_expression *expression = value->array.expressions[i];
         expression->is_original = false;
         ptcl_parser_instance variable = ptcl_parser_variable_create(name, *ptcl_type_get_target(value->return_type), expression, true, &empty);
+        size_t idenitifer = parser->instances_count;
         if (!ptcl_parser_add_instance(parser, variable))
         {
             ptcl_parser_throw_out_of_memory(parser, location);
@@ -2351,6 +2355,7 @@ void ptcl_parser_parse_each(ptcl_parser *parser)
         }
 
         expression->is_original = true;
+        parser->instances[idenitifer].variable.is_built_in = false;
         if (parser->is_critical)
         {
             ptcl_expression_destroy(value);
