@@ -6,6 +6,7 @@
 #include <ptcl_lexer_configuration.h>
 
 #define PTCL_PARSER_MAX_DEPTH 256
+#define PTCL_PARSER_STATEMENT_TYPEDATA_TYPE_I 0
 #define PTCL_PARSER_STATEMENT_TYPEDATA_COUNT 1
 #define PTCL_PARSER_STATEMENT_TYPEDATA_NAME "ptcl_statement_t"
 
@@ -89,7 +90,12 @@ typedef struct ptcl_parser_syntax
 } ptcl_parser_syntax;
 
 typedef struct ptcl_parser ptcl_parser;
-typedef ptcl_expression *(*ptcl_built_in_function_t)(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location);
+typedef ptcl_expression *(*ptcl_built_in_function_t)(
+    ptcl_parser *parser,
+    ptcl_expression **arguments,
+    size_t count,
+    ptcl_location location,
+    bool is_expression);
 
 typedef struct ptcl_parser_function
 {
@@ -344,7 +350,7 @@ bool ptcl_parser_parse_try_parse_syntax_usage(
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
-ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_parser_function *function);
+ptcl_statement_func_call ptcl_parser_parse_func_call(ptcl_parser *parser, ptcl_parser_function *function, bool is_expression);
 
 ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool is_prototype);
 

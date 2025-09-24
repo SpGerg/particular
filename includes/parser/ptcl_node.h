@@ -392,6 +392,7 @@ typedef struct ptcl_statement
     ptcl_location location;
     ptcl_statement_func_body *root;
     ptcl_attributes attributes;
+    bool is_original;
 
     union
     {
@@ -431,6 +432,7 @@ static ptcl_statement *ptcl_statement_create(ptcl_statement_type type, ptcl_stat
     if (statement != NULL)
     {
         statement->type = type;
+        statement->is_original = true;
         statement->attributes = attributes;
         statement->root = root;
         statement->location = location;
@@ -657,7 +659,7 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){}, location);
     if (expression != NULL)
     {
-        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int) count);
+        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int)count);
         array_type.array.target->is_static = true;
         expression->return_type = array_type;
         expression->array = (ptcl_expression_array){
@@ -1165,6 +1167,11 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 
     if (expected.type == ptcl_value_any_type)
     {
+        if (expected.is_static)
+        {
+            return target.is_static;
+        }
+
         return true;
     }
 
@@ -1464,6 +1471,19 @@ static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)
     }
 
     return true;
+}
+
+static ptcl_statement *ptcl_statement_copy(ptcl_statement *target, ptcl_location location)
+{
+    ptcl_statement *statement = ptcl_statement_create(target->type, target->root, target->attributes, location);
+    if (statement != NULL)
+    {
+        *statement = *target;
+        statement->is_original = false;
+        statement->location = location;
+    }
+
+    return statement;
 }
 
 static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_location location)
@@ -2486,6 +2506,12 @@ static void ptcl_statement_typedata_decl_destroy(ptcl_statement_typedata_decl ty
 
 static void ptcl_statement_destroy(ptcl_statement *statement)
 {
+    if (!statement->is_original)
+    {
+        free(statement);
+        return;
+    }
+
     ptcl_attributes_destroy(statement->attributes);
     switch (statement->type)
     {
