@@ -314,6 +314,22 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
                         return NULL;
                     }
 
+                    if (copy->type == ptcl_token_return_type)
+                    {
+                        ptcl_type return_type = copy->ret.value->return_type;
+                        if (!ptcl_type_equals(return_type, *parser->return_type))
+                        {
+                            ptcl_parser_throw_fast_incorrect_type(parser, *parser->return_type, return_type, location);
+                            for (size_t j = 0; j < array.count; j++)
+                            {
+                                ptcl_statement_destroy(body->statements[j]);
+                            }
+
+                            ptcl_statement_destroy(copy);
+                            return NULL;
+                        }
+                    }
+
                     body->statements[body->count + i] = copy;
                 }
 
