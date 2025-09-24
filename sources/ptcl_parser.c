@@ -317,7 +317,7 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
                     if (copy->type == ptcl_token_return_type)
                     {
                         ptcl_type return_type = copy->ret.value == NULL ? ptcl_type_void : copy->ret.value->return_type;
-                        if (() !ptcl_type_equals(return_type, *parser->return_type))
+                        if (!ptcl_type_equals(return_type, *parser->return_type))
                         {
                             ptcl_parser_throw_fast_incorrect_type(parser, *parser->return_type, return_type, location);
                             for (size_t j = 0; j < array.count; j++)
