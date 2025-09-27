@@ -8,22 +8,29 @@
 #define PTCL_PARSER_MAX_DEPTH 256
 #define PTCL_PARSER_STATEMENT_TYPEDATA_TYPE_I 0
 #define PTCL_PARSER_STATEMENT_TYPEDATA_COUNT 1
-#define PTCL_PARSER_STATEMENT_TYPEDATA_NAME "ptcl_statement_t"
+#define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
 
-static ptcl_name ptcl_statement_t_name = (ptcl_name){
-    .value = PTCL_PARSER_STATEMENT_TYPEDATA_NAME,
+static ptcl_name const ptcl_statement_t_name = {
+    .value = PTCL_PARSER_STATEMENT_TYPE_NAME,
     .location = {0},
     .is_free = false,
     .is_anonymous = false};
 
-static ptcl_type ptcl_statement_t_type = (ptcl_type){
-    .type = ptcl_value_typedata_type,
+static ptcl_type_comp_type const ptcl_statement_comp_type = {
+    .identifier = ptcl_statement_t_name,
+    .types = NULL,
+    .count = 0,
+    .functions = NULL,
+    .is_optional = false,
+    .is_any = false};
+
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+static ptcl_type ptcl_statement_t_type = {
+    .type = ptcl_value_type_type,
     .is_primitive = true,
-    .is_static = false,
-    .typedata.value = PTCL_PARSER_STATEMENT_TYPEDATA_NAME,
-    .typedata.location = {0},
-    .typedata.is_free = false,
-    .typedata.is_anonymous = false};
+    .is_static = true,
+    .comp_type = &ptcl_statement_comp_type};
 
 typedef struct ptcl_parser_function ptcl_parser_function;
 
@@ -130,6 +137,14 @@ typedef struct ptcl_parser_instance
     };
 } ptcl_parser_instance;
 
+typedef struct ptcl_lated_body
+{
+    ptcl_token *tokens;
+    size_t count;
+    size_t start;
+    ptcl_type return_type;
+} ptcl_lated_body;
+
 typedef struct ptcl_parser_result
 {
     ptcl_lexer_configuration *configuration;
@@ -138,6 +153,8 @@ typedef struct ptcl_parser_result
     size_t count;
     ptcl_parser_instance *instances;
     size_t instances_count;
+    ptcl_lated_body *lated_bodies;
+    size_t lated_bodies_count;
     bool is_critical;
 } ptcl_parser_result;
 
@@ -316,7 +333,6 @@ static void ptcl_parser_instance_destroy(ptcl_parser_instance *instance)
         {
             if (instance->variable.is_built_in || instance->variable.is_syntax_variable)
             {
-                instance->variable.built_in->is_original = true;
                 ptcl_expression_destroy(instance->variable.built_in);
             }
         }

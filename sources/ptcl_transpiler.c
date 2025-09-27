@@ -787,6 +787,13 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
 
         ptcl_transpiler_append_character(transpiler, '}');
         break;
+    case ptcl_expression_if_type:
+        ptcl_transpiler_add_expression(transpiler, expression->if_expr.condition, false);
+        ptcl_transpiler_append_character(transpiler, '?');
+        ptcl_transpiler_add_expression(transpiler, expression->if_expr.body, false);
+        ptcl_transpiler_append_character(transpiler, ':');
+        ptcl_transpiler_add_expression(transpiler, expression->if_expr.else_body, false);
+        break;
     case ptcl_expression_variable_type:
         ptcl_transpiler_variable *variable;
         if (strcmp(expression->variable.name.value, "self") == 0)

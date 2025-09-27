@@ -22,6 +22,38 @@ typedef struct ptcl_func_built_in_builder
     size_t count;
 } ptcl_func_built_in_builder;
 
+typedef struct ptcl_comp_type_builder
+{
+    char *name;
+    ptcl_statement_func_body *root;
+    ptcl_type *types;
+    size_t count;
+    ptcl_statement_func_body *functions;
+} ptcl_comp_type_builder;
+
+static ptcl_comp_type_builder ptcl_comp_type_builder_create(char *name)
+{
+    return (ptcl_comp_type_builder){
+        .name = name,
+        .types = NULL,
+        .count = 0,
+        .functions = NULL};
+}
+
+static ptcl_type_comp_type ptcl_comp_type_builder_build_type(ptcl_comp_type_builder *builder)
+{
+    return ptcl_type_create_comp_type_empty(ptcl_name_create_fast_w(builder->name, false));
+}
+
+static ptcl_parser_instance ptcl_comp_type_builder_build(ptcl_comp_type_builder *builder, ptcl_type_comp_type *type)
+{
+    return ptcl_parser_comp_type_create(ptcl_name_create_fast_w(builder->name, false), builder->root, type);
+}
+
+static void ptcl_comp_type_builder_destroy()
+{
+}
+
 static ptcl_func_built_in_builder ptcl_func_built_in_builder_create(char *name)
 {
     return (ptcl_func_built_in_builder){

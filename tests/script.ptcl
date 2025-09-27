@@ -56,12 +56,34 @@ syntax using([name: static word]=[value: any]) [body: void() static] end {
 
 function test(): void {}
 
-function main(): integer {
-	statements: static ptcl_statement_t[] = ptcl_get_statements({
-		printf("Hello, world!")
-		return
-	})
+syntax exceptional [body: void() static] end {
+	new_body: void() static = {
+		syntax deref([T: static type]) [value: any] end {
+			@{
+				static if not (value is >pointer) {
+					thats_error
+				}
 
-	ptcl_insert(statements)
+				if value == null {
+					return none
+				}
+			}
+
+			*(value :: !T*)
+		}
+
+		ptcl_insert(ptcl_get_statements(body))
+	}
+
+	ptcl_insert(ptcl_get_statements(new_body))
+}
+
+function main(): integer {
+	#exceptional {
+		asd: pointer = null
+		foo := #deref(>integer)(2)
+		printc('A')
+	}
+
 	return 0
 }

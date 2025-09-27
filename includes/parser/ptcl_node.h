@@ -30,7 +30,7 @@ typedef enum ptcl_statement_type
 
 typedef enum ptcl_expression_type
 {
-    ptcl_expression_func_body_type,
+    ptcl_expression_lated_func_body_type,
     ptcl_expression_array_type,
     ptcl_expression_variable_type,
     ptcl_expression_character_type,
@@ -47,7 +47,8 @@ typedef enum ptcl_expression_type
     ptcl_expression_func_call_type,
     ptcl_expression_word_type,
     ptcl_expression_object_type_type,
-    ptcl_expression_null_type
+    ptcl_expression_null_type,
+    ptcl_expression_in_statement_type
 } ptcl_expression_type;
 
 typedef enum ptcl_binary_operator_type
@@ -291,6 +292,11 @@ typedef struct ptcl_statement_func_body
     ptcl_statement_func_body *root;
 } ptcl_statement_func_body;
 
+typedef struct ptcl_expression_lated_func_body
+{
+    size_t index;
+} ptcl_expression_lated_func_body;
+
 typedef struct ptcl_expression
 {
     ptcl_expression_type type;
@@ -300,7 +306,7 @@ typedef struct ptcl_expression
 
     union
     {
-        ptcl_statement_func_body body;
+        ptcl_expression_lated_func_body lated_body;
         ptcl_statement_func_call func_call;
         ptcl_expression_array array;
         ptcl_name word;
@@ -318,6 +324,7 @@ typedef struct ptcl_expression
         ptcl_expression_if if_expr;
         ptcl_expression_object_type object_type;
         ptcl_expression_cast cast;
+        ptcl_statement *internal_statement;
     };
 } ptcl_expression;
 
@@ -565,6 +572,17 @@ static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl t
         .count = type_decl.types_count,
         .functions = type_decl.functions,
         .is_optional = type_decl.is_optional,
+        .is_any = false};
+}
+
+static ptcl_type_comp_type ptcl_type_create_comp_type_empty(ptcl_name name)
+{
+    return (ptcl_type_comp_type){
+        .identifier = name,
+        .types = NULL,
+        .count = 0,
+        .functions = NULL,
+        .is_optional = false,
         .is_any = false};
 }
 
@@ -1492,6 +1510,7 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
     if (expression != NULL)
     {
         *expression = *target;
+        expression->is_original = false;
         expression->return_type = ptcl_type_copy(target->return_type);
         expression->location = location;
     }
@@ -2413,6 +2432,7 @@ static void ptcl_statement_func_call_destroy(ptcl_statement_func_call func_call)
     {
         for (size_t i = 0; i < func_call.count; i++)
         {
+            ptcl_expression *expression = func_call.arguments[i];
             ptcl_expression_destroy(func_call.arguments[i]);
         }
 
@@ -2477,7 +2497,10 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 static ptcl_statement_assign ptcl_statement_assign_destroy(ptcl_statement_assign statement)
 {
     ptcl_identifier_destroy(statement.identifier);
-    ptcl_expression_destroy(statement.value);
+    if (statement.value != NULL)
+    {
+        ptcl_expression_destroy(statement.value);
+    }
 
     if (statement.with_type && statement.is_define)
     {
@@ -2578,11 +2601,6 @@ static void ptcl_expression_array_destroy(ptcl_expression_array array)
 
 static void ptcl_expression_destroy(ptcl_expression *expression)
 {
-    if (expression == NULL)
-    {
-        return;
-    }
-
     if (!expression->is_original)
     {
         ptcl_type_destroy(expression->return_type);
@@ -2597,8 +2615,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
 
     switch (expression->type)
     {
-    case ptcl_expression_func_body_type:
-        ptcl_statement_func_body_destroy(expression->body);
+    case ptcl_expression_lated_func_body_type:
         break;
     case ptcl_expression_func_call_type:
         ptcl_statement_func_call_destroy(expression->func_call);
@@ -2644,6 +2661,9 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         break;
     case ptcl_expression_variable_type:
         ptcl_name_destroy(expression->variable.name);
+        break;
+    case ptcl_expression_in_statement_type:
+        ptcl_statement_destroy(expression->internal_statement);
         break;
     }
 
