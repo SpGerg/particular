@@ -145,7 +145,11 @@ static ptcl_statement *ptcl_create_statement_from_expression(ptcl_statement_func
 
     *statement = *expression->internal_statement;
     statement->root = root;
-    statement->is_original = false;
+    if (expression->is_original)
+    {
+        statement->is_original = false;
+    }
+
     return statement;
 }
 
@@ -180,7 +184,8 @@ static ptcl_expression *ptcl_create_expression_from_statement(ptcl_statement *st
 
 static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
-    ptcl_expression *function = arguments[0];
+    ptcl_expression *argument = arguments[0];
+    ptcl_expression_lated_func_body function = argument->lated_body;
     ptcl_type array = ptcl_type_create_array(&ptcl_statement_t_type, -1);
     ptcl_expression *result = ptcl_expression_create(ptcl_expression_array_type, array, location);
     if (result == NULL)
@@ -190,10 +195,14 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
         return NULL;
     }
 
-    switch (function->type)
+    ptcl_expression_type type = argument->type;
+    free(arguments);
+    ptcl_type_destroy(argument->return_type);
+    free(argument);;
+    switch (type)
     {
     case ptcl_expression_lated_func_body_type:
-        ptcl_lated_body *body = &parser->lated_bodies[function->lated_body.index];
+        ptcl_lated_body *body = &parser->lated_bodies[function.index];
         ptcl_type *return_type = parser->return_type;
         size_t last = parser->position;
         parser->return_type = &body->return_type;
@@ -238,7 +247,6 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
         ptcl_expression **statements = malloc(func_body.count * sizeof(ptcl_expression *));
         if (statements == NULL)
         {
-            PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
             ptcl_parser_throw_out_of_memory(parser, location);
             free(result);
             return NULL;
@@ -250,7 +258,6 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
             ptcl_expression *expression = ptcl_create_expression_from_statement(target, location);
             if (expression == NULL)
             {
-                PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
                 ptcl_parser_throw_out_of_memory(parser, location);
                 free(result);
                 if (i > 0)
@@ -327,6 +334,8 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
     case ptcl_value_array_type:
         ptcl_expression_array array = argument->array;
         ptcl_type target = *argument->return_type.array.target;
+        ptcl_type_destroy(argument->return_type);
+        free(argument);
         switch (target.type)
         {
         case ptcl_value_type_type:
@@ -352,7 +361,9 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
                 body->statements = buffer;
                 for (size_t i = 0; i < array.count; i++)
                 {
-                    ptcl_statement *copy = ptcl_create_statement_from_expression(body, array.expressions[i], location);
+                    ptcl_expression *expression = array.expressions[i];
+                    ptcl_statement *copy = ptcl_create_statement_from_expression(body, expression, location);
+                    ptcl_expression_destroy(expression);
                     if (copy == NULL)
                     {
                         PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
@@ -377,12 +388,14 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
                 }
             }
 
+            free(array.expressions);
             break;
         }
 
         break;
     }
 
+    free(arguments);
     return NULL;
 }
 
@@ -2187,7 +2200,9 @@ ptcl_statement *ptcl_parser_parse_if(ptcl_parser *parser, bool is_static)
     if (is_static)
     {
         ptcl_statement_func_body result;
-        if (condition->integer_n)
+        const bool condtion_value = condition->integer_n;
+        ptcl_expression_destroy(condition);
+        if (condtion_value)
         {
             result = ptcl_parser_parse_func_body(parser, true, false);
             if (parser->is_critical)
@@ -2932,7 +2947,6 @@ ptcl_expression *ptcl_parser_parse_unary(ptcl_parser *parser, bool only_value, p
     }
 
     ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
-
     if (type != ptcl_binary_operator_none_type &&
         type != ptcl_binary_operator_equals_type &&
         type != ptcl_binary_operator_greater_than_type &&
