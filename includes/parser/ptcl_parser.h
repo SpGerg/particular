@@ -142,7 +142,6 @@ typedef struct ptcl_lated_body
     ptcl_token *tokens;
     size_t count;
     size_t start;
-    ptcl_type return_type;
 } ptcl_lated_body;
 
 typedef struct ptcl_parser_result

@@ -1081,7 +1081,10 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
         break;
     }
 
-    if (name.value != NULL && (type.type == ptcl_value_typedata_type || ptcl_type_is_primitive(type.type)))
+    if (name.value != NULL &&
+        (type.type == ptcl_value_typedata_type ||
+         (ptcl_type_is_primitive(type.type) ||
+          (type.type == ptcl_value_pointer_type && type.pointer.is_any))))
     {
         ptcl_transpiler_append_word_s(transpiler, name.value);
     }

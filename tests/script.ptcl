@@ -58,12 +58,8 @@ function test(): void {}
 
 syntax exceptional [body: void() static] end {
 	new_body: void() static = {
-		syntax deref([T: static type]) [value: any] end {
+		syntax deref([T: static type]) [value: pointer] end {
 			@{
-				static if not (value is >pointer) {
-					thats_error
-				}
-
 				if value == null {
 					return none
 				}
@@ -81,7 +77,7 @@ syntax exceptional [body: void() static] end {
 function main(): integer {
 	#exceptional {
 		asd: pointer = null
-		foo := #deref(>integer)(2)
+		foo := #deref(>integer)(asd)
 		printc('A')
 	}
 
