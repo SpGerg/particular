@@ -1421,7 +1421,7 @@ void ptcl_parser_parse_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_statement_func_body body = ptcl_statement_func_body_create(
         NULL, 0,
-        is_syntax ? parser->main_root : parser->root);
+        parser->main_root);
     ptcl_parser_parse_func_body_by_pointer(parser, &body, true, false);
     if (parser->is_critical)
     {
@@ -1685,9 +1685,17 @@ ptcl_statement_func_decl ptcl_parser_parse_func_decl(ptcl_parser *parser, bool i
         return (ptcl_statement_func_decl){};
     }
 
+    if (ptcl_parser_is_defined(parser, name))
+    {
+        ptcl_parser_throw_redefination(parser, name.value, location);
+        ptcl_name_destroy(name);
+        return (ptcl_statement_func_decl){};
+    }
+
     ptcl_parser_except(parser, ptcl_token_left_par_type);
     if (parser->is_critical)
     {
+        ptcl_name_destroy(name);
         return (ptcl_statement_func_decl){};
     }
 
@@ -1882,6 +1890,13 @@ ptcl_statement_typedata_decl ptcl_parser_parse_typedata_decl(ptcl_parser *parser
         return (ptcl_statement_typedata_decl){};
     }
 
+    if (ptcl_parser_is_defined(parser, name))
+    {
+        ptcl_parser_throw_redefination(parser, name.value, location);
+        ptcl_name_destroy(name);
+        return (ptcl_statement_typedata_decl){};
+    }
+
     ptcl_statement_typedata_decl decl = ptcl_statement_typedata_decl_create(name, NULL, 0, true);
     if (is_prototype)
     {
@@ -1973,6 +1988,13 @@ ptcl_statement_type_decl ptcl_parser_parse_type_decl(ptcl_parser *parser, bool i
     ptcl_name name = ptcl_parser_parse_name_word(parser);
     if (parser->is_critical)
     {
+        return (ptcl_statement_type_decl){};
+    }
+
+    if (ptcl_parser_is_defined(parser, name))
+    {
+        ptcl_parser_throw_redefination(parser, name.value, location);
+        ptcl_name_destroy(name);
         return (ptcl_statement_type_decl){};
     }
 
@@ -4284,6 +4306,22 @@ bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_pars
     return false;
 }
 
+bool ptcl_parser_is_defined(ptcl_parser *parser, ptcl_name name)
+{
+    for (int i = parser->instances_count - 1; i >= 0; i--)
+    {
+        ptcl_parser_instance *instance = &parser->instances[i];
+        if (instance->is_out_of_scope || !ptcl_name_compare(instance->name, name))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression **arguments, size_t count)
 {
     if (function->func.is_variadic)
@@ -4509,7 +4547,7 @@ void ptcl_parser_throw_variable_redefination(ptcl_parser *parser, char *name, pt
 {
     char *message = ptcl_string("Redefination variable with '", name, "'", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
-        ptcl_parser_error_variable_redefination_type, false, message, true, location);
+        ptcl_parser_error_variable_redefinition_type, false, message, true, location);
     ptcl_parser_add_error(parser, error);
 }
 
@@ -4673,7 +4711,15 @@ void ptcl_parser_throw_unknown_type(ptcl_parser *parser, char *value, ptcl_locat
 {
     char *message = ptcl_string("Unknown type '", value, "'", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
-        ptcl_parser_error_variable_redefination_type, true, message, true, location);
+        ptcl_parser_error_unknown_type_type, true, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_redefination(ptcl_parser *parser, char *name, ptcl_location location)
+{
+    char *message = ptcl_string("Redefination '", name, "'", NULL);
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_redefinition_type, false, message, true, location);
     ptcl_parser_add_error(parser, error);
 }
 

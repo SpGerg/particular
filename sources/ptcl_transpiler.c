@@ -316,7 +316,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     {
     case ptcl_statement_func_body_type:
         ptcl_transpiler_add_func_body(transpiler, statement->body, false, false);
-        return;
+        break;
     case ptcl_statement_func_call_type:
         ptcl_transpiler_add_func_call(transpiler, statement->func_call);
         ptcl_transpiler_append_character(transpiler, ';');
@@ -324,7 +324,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     case ptcl_statement_assign_type:
         if (statement->assign.is_define && statement->assign.type.is_static)
         {
-            return;
+            break;
         }
 
         ptcl_transpiler_variable *variable = NULL;
@@ -455,11 +455,6 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         }
 
         break;
-    }
-
-    if (!is_func_body)
-    {
-        ptcl_string_buffer_set_position(transpiler->string_buffer, start);
     }
 }
 
@@ -950,7 +945,7 @@ void ptcl_transpiler_add_name(ptcl_transpiler *transpiler, ptcl_name name, bool 
         }
         else
         {
-            for (size_t i = transpiler->anonymous_count - 1; i >= 0; i--)
+            for (int i = transpiler->anonymous_count - 1; i >= 0; i--)
             {
                 ptcl_transpiler_anonymous anonymous = transpiler->anonymouses[i];
                 if (strcmp(anonymous.original_name, name.value) != 0 || !ptcl_func_body_can_access(anonymous.root, transpiler->root))

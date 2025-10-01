@@ -445,6 +445,8 @@ bool ptcl_parser_try_get_instance_in_root(ptcl_parser *parser, ptcl_name name, p
 
 bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_parser_function **function);
 
+bool ptcl_parser_is_defined(ptcl_parser *parser, ptcl_name name);
+
 bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression **arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
@@ -490,6 +492,8 @@ void ptcl_parser_throw_unknown_function(ptcl_parser *parser, char *name, ptcl_lo
 void ptcl_parser_throw_unknown_variable_or_type(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_throw_unknown_type(ptcl_parser *parser, char *value, ptcl_location location);
+
+void ptcl_parser_throw_redefination(ptcl_parser *parser, char *name, ptcl_location location);
 
 void ptcl_parser_add_error(ptcl_parser *parser, ptcl_parser_error error);
 

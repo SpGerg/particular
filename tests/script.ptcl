@@ -54,14 +54,12 @@ syntax using([name: static word]=[value: any]) [body: void() static] end {
 	!name := value
 }
 
-function test(): void {}
-
 syntax exceptional [body: void() static] end {
-	new_body: void() static = {
+	~new_body: void() static = {
 		syntax deref([T: static type]) [value: pointer] end {
 			@{
 				if value == null {
-					return none
+					return 1
 				}
 			}
 
@@ -69,12 +67,25 @@ syntax exceptional [body: void() static] end {
 		}
 
 		ptcl_insert(ptcl_get_statements(body))
+		return 0
 	}
 
-	ptcl_insert(ptcl_get_statements(new_body))
+	function ~unique(): integer {
+		ptcl_insert(ptcl_get_statements(~new_body))
+	}
+
+	if ~unique() {
+		return none
+	}
 }
 
 function main(): integer {
+	#exceptional {
+		asd: pointer = null
+		foo := #deref(>integer)(asd)
+		printc('A')
+	}
+
 	#exceptional {
 		asd: pointer = null
 		foo := #deref(>integer)(asd)
