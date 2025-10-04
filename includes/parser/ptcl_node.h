@@ -767,7 +767,7 @@ static bool ptcl_value_is_number(ptcl_value_type type)
 
 static bool ptcl_name_compare(ptcl_name left, ptcl_name right)
 {
-    return strcmp(left.value, right.value) == 0 && left.is_anonymous == right.is_anonymous;
+    return left.is_anonymous == right.is_anonymous && strcmp(left.value, right.value) == 0;
 }
 
 static bool ptcl_value_type_is_name(ptcl_value_type type)

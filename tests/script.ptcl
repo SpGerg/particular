@@ -59,7 +59,7 @@ syntax exceptional [body: void() static] end {
 		syntax deref([T: static type]) [value: pointer] end {
 			@{
 				if value == null {
-					return 1
+					return none
 				}
 			}
 
@@ -81,15 +81,14 @@ syntax exceptional [body: void() static] end {
 
 function main(): integer {
 	#exceptional {
-		asd: pointer = null
-		foo := #deref(>integer)(asd)
-		printc('A')
-	}
+		function some_test(): void {
+			asd: pointer = null
+			foo := #deref(>integer)(asd)
+			variable: integer = 2
+			asd = &variable
+		}
 
-	#exceptional {
-		asd: pointer = null
-		foo := #deref(>integer)(asd)
-		printc('A')
+		some_test()
 	}
 
 	return 0

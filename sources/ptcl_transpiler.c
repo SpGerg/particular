@@ -363,6 +363,10 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
                 {
                     ptcl_transpiler_add_expression(transpiler, statement->assign.identifier.value, false);
                 }
+                else
+                {
+                    ptcl_transpiler_add_identifier(transpiler, statement->assign.identifier, false);
+                }
             }
         }
 
@@ -619,6 +623,7 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
     }
 }
 
+// TODO: fix 3 inner problem
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, ptcl_name name, ptcl_type *self)
 {
     if (transpiler->in_inner)

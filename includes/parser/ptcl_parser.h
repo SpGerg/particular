@@ -298,6 +298,9 @@ static void ptcl_parser_syntax_node_destroy(ptcl_parser_syntax_node node)
     case ptcl_parser_syntax_node_value_type:
         ptcl_expression_destroy(node.value);
         break;
+    case ptcl_parser_syntax_node_word_type:
+        ptcl_name_destroy(node.word.name);
+        break;
     }
 }
 
