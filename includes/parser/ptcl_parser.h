@@ -32,6 +32,13 @@ static ptcl_type ptcl_statement_t_type = {
     .is_static = true,
     .comp_type = &ptcl_statement_comp_type};
 
+typedef struct ptcl_parser_this_s_pair
+{
+    ptcl_statement_func_body *body;
+    size_t start;
+    size_t tokens_count;
+} ptcl_parser_this_s_pair;
+
 typedef struct ptcl_parser_function ptcl_parser_function;
 
 typedef struct ptcl_parser_variable
@@ -154,8 +161,18 @@ typedef struct ptcl_parser_result
     size_t instances_count;
     ptcl_lated_body *lated_bodies;
     size_t lated_bodies_count;
+    ptcl_parser_this_s_pair *this_pairs;
+    size_t this_pairs_count;
     bool is_critical;
 } ptcl_parser_result;
+
+static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, size_t start, size_t tokens_count)
+{
+    return (ptcl_parser_this_s_pair){
+        .body = body,
+        .start = start,
+        .tokens_count = tokens_count};
+}
 
 static ptcl_parser_instance ptcl_parser_comp_type_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_type_comp_type *type)
 {
@@ -437,6 +454,10 @@ ptcl_token ptcl_parser_current(ptcl_parser *parser);
 void ptcl_parser_skip(ptcl_parser *parser);
 
 bool ptcl_parser_ended(ptcl_parser *parser);
+
+bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance);
+
+bool ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement_func_body *body);
 
 bool ptcl_parser_add_instance(ptcl_parser *parser, ptcl_parser_instance instance);
 

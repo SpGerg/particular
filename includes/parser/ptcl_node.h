@@ -25,7 +25,8 @@ typedef enum ptcl_statement_type
     ptcl_statement_syntax_type,
     ptcl_statement_unsyntax_type,
     ptcl_statement_undefine_type,
-    ptcl_statement_if_type
+    ptcl_statement_if_type,
+    ptcl_statement_import_type
 } ptcl_statement_type;
 
 typedef enum ptcl_expression_type
@@ -1633,6 +1634,16 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
     ptcl_expression_destroy(expression);
     result->return_type.is_static = true;
     return result;
+}
+
+static bool ptcl_statement_is_caller(ptcl_statement_type type)
+{
+    if (type == ptcl_statement_func_call_type || type == ptcl_statement_import_type)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 static bool ptcl_expression_binary_static_type_equals(ptcl_expression *left, ptcl_expression *right)

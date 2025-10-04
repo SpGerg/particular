@@ -70,6 +70,19 @@ syntax new [name: static word]() end {
 	#class_typedata_name(name)() :: !name
 }
 
+function injector(): void
+{
+	syntax [this] end {
+		printf("I am injected")
+	}
+}
+
+syntax add service end {
+	syntax [this] end {
+		printf("Some injected")
+	}
+}
+
 function main(): integer {
 	#
 	class Dog {
@@ -79,5 +92,10 @@ function main(): integer {
 	}
 
 	instance: Dog = #new Dog()
+	instance.speak()
+	^injector()
+	#add service
 	return 0
 }
+
+^main()

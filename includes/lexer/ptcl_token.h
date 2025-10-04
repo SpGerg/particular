@@ -62,7 +62,8 @@ typedef enum ptcl_token_type
     ptcl_token_comma_type,
     ptcl_token_at_type,
     ptcl_token_elipsis_type,
-    ptcl_token_tilde_type
+    ptcl_token_tilde_type,
+    ptcl_token_caret_type
 } ptcl_token_type;
 
 typedef struct ptcl_location
