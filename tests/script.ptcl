@@ -18,8 +18,8 @@ syntax list([T: static type]) end {
 	@{
 		~type_name: static word = #list_name(T)
 		~type_object_name: static word = #list_object_name(T)
-		typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
-		type !~type_name: !~type_object_name {
+		global typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
+		global type !~type_name: !~type_object_name {
 			function add(entity: !T): void {
 				self.entities[self.length] = entity
 				self.length = self.length + 1
@@ -60,27 +60,14 @@ syntax class_typedata_name([name: static word]) end {
 
 syntax class [name: static word] [body: void() static] end {
 	~name: static word = #class_typedata_name(name)
-	typedata !~name()
-	type !name : !~name {
+	global typedata !~name()
+	global type !name : !~name {
 		ptcl_insert(ptcl_get_statements(body))
 	}
 }
 
 syntax new [name: static word]() end {
 	#class_typedata_name(name)() :: !name
-}
-
-function injector(): void
-{
-	syntax [this] end {
-		printf("I am injected")
-	}
-}
-
-syntax add service end {
-	syntax [this] end {
-		printf("Some injected")
-	}
 }
 
 function main(): integer {
@@ -93,9 +80,10 @@ function main(): integer {
 
 	instance: Dog = #new Dog()
 	instance.speak()
-	^injector()
-	#add service
 	return 0
 }
 
-^main()
+function test(): void {
+	instance: Dog = #new Dog()
+	instance.speak()
+}

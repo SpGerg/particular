@@ -387,13 +387,13 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
 ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_function *function, bool is_expression);
 
-ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype);
+ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
 
-ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, bool is_prototype);
+ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
 
-ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_prototype);
+ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
 
-ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser);
+ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global);
 
 ptcl_statement_return ptcl_parser_return(ptcl_parser *parser);
 
