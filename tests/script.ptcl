@@ -54,42 +54,30 @@ syntax using([name: static word]=[value: any]) [body: void() static] end {
 	!name := value
 }
 
-syntax exceptional [body: void() static] end {
-	~new_body: void() static = {
-		syntax deref([T: static type]) [value: pointer] end {
-			@{
-				if value == null {
-					return none
-				}
-			}
+syntax class_typedata_name([name: static word]) end {
+	!<__class_ !name>
+}
 
-			*(value :: !T*)
-		}
-
+syntax class [name: static word] [body: void() static] end {
+	~name: static word = #class_typedata_name(name)
+	typedata !~name()
+	type !name : !~name {
 		ptcl_insert(ptcl_get_statements(body))
-		return 0
-	}
-
-	function ~unique(): integer {
-		ptcl_insert(ptcl_get_statements(~new_body))
-	}
-
-	if ~unique() {
-		return none
 	}
 }
 
-function main(): integer {
-	#exceptional {
-		function some_test(): void {
-			asd: pointer = null
-			foo := #deref(>integer)(asd)
-			variable: integer = 2
-			asd = &variable
-		}
+syntax new [name: static word]() end {
+	#class_typedata_name(name)() :: !name
+}
 
-		some_test()
+function main(): integer {
+	#
+	class Dog {
+		function speak(): void {
+			printf("Woof!")
+		}
 	}
 
+	instance: Dog = #new Dog()
 	return 0
 }
