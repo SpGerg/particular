@@ -2572,16 +2572,22 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
     {
         if (ptcl_parser_ended(parser))
         {
-            ptcl_parser_throw_except_token(parser, "[end]", location);
+            ptcl_parser_throw_except_token(parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_left_curly_type), location);
             ptcl_parser_syntax_destroy(*syntax);
             return;
         }
 
         ptcl_token current = ptcl_parser_current(parser);
         ptcl_parser_skip(parser);
-        if (strcmp(current.value, "end") == 0)
+        if (current.type == ptcl_token_left_curly_type)
         {
             break;
+        }
+        else if (current.type == ptcl_token_right_curly_type)
+        {
+            ptcl_parser_throw_not_allowed_token(parser, current.value, current.location);
+            ptcl_parser_syntax_destroy(*syntax);
+            return;
         }
 
         bool breaked = false;
@@ -2624,10 +2630,10 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                         return;
                     }
 
-                    ptcl_token token = ptcl_parser_except(parser, ptcl_token_word_type);
-                    if (strcmp(token.value, "end") != 0)
+                    ptcl_parser_except(parser, ptcl_token_left_curly_type);
+                    if (parser->is_critical)
                     {
-                        ptcl_parser_throw_except_token(parser, "end", location);
+                        ptcl_parser_throw_except_token(parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_right_curly_type), location);
                         ptcl_parser_syntax_destroy(*syntax);
                         return;
                     }
@@ -2700,13 +2706,6 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
 
         syntax->nodes = buffer;
         syntax->nodes[syntax->count++] = node;
-    }
-
-    ptcl_parser_except(parser, ptcl_token_left_curly_type);
-    if (parser->is_critical)
-    {
-        ptcl_parser_syntax_destroy(*syntax);
-        return;
     }
 
     syntax->start = parser->position;
@@ -4759,6 +4758,14 @@ void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location
 {
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_out_of_memory_type, true, "Out of memory", false, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_not_allowed_token(ptcl_parser *parser, char *token, ptcl_location location)
+{
+    char *message = ptcl_string("Token '", token, "' not allowed", NULL);
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_not_allowed_token_type, true, message, true, location);
     ptcl_parser_add_error(parser, error);
 }
 

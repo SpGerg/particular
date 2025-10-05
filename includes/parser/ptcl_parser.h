@@ -481,6 +481,8 @@ void ptcl_parser_clear_scope(ptcl_parser *parser);
 
 void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location);
 
+void ptcl_parser_throw_not_allowed_token(ptcl_parser *parser, char* token, ptcl_location location);
+
 void ptcl_parser_throw_except_token(ptcl_parser *parser, char *value, ptcl_location location);
 
 void ptcl_parser_throw_except_type_specifier(ptcl_parser *parser, ptcl_location location);

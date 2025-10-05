@@ -6,19 +6,19 @@ unsyntax {
 	prototype function malloc(size: integer): pointer
 }
 
-syntax list_name([T: static type]) end {
+syntax list_name([T: static type]) {
 	!<__list_ word(T)>
 }
 
-syntax list_object_name([T: static type]) end {
+syntax list_object_name([T: static type]) {
 	!<__list_object_ word(T)>
 }
 
-syntax list([T: any]) end {
+syntax list([T: any]) {
 	you_forgot_about_type
 }
 
-syntax list([T: static type]) end {
+syntax list([T: static type]) {
 	@{
 		~type_name: static word = #list_name(T)
 		~type_object_name: static word = #list_object_name(T)
@@ -34,7 +34,7 @@ syntax list([T: static type]) end {
 			}
 		}
 
-		syntax [left: !~type_name][[index: integer]] end {
+		syntax [left: !~type_name][[index: integer]] {
 			left.at(index)
 		}
 	}
@@ -42,23 +42,23 @@ syntax list([T: static type]) end {
 	!~type_name
 }
 
-syntax list([T: static type])([capacity: integer]) end {
+syntax list([T: static type])([capacity: integer]) {
 	#list_object_name(T)(null, 0, capacity) :: #list_name(T)
 }
 
-syntax list([T: static type])() end {
+syntax list([T: static type])() {
 	#list(T)(0)
 }
 
-syntax using([name: static word]=[value: any]) [body: static (): void] end {
+syntax using([name: static word]=[value: any]) [body: static (): void] {
 	!name := value
 }
 
-syntax class_typedata_name([name: static word]) end {
+syntax class_typedata_name([name: static word]) {
 	!<__class_ !name>
 }
 
-syntax class [name: static word] [body: static (): void] end {
+syntax class [name: static word] [body: static (): void] {
 	~name: static word = #class_typedata_name(name)
 	global typedata !~name()
 	global type !name : !~name {
@@ -66,7 +66,7 @@ syntax class [name: static word] [body: static (): void] end {
 	}
 }
 
-syntax new [name: static word]() end {
+syntax new [name: static word]() {
 	@{
 		~instance := #class_typedata_name(name)() :: !name
 		~instance.constructor()
