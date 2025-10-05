@@ -108,7 +108,7 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
 
 char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler);
 
-char *ptcl_transpiler_get_func_from_type(char *type, char *function);
+char *ptcl_transpiler_get_func_name_in_type(char *type, char *function);
 
 void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler);
 
