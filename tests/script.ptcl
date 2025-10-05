@@ -79,7 +79,7 @@ function main(): integer {
 	#
 	class Dog {
 		function constructor(): void {
-
+			
 		}
 
 		function speak(): void {

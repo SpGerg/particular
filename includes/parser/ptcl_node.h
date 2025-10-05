@@ -2094,44 +2094,56 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         name = type.comp_type->identifier.value;
         break;
     case ptcl_value_typedata_type:
-        name = ptcl_string("typedata_", type.typedata.value, "_", NULL);
+        name = ptcl_string("typedata_", type.typedata.value, NULL);
         break;
     case ptcl_value_array_type:
+    {
         char *array_name = ptcl_type_to_word_copy(*type.array.target);
-        name = ptcl_string("array_", array_name, "_", NULL);
+        name = ptcl_string("array_", array_name, NULL);
         free(array_name);
         break;
+    }
     case ptcl_value_pointer_type:
+    {
         char *pointer_name = ptcl_type_to_word_copy(*type.pointer.target);
-        name = ptcl_string("pointer_", pointer_name, "_", NULL);
+        name = ptcl_string("ptr_", pointer_name, NULL);
         free(pointer_name);
         break;
+    }
     case ptcl_value_function_pointer_type:
+    {
         char *return_type = ptcl_type_to_word_copy(*type.function_pointer.return_type);
-        name = ptcl_string("function_", return_type, "_", NULL);
+        name = ptcl_string("fn_", return_type, NULL);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
-            char *argument = ptcl_type_to_word_copy(type.function_pointer.arguments[i].type);
-            name = ptcl_string_append(name, argument, NULL);
-            if (i != type.function_pointer.count - 1)
+            ptcl_argument argument = type.function_pointer.arguments[i];
+            if (argument.is_variadic)
             {
-                name = ptcl_string_append(name, "_", NULL);
+                name = ptcl_string_append(name, "_va", NULL);
             }
-
-            free(argument);
+            else
+            {
+                char *value = ptcl_type_to_word_copy(argument.type);
+                name = ptcl_string_append(name, "_", value, NULL);
+                free(value);
+            }
         }
 
-        name = ptcl_string_append(name, "_", NULL);
         free(return_type);
         break;
+    }
     case ptcl_value_object_type_type:
-        name = ptcl_string("type_", ptcl_type_to_word_copy(*type.object_type.target), "_", NULL);
+    {
+        char *target_name = ptcl_type_to_word_copy(*type.object_type.target);
+        name = ptcl_string("type_", target_name, NULL);
+        free(target_name);
         break;
+    }
     case ptcl_value_word_type:
         name = "word";
         break;
     case ptcl_value_character_type:
-        name = "character";
+        name = "char";
         break;
     case ptcl_value_double_type:
         name = "double";
@@ -2140,13 +2152,16 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         name = "float";
         break;
     case ptcl_value_integer_type:
-        name = "integer";
+        name = "int";
         break;
     case ptcl_value_any_type:
         name = "any";
         break;
     case ptcl_value_void_type:
         name = "void";
+        break;
+    default:
+        name = "unknown";
         break;
     }
 

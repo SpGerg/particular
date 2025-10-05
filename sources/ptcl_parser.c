@@ -2724,18 +2724,20 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
         return;
     }
 
-    size_t identifier = parser->instances_count;
-    if (!ptcl_parser_add_instance(parser, instance))
+    if (!is_injector)
     {
-        ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
-        ptcl_parser_syntax_destroy(*syntax);
-        return;
+        if (!ptcl_parser_add_instance(parser, instance))
+        {
+            ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+            ptcl_parser_syntax_destroy(*syntax);
+            return;
+        }
     }
 
     if (is_injector && !ptcl_parser_add_this_pair(parser, ptcl_parser_this_s_pair_create(parser->main_root, syntax->start, syntax->tokens_count)))
     {
         ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
-        parser->instances[identifier].is_out_of_scope = true;
+        ptcl_parser_syntax_destroy(*syntax);
         return;
     }
 }
