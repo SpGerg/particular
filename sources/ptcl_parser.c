@@ -2922,6 +2922,15 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, bool
 
 ptcl_expression *ptcl_parser_binary(ptcl_parser *parser, ptcl_type *expected, bool with_word)
 {
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
+    }
+
     ptcl_expression *left = ptcl_parser_additive(parser, expected, with_word);
     if (parser->is_critical)
     {
@@ -3014,6 +3023,15 @@ ptcl_expression *ptcl_parser_binary(ptcl_parser *parser, ptcl_type *expected, bo
 
 ptcl_expression *ptcl_parser_additive(ptcl_parser *parser, ptcl_type *expected, bool with_word)
 {
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
+    }
+
     ptcl_expression *left = ptcl_parser_multiplicative(parser, expected, with_word);
     if (parser->is_critical || !ptcl_value_is_number(left->return_type.type))
     {
@@ -3062,6 +3080,15 @@ ptcl_expression *ptcl_parser_additive(ptcl_parser *parser, ptcl_type *expected, 
 
 ptcl_expression *ptcl_parser_multiplicative(ptcl_parser *parser, ptcl_type *expected, bool with_word)
 {
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
+    }
+
     ptcl_expression *left = ptcl_parser_unary(parser, false, expected, with_word);
     if (parser->is_critical || !ptcl_value_is_number(left->return_type.type))
     {
@@ -3113,6 +3140,15 @@ ptcl_expression *ptcl_parser_unary(ptcl_parser *parser, bool only_value, ptcl_ty
     if (ptcl_parser_ended(parser))
     {
         return ptcl_parser_dot(parser, expected, false, with_word);
+    }
+
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
     }
 
     ptcl_binary_operator_type type = ptcl_binary_operator_type_from_token(ptcl_parser_current(parser).type);
@@ -3304,6 +3340,15 @@ static ptcl_expression *ptcl_parser_typedata_dot(ptcl_parser *parser, ptcl_expre
 
 ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *expected, ptcl_expression *left, bool with_word)
 {
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
+    }
+
     if (left == NULL)
     {
         left = ptcl_parser_array_element(parser, expected, NULL, with_word);
@@ -3359,6 +3404,15 @@ ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *expected, ptcl_
 
 ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *expected, ptcl_expression *left, bool with_word)
 {
+    size_t start = parser->position;
+    if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    {
+        parser->position = start;
+        ptcl_expression *expression = ptcl_parser_cast(parser, expected, with_word);
+        ptcl_parser_leave_from_syntax(parser);
+        return expression;
+    }
+    
     if (left == NULL)
     {
         left = ptcl_parser_value(parser, expected, with_word);

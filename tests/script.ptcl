@@ -75,18 +75,16 @@ syntax new [name: static word]() {
 	~instance
 }
 
-syntax repeat [count: static integer] [body: static (): void] {
-    static if count > 0 {
-        ptcl_insert(ptcl_get_statements(body))
-        #repeat (count - 1) body	
+syntax factorial [n: static integer] {
+    static if n == 0 {
+        1
+    } else {
+        n * #factorial (n - 1)
     }
 }
 
 
 function main(): integer {
-	#repeat 3 {
-    	printf("Hello")
-	}
-
+	value: integer = #factorial 5 
 	return 0
 }
