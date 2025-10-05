@@ -75,22 +75,18 @@ syntax new [name: static word]() {
 	~instance
 }
 
-function main(): integer {
-	#
-	class Dog {
-		function constructor(): void {
-			
-		}
+syntax repeat [count: static integer] [body: static (): void] {
+    static if count > 0 {
+        ptcl_insert(ptcl_get_statements(body))
+        #repeat (count - 1) body	
+    }
+}
 
-		function speak(): void {
-			printf("Woof!")
-		}
+
+function main(): integer {
+	#repeat 3 {
+    	printf("Hello")
 	}
 
-	dogs: #list(>Dog) = #list(>Dog)()
-	dogs.add(#new Dog())
-
-	listeners: #list(>(integer, ...): void) = #list(>(integer, ...): void)()
-	listeners.add(null)
 	return 0
 }

@@ -2317,6 +2317,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
     {
         ptcl_statement_func_body result;
         const bool condtion_value = condition->integer_n;
+        ptcl_location location = condition->location;
         ptcl_expression_destroy(condition);
         if (condtion_value)
         {
@@ -2366,7 +2367,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
             }
         }
 
-        return ptcl_statement_func_body_create_stat(result, condition->location);
+        return ptcl_statement_func_body_create_stat(result, location);
     }
 
     ptcl_statement_func_body body = ptcl_parser_func_body(parser, true, true);
