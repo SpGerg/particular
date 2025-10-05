@@ -67,12 +67,21 @@ syntax class [name: static word] [body: void() static] end {
 }
 
 syntax new [name: static word]() end {
-	#class_typedata_name(name)() :: !name
+	@{
+		~instance := #class_typedata_name(name)() :: !name
+		~instance.constructor()
+	}
+
+	~instance
 }
 
 function main(): integer {
 	#
 	class Dog {
+		function constructor(): void {
+
+		}
+
 		function speak(): void {
 			printf("Woof!")
 		}
@@ -81,9 +90,4 @@ function main(): integer {
 	instance: Dog = #new Dog()
 	instance.speak()
 	return 0
-}
-
-function test(): void {
-	instance: Dog = #new Dog()
-	instance.speak()
 }
