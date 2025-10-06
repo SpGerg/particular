@@ -2619,15 +2619,12 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
 
 static void ptcl_expression_ctor_destroy(ptcl_expression_ctor ctor)
 {
-    if (ctor.count > 0)
+    for (size_t i = 0; i < ctor.count; i++)
     {
-        for (size_t i = 0; i < ctor.count; i++)
-        {
-            ptcl_expression_destroy(ctor.values[i]);
-        }
-
-        free(ctor.values);
+        ptcl_expression_destroy(ctor.values[i]);
     }
+
+    free(ctor.values);
 }
 
 static void ptcl_expression_array_destroy(ptcl_expression_array array)

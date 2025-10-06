@@ -4318,6 +4318,14 @@ ptcl_expression_ctor ptcl_parser_ctor(ptcl_parser *parser, ptcl_name name, ptcl_
 
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_expression_ctor ctor = ptcl_expression_ctor_create(name, NULL, 0);
+    ctor.values = malloc(typedata.count * sizeof(ptcl_expression *));
+    if (ctor.values == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return (ptcl_expression_ctor){};
+    }
+
+    bool all_none = false;
     while (!ptcl_parser_match(parser, ptcl_token_right_par_type))
     {
         if (ptcl_parser_ended(parser) || (ctor.count + 1) > typedata.count)
@@ -4328,6 +4336,21 @@ ptcl_expression_ctor ptcl_parser_ctor(ptcl_parser *parser, ptcl_name name, ptcl_
             return (ptcl_expression_ctor){};
         }
 
+        if (ctor.count == 0 && ptcl_parser_current(parser).type == ptcl_token_exclamation_mark_type && ptcl_parser_peek(parser, 1).type == ptcl_token_none_type)
+        {
+            ptcl_parser_skip(parser);
+            ptcl_parser_skip(parser);
+            ptcl_parser_except(parser, ptcl_token_right_par_type);
+            if (parser->is_critical)
+            {
+                ptcl_expression_ctor_destroy(ctor);
+                return (ptcl_expression_ctor){};
+            }
+
+            all_none = true;
+            break;
+        }
+
         ptcl_parser_try_parse_insert(parser);
         if (parser->is_critical)
         {
@@ -4335,37 +4358,41 @@ ptcl_expression_ctor ptcl_parser_ctor(ptcl_parser *parser, ptcl_name name, ptcl_
             return (ptcl_expression_ctor){};
         }
 
-        ptcl_expression **buffer = realloc(ctor.values, (ctor.count + 1) * sizeof(ptcl_expression *));
-        if (buffer == NULL)
-        {
-            ptcl_expression_ctor_destroy(ctor);
-            ptcl_parser_throw_out_of_memory(parser, location);
-            return (ptcl_expression_ctor){};
-        }
-
         ptcl_expression *value = ptcl_parser_cast(parser, &typedata.members[ctor.count].type, false);
         if (parser->is_critical)
         {
-            if (ctor.count == 0)
-            {
-                free(buffer);
-            }
-
             ptcl_expression_ctor_destroy(ctor);
             return (ptcl_expression_ctor){};
         }
 
-        ctor.values = buffer;
         ctor.values[ctor.count++] = value;
         ptcl_parser_match(parser, ptcl_token_comma_type);
     }
 
-    if (ctor.count < typedata.count)
+    if (all_none)
     {
-        ptcl_expression_ctor_destroy(ctor);
-        ptcl_parser_throw_except_token(
-            parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_comma_type), location);
-        return (ptcl_expression_ctor){};
+        ctor.count = typedata.count;
+        for (size_t i = 0; i < ctor.count; i++)
+        {
+            ptcl_expression *default_value = ptcl_parser_get_default(parser, typedata.members[i].type, ptcl_parser_current(parser).location);
+            if (parser->is_critical)
+            {
+                ptcl_expression_ctor_destroy(ctor);
+                return (ptcl_expression_ctor){};
+            }
+
+            ctor.values[i] = default_value;
+        }
+    }
+    else
+    {
+        if (ctor.count < typedata.count)
+        {
+            ptcl_expression_ctor_destroy(ctor);
+            ptcl_parser_throw_except_token(
+                parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_comma_type), location);
+            return (ptcl_expression_ctor){};
+        }
     }
 
     return ctor;

@@ -67,14 +67,26 @@ syntax object [name: static word] [variables: ...] with [body: static (): void] 
 }
 
 syntax new [name: static word]([arguments: ...]) {
-	#object_name(name)(ptcl_insert(arguments)) :: !name
+	@{
+		~instance := #object_name(name)(!none) :: !name
+		~instance.constructor(ptcl_insert(arguments))
+	}
+
+	~instance
 }
 
 function main(): integer {
 	#object dog
 		name: character*,
-		years: integer
+		years: integer,
+		created: integer
 	with {
+		function constructor(name: character*, years: integer): void {
+			self.name = name
+			self.years = years
+			self.created = 1
+		}
+
 		function speak(): void {
 			printf(self.name)
 		}
