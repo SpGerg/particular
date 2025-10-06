@@ -75,16 +75,32 @@ syntax new [name: static word]() {
 	~instance
 }
 
-syntax factorial [n: static integer] {
-    static if n == 0 {
-        1
-    } else {
-        n * #factorial (n - 1)
-    }
+syntax object_name [name: static word] {
+	!<__object_ !name>
 }
 
+syntax object [name: static word] [variables: ...] with [body: static (): void] {
+	~typedata_name: static word = #object_name(name)
+	typedata !~typedata_name(ptcl_insert(variables))
+	type !name: !~typedata_name {
+		ptcl_insert(ptcl_get_statements(body))
+	}
+}
+
+syntax new [name: static word]([arguments: ...]) {
+	#object_name(name)(ptcl_insert(arguments))
+}
 
 function main(): integer {
-	value: integer = #factorial 5 
+	#object dog 
+		name: character*,
+		years: integer 
+	with {
+		function speak(): void {
+			printf(self.name)
+		}
+	}
+
+	instance := #new dog("Tom", 12)
 	return 0
 }

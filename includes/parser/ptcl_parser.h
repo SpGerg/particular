@@ -6,9 +6,8 @@
 #include <ptcl_lexer_configuration.h>
 
 #define PTCL_PARSER_MAX_DEPTH 256
-#define PTCL_PARSER_STATEMENT_TYPEDATA_TYPE_I 0
-#define PTCL_PARSER_STATEMENT_TYPEDATA_COUNT 1
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
+#define PTCL_PARSER_TOKEN_TYPE_NAME "ptcl_token_t"
 
 static ptcl_name const ptcl_statement_t_name = {
     .value = PTCL_PARSER_STATEMENT_TYPE_NAME,
@@ -24,6 +23,26 @@ static ptcl_type_comp_type const ptcl_statement_comp_type = {
     .is_optional = false,
     .is_any = false};
 
+static ptcl_name const ptcl_token_t_name = {
+    .value = PTCL_PARSER_TOKEN_TYPE_NAME,
+    .location = {0},
+    .is_free = false,
+    .is_anonymous = false};
+
+static ptcl_type_comp_type const ptcl_token_comp_type = {
+    .identifier = ptcl_token_t_name,
+    .types = NULL,
+    .count = 0,
+    .functions = NULL,
+    .is_optional = false,
+    .is_any = false};
+
+static ptcl_name const ptcl_insert_name = {
+    .value = "ptcl_insert",
+    .location = {0},
+    .is_free = false,
+    .is_anonymous = false};
+
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
 static ptcl_type ptcl_statement_t_type = {
@@ -31,6 +50,12 @@ static ptcl_type ptcl_statement_t_type = {
     .is_primitive = true,
     .is_static = true,
     .comp_type = &ptcl_statement_comp_type};
+
+static ptcl_type ptcl_token_t_type = {
+    .type = ptcl_value_type_type,
+    .is_primitive = true,
+    .is_static = true,
+    .comp_type = &ptcl_token_comp_type};
 
 typedef struct ptcl_parser_this_s_pair
 {
@@ -80,7 +105,14 @@ typedef struct ptcl_parser_syntax_word_variable
 {
     ptcl_type type;
     char *name;
+    char *end_token;
 } ptcl_parser_syntax_word_variable;
+
+typedef struct ptcl_parser_tokens_node
+{
+    ptcl_token *tokens;
+    size_t count;
+} ptcl_parser_tokens_node;
 
 typedef struct ptcl_parser_syntax_node
 {
@@ -285,7 +317,18 @@ static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_variable(ptcl_type
         .type = ptcl_parser_syntax_node_variable_type,
         .variable = (ptcl_parser_syntax_word_variable){
             .type = type,
+            .end_token = NULL,
             .name = name}};
+}
+
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_end_token(char *name, char *end_token)
+{
+    return (ptcl_parser_syntax_node){
+        .type = ptcl_parser_syntax_node_variable_type,
+        .variable = (ptcl_parser_syntax_word_variable){
+            .name = name,
+            .type = ptcl_type_create_array(&ptcl_token_t_type, -1),
+            .end_token = end_token}};
 }
 
 static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_object_type(ptcl_type type)
@@ -473,7 +516,7 @@ bool ptcl_parser_is_defined(ptcl_parser *parser, ptcl_name name);
 
 bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression **arguments, size_t count);
 
-bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *any_found_or_continue);
+bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *can_continue, char **end_token);
 
 bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, char *member_name, ptcl_typedata_member **member);
 
@@ -481,7 +524,7 @@ void ptcl_parser_clear_scope(ptcl_parser *parser);
 
 void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location);
 
-void ptcl_parser_throw_not_allowed_token(ptcl_parser *parser, char* token, ptcl_location location);
+void ptcl_parser_throw_not_allowed_token(ptcl_parser *parser, char *token, ptcl_location location);
 
 void ptcl_parser_throw_except_token(ptcl_parser *parser, char *value, ptcl_location location);
 

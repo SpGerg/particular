@@ -49,7 +49,8 @@ typedef enum ptcl_expression_type
     ptcl_expression_word_type,
     ptcl_expression_object_type_type,
     ptcl_expression_null_type,
-    ptcl_expression_in_statement_type
+    ptcl_expression_in_statement_type,
+    ptcl_expression_in_token_type
 } ptcl_expression_type;
 
 typedef enum ptcl_binary_operator_type
@@ -326,6 +327,7 @@ typedef struct ptcl_expression
         ptcl_expression_object_type object_type;
         ptcl_expression_cast cast;
         ptcl_statement *internal_statement;
+        ptcl_token internal_token;
     };
 } ptcl_expression;
 
@@ -690,15 +692,15 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expression **expressions, size_t count, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expression **expressions, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, type, location);
     if (expression != NULL)
     {
         expression->array = (ptcl_expression_array){
-            .type = ptcl_type_character,
+            .type = *type.array.target,
             .expressions = expressions,
-            .count = count};
+            .count = type.array.count};
     }
 
     return expression;
@@ -947,6 +949,18 @@ static ptcl_expression *ptcl_expression_unary_create(ptcl_binary_operator_type t
         expression->unary = (ptcl_expression_unary){
             .type = type,
             .child = child};
+    }
+
+    return expression;
+}
+
+static ptcl_expression *ptcl_expression_create_token(ptcl_token token)
+{
+    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_in_token_type, ptcl_type_float, token.location);
+    if (expression != NULL)
+    {
+        expression->internal_token = token;
+        expression->return_type.is_static = true;
     }
 
     return expression;
@@ -2690,6 +2704,9 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         break;
     case ptcl_expression_in_statement_type:
         ptcl_statement_destroy(expression->internal_statement);
+        break;
+    case ptcl_expression_in_token_type:
+        ptcl_token_destroy(expression->internal_token);
         break;
     }
 
