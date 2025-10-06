@@ -7,6 +7,7 @@
 
 #define PTCL_PARSER_MAX_DEPTH 256
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
+#define PTCL_PARSER_EXPRESSION_TYPE_NAME "ptcl_expression_t"
 #define PTCL_PARSER_TOKEN_TYPE_NAME "ptcl_token_t"
 
 static ptcl_name const ptcl_statement_t_name = {
@@ -22,6 +23,12 @@ static ptcl_type_comp_type const ptcl_statement_comp_type = {
     .functions = NULL,
     .is_optional = false,
     .is_any = false};
+
+static ptcl_name const ptcl_expression_t_name = {
+    .value = PTCL_PARSER_EXPRESSION_TYPE_NAME,
+    .location = {0},
+    .is_free = false,
+    .is_anonymous = false};
 
 static ptcl_name const ptcl_token_t_name = {
     .value = PTCL_PARSER_TOKEN_TYPE_NAME,

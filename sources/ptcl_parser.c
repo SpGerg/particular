@@ -2442,13 +2442,21 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
     if (!with_type)
     {
         type = value->return_type;
-        if (define && type.type != ptcl_value_function_pointer_type)
+        if (define && type.type != ptcl_value_function_pointer_type && type.type != ptcl_value_array_type)
         {
-            type.is_static = false;
-            if (type.type == ptcl_value_array_type && type.array.target->type != ptcl_value_typedata_type)
+            if (type.type == ptcl_value_type_type)
             {
-                type.type = ptcl_value_pointer_type;
-                type.pointer.target = type.array.target;
+                ptcl_name identifier = type.comp_type->identifier;
+                if (!ptcl_name_compare(identifier, ptcl_statement_t_name) &&
+                    !ptcl_name_compare(identifier, ptcl_expression_t_name) &&
+                    !ptcl_name_compare(identifier, ptcl_token_t_name))
+                {
+                    type.is_static = false;
+                }
+            }
+            else
+            {
+                type.is_static = false;
             }
         }
     }

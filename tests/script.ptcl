@@ -92,9 +92,9 @@ syntax new [name: static word]([arguments: ...]) {
 }
 
 function main(): integer {
-	#object dog 
+	#object dog
 		name: character*,
-		years: integer 
+		years: integer
 	with {
 		function speak(): void {
 			printf(self.name)
