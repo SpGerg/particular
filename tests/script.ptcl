@@ -66,7 +66,7 @@ syntax object [name: static word] [variables: ...] with [body: static (): void] 
 	}
 }
 
-syntax new [name: static word]([arguments: ...]) {
+syntax create [name: static word]([arguments: ...]) {
 	@{
 		~instance := #object_name(name)(!none) :: !name
 		~instance.constructor(ptcl_insert(arguments))
@@ -75,24 +75,36 @@ syntax new [name: static word]([arguments: ...]) {
 	~instance
 }
 
-function main(): integer {
-	#object dog
-		name: character*,
-		years: integer,
-		created: integer
-	with {
-		function constructor(name: character*, years: integer): void {
-			self.name = name
-			self.years = years
-			self.created = 1
+syntax delete [name: any] {
+	name.destructor()
+}
+
+syntax exceptional function [name: static word]([arguments: ...]) [body: static (): void] {
+	function !name(ptcl_insert(arguments)): integer {
+		~new_body := {
+			syntax deref [T: static type] [value: pointer] {
+				@{
+					if value == null {
+						return 0
+					}
+				}
+
+				*(value :: !T*)
+			}
+
+			ptcl_insert(ptcl_get_statements(body))
 		}
 
-		function speak(): void {
-			printf(self.name)
-		}
+		ptcl_insert(ptcl_get_statements(~new_body))
+	}
+}
+
+function main(): integer {
+	#exceptional function test(target: integer*) {
+		value := #deref(>integer)(target)
 	}
 
-	instance := #new dog("Tom", 12)
-	instance.speak()
+	value := 7
+	test(&value)
 	return 0
 }

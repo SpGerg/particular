@@ -1175,6 +1175,80 @@ bool ptcl_parser_parse_try_syntax_usage_here(ptcl_parser *parser, bool is_statem
     return ptcl_parser_parse_try_syntax_usage(parser, NULL, 0, -1, false, is_statement);
 }
 
+static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end_token, ptcl_location location)
+{
+    size_t original_capacity = 8;
+    size_t original_count = 0;
+    ptcl_expression **buffer = malloc(original_capacity * sizeof(ptcl_expression *));
+    if (buffer == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return false;
+    }
+
+    while (true)
+    {
+        if (ptcl_parser_ended(parser))
+        {
+            ptcl_parser_throw_except_token(parser, end_token, location);
+            return false;
+        }
+
+        ptcl_token current = ptcl_parser_current(parser);
+        ptcl_parser_skip(parser);
+        if (strcmp(current.value, end_token) != 0)
+        {
+            if (original_count >= original_capacity)
+            {
+                original_capacity *= 2;
+                ptcl_expression **reallocated = realloc(buffer, original_capacity * sizeof(ptcl_expression *));
+                if (reallocated == NULL)
+                {
+                destroying:
+                    for (size_t i = 0; i < original_count; i++)
+                    {
+                        ptcl_expression_destroy(buffer[i]);
+                    }
+
+                    free(buffer);
+                    ptcl_parser_throw_out_of_memory(parser, location);
+                    return false;
+                }
+
+                buffer = reallocated;
+            }
+
+            char *copy = ptcl_string_duplicate(current.value);
+            if (copy == NULL)
+            {
+                goto destroying;
+            }
+
+            ptcl_expression *expression = ptcl_expression_create_token(ptcl_token_create(current.type, copy, current.location, true));
+            if (expression == NULL)
+            {
+                free(copy);
+                goto destroying;
+            }
+
+            buffer[original_count++] = expression;
+            continue;
+        }
+
+        parser->position--;
+        break;
+    }
+
+    ptcl_expression *expression = ptcl_expression_create_array(
+        ptcl_type_create_array(&ptcl_token_t_type, original_count),
+        buffer,
+        location);
+    if (expression == NULL)
+    {
+        goto destroying;
+    }
+}
+
 bool ptcl_parser_parse_try_syntax_usage(
     ptcl_parser *parser, ptcl_parser_syntax_node **nodes, size_t count, int down_start, bool skip_first, bool is_statement)
 {
@@ -1218,7 +1292,6 @@ bool ptcl_parser_parse_try_syntax_usage(
                 ptcl_name_create(current.value, false, current.location));
             ptcl_parser_skip(parser);
             syntax.nodes[syntax.count++] = node;
-
             if (ptcl_parser_parse_try_syntax_usage(parser, &syntax.nodes, syntax.count, start, true, is_statement))
             {
                 return true;
@@ -1281,78 +1354,11 @@ bool ptcl_parser_parse_try_syntax_usage(
             }
 
             syntax.nodes = nodes;
-            size_t original_capacity = 8;
-            size_t original_count = 0;
-            ptcl_expression **buffer = malloc(original_capacity * sizeof(ptcl_expression *));
-            if (buffer == NULL)
+            ptcl_expression *expression = ptcl_parser_syntax_tokens(parser, end_token, location);
+            if (parser->is_critical)
             {
-                ptcl_parser_throw_out_of_memory(parser, location);
                 ptcl_parser_syntax_destroy(syntax);
                 return false;
-            }
-
-            while (true)
-            {
-                if (ptcl_parser_ended(parser))
-                {
-                    ptcl_parser_throw_except_token(parser, end_token, location);
-                    ptcl_parser_syntax_destroy(syntax);
-                    return false;
-                }
-
-                ptcl_token current = ptcl_parser_current(parser);
-                ptcl_parser_skip(parser);
-                if (strcmp(current.value, end_token) != 0)
-                {
-                    if (original_count >= original_capacity)
-                    {
-                        original_capacity *= 2;
-                        ptcl_expression **reallocated = realloc(buffer, original_capacity * sizeof(ptcl_expression *));
-                        if (reallocated == NULL)
-                        {
-                        destroying:
-                            for (size_t i = 0; i < original_count; i++)
-                            {
-                                ptcl_expression_destroy(buffer[i]);
-                            }
-
-                            free(buffer);
-                            ptcl_parser_throw_out_of_memory(parser, location);
-                            ptcl_parser_syntax_destroy(syntax);
-                            return false;
-                        }
-
-                        buffer = reallocated;
-                    }
-
-                    char *copy = ptcl_string_duplicate(current.value);
-                    if (copy == NULL)
-                    {
-                        goto destroying;
-                    }
-
-                    ptcl_expression *expression = ptcl_expression_create_token(ptcl_token_create(current.type, copy, current.location, true));
-                    if (expression == NULL)
-                    {
-                        free(copy);
-                        goto destroying;
-                    }
-
-                    buffer[original_count++] = expression;
-                    continue;
-                }
-
-                parser->position--;
-                break;
-            }
-
-            ptcl_expression *expression = ptcl_expression_create_array(
-                ptcl_type_create_array(&ptcl_token_t_type, original_count),
-                buffer,
-                location);
-            if (expression == NULL)
-            {
-                goto destroying;
             }
 
             syntax.nodes[syntax.count++] = ptcl_parser_syntax_node_create_value(expression);
