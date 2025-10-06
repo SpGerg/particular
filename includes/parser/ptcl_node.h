@@ -114,6 +114,7 @@ typedef struct ptcl_type_pointer
 {
     ptcl_type *target;
     bool is_any;
+    bool is_null;
 } ptcl_type_pointer;
 
 typedef struct ptcl_type_array
@@ -183,7 +184,7 @@ static ptcl_type ptcl_type_any = {
     .type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_pointer = {
-    .type = ptcl_value_pointer_type, .pointer = {.is_any = true}, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_pointer_type, .pointer = {.is_any = true, .is_null = false, .target = NULL}, .is_primitive = true, .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.target = &ptcl_type_any}, .is_primitive = true, .is_static = false};
@@ -205,6 +206,9 @@ static ptcl_type ptcl_type_integer = {
 
 static ptcl_type ptcl_type_void = {
     .type = ptcl_value_void_type, .is_primitive = true, .is_static = false};
+
+static ptcl_type ptcl_type_null = {
+    .type = ptcl_value_pointer_type, .is_primitive = true, .is_static = false, .pointer = {.is_any = false, .is_null = true, .target = NULL}};
 
 typedef struct ptcl_expression_variable
 {
@@ -564,7 +568,8 @@ static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
         .type = ptcl_value_pointer_type,
         .pointer = (ptcl_type_pointer){
             .target = type,
-            .is_any = false}};
+            .is_any = false,
+            .is_null = false}};
 }
 
 static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl type_decl)
@@ -623,9 +628,9 @@ static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_identifier 
         .count = 0};
 }
 
-static ptcl_expression *ptcl_expression_create_null(ptcl_type type, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_null(ptcl_location location)
 {
-    return ptcl_expression_create(ptcl_expression_null_type, type, location);
+    return ptcl_expression_create(ptcl_expression_null_type, ptcl_type_null, location);
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
@@ -681,7 +686,6 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     if (expression != NULL)
     {
         ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int)count);
-        array_type.array.target->is_static = true;
         expression->return_type = array_type;
         expression->array = (ptcl_expression_array){
             .type = ptcl_type_character,
@@ -1251,8 +1255,10 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
     switch (expected.type)
     {
     case ptcl_value_pointer_type:
-        if (expected.pointer.is_any)
+        if (expected.pointer.is_any || target.pointer.is_null)
+        {
             return true;
+        }
 
         return ptcl_type_is_castable(*expected.pointer.target, *target.pointer.target);
     case ptcl_value_array_type:
@@ -2228,7 +2234,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         free(return_type);
         break;
     case ptcl_value_pointer_type:
-        if (type.pointer.is_any)
+        if (type.pointer.is_any || type.pointer.is_null)
         {
             name = ptcl_string(is_static, "pointer", NULL);
         }
@@ -2369,7 +2375,7 @@ static bool ptcl_type_is_function(ptcl_type type, ptcl_type_functon_pointer_type
     }
     else if (type.type == ptcl_value_pointer_type)
     {
-        if (type.pointer.is_any)
+        if (type.pointer.is_any || type.pointer.is_null)
         {
             return false;
         }

@@ -54,27 +54,6 @@ syntax using([name: static word]=[value: any]) [body: static (): void] {
 	!name := value
 }
 
-syntax class_typedata_name([name: static word]) {
-	!<__class_ !name>
-}
-
-syntax class [name: static word] [body: static (): void] {
-	~name: static word = #class_typedata_name(name)
-	global typedata !~name()
-	global type !name : !~name {
-		ptcl_insert(ptcl_get_statements(body))
-	}
-}
-
-syntax new [name: static word]() {
-	@{
-		~instance := #class_typedata_name(name)() :: !name
-		~instance.constructor()
-	}
-
-	~instance
-}
-
 syntax object_name [name: static word] {
 	!<__object_ !name>
 }
@@ -88,7 +67,7 @@ syntax object [name: static word] [variables: ...] with [body: static (): void] 
 }
 
 syntax new [name: static word]([arguments: ...]) {
-	#object_name(name)(ptcl_insert(arguments))
+	#object_name(name)(ptcl_insert(arguments)) :: !name
 }
 
 function main(): integer {
@@ -102,5 +81,6 @@ function main(): integer {
 	}
 
 	instance := #new dog("Tom", 12)
+	instance.speak()
 	return 0
 }

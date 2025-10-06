@@ -1055,7 +1055,7 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
         ptcl_transpiler_add_type_and_name(transpiler, *type.array.target, name, NULL, with_array, is_define);
         break;
     case ptcl_value_pointer_type:
-        if (type.pointer.is_any)
+        if (type.pointer.is_any || type.pointer.is_null)
         {
             ptcl_transpiler_append_word_s(transpiler, "void*");
             break;
@@ -1091,8 +1091,8 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
 
     if (name.value != NULL &&
         (type.type == ptcl_value_typedata_type ||
-         (ptcl_type_is_primitive(type.type) ||
-          (type.type == ptcl_value_pointer_type && type.pointer.is_any))))
+         type.type == ptcl_value_pointer_type ||
+         (ptcl_type_is_primitive(type.type))))
     {
         ptcl_transpiler_add_name(transpiler, name, is_define);
     }
