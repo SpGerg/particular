@@ -81,7 +81,8 @@ syntax delete [name: any] {
 
 syntax exceptional function [name: static word]([arguments: ...]) [body: static (): void] {
 	function !name(ptcl_insert(arguments)): integer {
-		~new_body := {
+		~statement: static ptcl_token_t = arguments[0]
+		~new_body: static (): void = {
 			syntax deref [T: static type] [value: pointer] {
 				@{
 					if value == null {

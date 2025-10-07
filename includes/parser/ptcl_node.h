@@ -1195,9 +1195,28 @@ static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
     return true;
 }
 
+static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
+{
+    if (type.type == ptcl_value_array_type)
+    {
+        return false;
+    }
+    else if (type.type == ptcl_value_type_type)
+    {
+        return type.comp_type->count != 0;
+    }
+
+    return true;
+}
+
 static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 {
     if (expected.is_static && !target.is_static)
+    {
+        return false;
+    }
+
+    if (!expected.is_static && target.is_static && !ptcl_type_is_castable_to_unstatic(target))
     {
         return false;
     }
@@ -2114,7 +2133,7 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         name = type.comp_type->identifier.value;
         break;
     case ptcl_value_typedata_type:
-        name = ptcl_string("typedata_", type.typedata.value, NULL);
+        name = ptcl_string("struct_", type.typedata.value, NULL);
         break;
     case ptcl_value_array_type:
     {
@@ -2205,7 +2224,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     switch (type.type)
     {
     case ptcl_value_type_type:
-        name = type.comp_type->identifier.value;
+        name = ptcl_string(is_static, type.comp_type->identifier.value, NULL);
         break;
     case ptcl_value_typedata_type:
         name = ptcl_string(is_static, "typedata (", type.typedata.value, ")", NULL);
@@ -2217,7 +2236,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         break;
     case ptcl_value_function_pointer_type:
         char *return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
-        name = ptcl_string("function (", return_type, ") (", NULL);
+        name = ptcl_string(is_static, "function (", NULL);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
@@ -2230,7 +2249,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
             free(argument);
         }
 
-        name = ptcl_string_append(name, ")", NULL);
+        name = ptcl_string_append(name, "): ", return_type, NULL);
         free(return_type);
         break;
     case ptcl_value_pointer_type:
@@ -2276,7 +2295,8 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         type.type != ptcl_value_pointer_type &&
         type.type != ptcl_value_typedata_type &&
         type.type != ptcl_value_object_type_type &&
-        type.type != ptcl_value_function_pointer_type)
+        type.type != ptcl_value_function_pointer_type &&
+        type.type != ptcl_value_type_type)
     {
         name = ptcl_string(is_static, name, NULL);
     }

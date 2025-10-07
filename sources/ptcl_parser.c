@@ -420,6 +420,16 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
     ptcl_expression *argument = arguments[0];
     ptcl_type type = argument->return_type;
     ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, 0);
+    if (!type.is_static)
+    {
+        type.is_static = true;
+        ptcl_parser_throw_fast_incorrect_type(
+            parser,
+            type,
+            argument->return_type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
 
     switch (type.type)
     {
@@ -569,6 +579,18 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
 {
     ptcl_expression *argument = arguments[0];
     ptcl_type type = argument->return_type;
+    ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, 0);
+    if (!type.is_static)
+    {
+        array_type.is_static = false;
+        ptcl_parser_throw_fast_incorrect_type(
+            parser,
+            array_type,
+            argument->return_type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
+
     if (is_expression)
     {
         if (type.type == ptcl_value_array_type)
@@ -585,7 +607,6 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
         return NULL;
     }
 
-    ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, 0);
     switch (type.type)
     {
     case ptcl_value_array_type:
@@ -706,10 +727,26 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->this_pairs = NULL;
     parser->this_pairs_count = 0;
 
-    ptcl_typedata_builder token_typedata_builder = ptcl_typedata_builder_create("ptcl_token_t");
-    ptcl_typedata_builder_add_member(&token_typedata_builder, "token_type", ptcl_type_integer);
-    ptcl_typedata_builder_add_member(&token_typedata_builder, "value", ptcl_type_create_array(&ptcl_type_character, -1));
-    ptcl_parser_add_instance(parser, ptcl_typedata_builder_build(token_typedata_builder));
+    ptcl_comp_type_builder token_builder = ptcl_comp_type_builder_create(PTCL_PARSER_TOKEN_TYPE_NAME);
+    ptcl_type_comp_type token_comp_type = ptcl_comp_type_builder_build_type(&token_builder);
+    ptcl_type_comp_type *token_comp_type_t = malloc(sizeof(ptcl_type_comp_type));
+    if (token_comp_type_t == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+        return (ptcl_parser_result){
+            .body = ptcl_statement_func_body_create(NULL, 0, NULL),
+            .count = 1,
+            .errors = parser->errors,
+            .instances = parser->instances,
+            .instances_count = parser->instances_count,
+            .lated_bodies = NULL,
+            .lated_bodies_count = 0,
+            .is_critical = parser->is_critical};
+    }
+
+    *token_comp_type_t = ptcl_token_comp_type;
+    ptcl_type token_type = ptcl_type_create_comp_type_t(token_comp_type_t);
+    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&token_builder, token_type.comp_type));
 
     ptcl_comp_type_builder statement_builder = ptcl_comp_type_builder_create(PTCL_PARSER_STATEMENT_TYPE_NAME);
     ptcl_type_comp_type statement_comp_type = ptcl_comp_type_builder_build_type(&statement_builder);
@@ -770,7 +807,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     ptcl_func_built_in_builder_destroy(&get_statements_builder);
     ptcl_func_built_in_builder_destroy(&defined_builder);
     ptcl_func_built_in_builder_destroy(&insert_builder);
-    ptcl_typedata_builder_destroy(&token_typedata_builder);
+    ptcl_typedata_builder_destroy(&token_builder);
     ptcl_comp_type_builder_destroy(&statement_builder);
     parser->input->tokens = parser->tokens;
     parser->input->count = parser->count;
@@ -2448,22 +2485,9 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
     if (!with_type)
     {
         type = value->return_type;
-        if (define && type.type != ptcl_value_function_pointer_type && type.type != ptcl_value_array_type)
+        if (define && ptcl_type_is_castable_to_unstatic(type))
         {
-            if (type.type == ptcl_value_type_type)
-            {
-                ptcl_name identifier = type.comp_type->identifier;
-                if (!ptcl_name_compare(identifier, ptcl_statement_t_name) &&
-                    !ptcl_name_compare(identifier, ptcl_expression_t_name) &&
-                    !ptcl_name_compare(identifier, ptcl_token_t_name))
-                {
-                    type.is_static = false;
-                }
-            }
-            else
-            {
-                type.is_static = false;
-            }
+            type.is_static = false;
         }
     }
     else
