@@ -8,6 +8,68 @@
     }                                                   \
     free(arguments);
 
+#define SETUP_STATIC_ANY()                \
+    ptcl_type static_any = ptcl_type_any; \
+    static_any.is_static = true
+
+#define CREATE_TOKEN_TYPE()                                                                            \
+    ptcl_comp_type_builder token_builder = ptcl_comp_type_builder_create(PTCL_PARSER_TOKEN_TYPE_NAME); \
+    ptcl_type_comp_type *token_comp_type = malloc(sizeof(ptcl_type_comp_type));                        \
+    if (token_comp_type == NULL)                                                                       \
+        goto out_of_memory;                                                                            \
+    *token_comp_type = ptcl_comp_type_builder_build_type(&token_builder);                              \
+    ptcl_type token_type = ptcl_type_create_comp_type_t(token_comp_type);                              \
+    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&token_builder, token_type.comp_type))
+
+#define CREATE_STATEMENT_TYPE()                                                                                \
+    ptcl_comp_type_builder statement_builder = ptcl_comp_type_builder_create(PTCL_PARSER_STATEMENT_TYPE_NAME); \
+    ptcl_type_comp_type *statement_comp_type = malloc(sizeof(ptcl_type_comp_type));                            \
+    if (statement_comp_type == NULL)                                                                           \
+        goto out_of_memory;                                                                                    \
+    *statement_comp_type = ptcl_comp_type_builder_build_type(&statement_builder);                              \
+    ptcl_type statement_type = ptcl_type_create_comp_type_t(statement_comp_type);                              \
+    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&statement_builder, statement_type.comp_type))
+
+#define CREATE_EXPRESSION_TYPE()                                                                                 \
+    ptcl_comp_type_builder expression_builder = ptcl_comp_type_builder_create(PTCL_PARSER_EXPRESSION_TYPE_NAME); \
+    ptcl_type_comp_type *expression_comp_type = malloc(sizeof(ptcl_type_comp_type));                             \
+    if (expression_comp_type == NULL)                                                                            \
+        goto out_of_memory;                                                                                      \
+    *expression_comp_type = ptcl_comp_type_builder_build_type(&expression_builder);                              \
+    ptcl_type expression_type = ptcl_type_create_comp_type_t(expression_comp_type);                              \
+    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&expression_builder, expression_type.comp_type))
+
+#define CREATE_GET_STATEMENTS_FUNC()                                                                              \
+    ptcl_func_built_in_builder get_statements_builder = ptcl_func_built_in_builder_create("ptcl_get_statements"); \
+    ptcl_type array_statements = ptcl_type_create_array(&statement_type, -1);                                     \
+    array_statements.array.target->is_static = false;                                                             \
+    ptcl_func_built_in_builder_bind(&get_statements_builder, ptcl_get_statements_realization);                    \
+    ptcl_func_built_in_builder_add_argument(&get_statements_builder, static_any);                                 \
+    ptcl_func_built_in_builder_return(&get_statements_builder, array_statements);                                 \
+    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&get_statements_builder))
+
+#define CREATE_DEFINED_FUNC()                                                                                    \
+    ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined");              \
+    ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);                                 \
+    ptcl_func_built_in_builder_add_argument(&defined_builder, ptcl_type_create_array(&ptcl_type_character, -1)); \
+    ptcl_func_built_in_builder_return(&defined_builder, ptcl_type_integer);                                      \
+    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&defined_builder))
+
+#define CREATE_INSERT_FUNC()                                                                      \
+    ptcl_func_built_in_builder insert_builder = ptcl_func_built_in_builder_create("ptcl_insert"); \
+    ptcl_func_built_in_builder_bind(&insert_builder, ptcl_insert_realization);                    \
+    ptcl_func_built_in_builder_add_argument(&insert_builder, static_any);                         \
+    ptcl_func_built_in_builder_return(&insert_builder, ptcl_type_integer);                        \
+    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&insert_builder))
+
+#define CLEANUP_BUILDERS()                                       \
+    ptcl_func_built_in_builder_destroy(&get_statements_builder); \
+    ptcl_func_built_in_builder_destroy(&defined_builder);        \
+    ptcl_func_built_in_builder_destroy(&insert_builder);         \
+    ptcl_comp_type_builder_destroy(&token_builder);              \
+    ptcl_comp_type_builder_destroy(&statement_builder);          \
+    ptcl_comp_type_builder_destroy(&expression_builder)
+
 typedef struct ptcl_parser
 {
     ptcl_lexer_configuration *configuration;
@@ -420,17 +482,6 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
     ptcl_expression *argument = arguments[0];
     ptcl_type type = argument->return_type;
     ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, 0);
-    if (!type.is_static)
-    {
-        type.is_static = true;
-        ptcl_parser_throw_fast_incorrect_type(
-            parser,
-            type,
-            argument->return_type, location);
-        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-        return NULL;
-    }
-
     switch (type.type)
     {
     case ptcl_value_function_pointer_type:
@@ -580,17 +631,6 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
     ptcl_expression *argument = arguments[0];
     ptcl_type type = argument->return_type;
     ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, 0);
-    if (!type.is_static)
-    {
-        array_type.is_static = false;
-        ptcl_parser_throw_fast_incorrect_type(
-            parser,
-            array_type,
-            argument->return_type, location);
-        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-        return NULL;
-    }
-
     if (is_expression)
     {
         if (type.type == ptcl_value_array_type)
@@ -705,7 +745,7 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
     return parser;
 }
 
-ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
+static void ptcl_parser_reset(ptcl_parser *parser)
 {
     parser->position = 0;
     parser->is_critical = false;
@@ -726,70 +766,18 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     parser->lated_bodies_count = 0;
     parser->this_pairs = NULL;
     parser->this_pairs_count = 0;
+}
 
-    ptcl_comp_type_builder token_builder = ptcl_comp_type_builder_create(PTCL_PARSER_TOKEN_TYPE_NAME);
-    ptcl_type_comp_type token_comp_type = ptcl_comp_type_builder_build_type(&token_builder);
-    ptcl_type_comp_type *token_comp_type_t = malloc(sizeof(ptcl_type_comp_type));
-    if (token_comp_type_t == NULL)
-    {
-        ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
-        return (ptcl_parser_result){
-            .body = ptcl_statement_func_body_create(NULL, 0, NULL),
-            .count = 1,
-            .errors = parser->errors,
-            .instances = parser->instances,
-            .instances_count = parser->instances_count,
-            .lated_bodies = NULL,
-            .lated_bodies_count = 0,
-            .is_critical = parser->is_critical};
-    }
-
-    *token_comp_type_t = ptcl_token_comp_type;
-    ptcl_type token_type = ptcl_type_create_comp_type_t(token_comp_type_t);
-    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&token_builder, token_type.comp_type));
-
-    ptcl_comp_type_builder statement_builder = ptcl_comp_type_builder_create(PTCL_PARSER_STATEMENT_TYPE_NAME);
-    ptcl_type_comp_type statement_comp_type = ptcl_comp_type_builder_build_type(&statement_builder);
-    ptcl_type_comp_type *comp_type = malloc(sizeof(ptcl_type_comp_type));
-    if (comp_type == NULL)
-    {
-        ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
-        return (ptcl_parser_result){
-            .body = ptcl_statement_func_body_create(NULL, 0, NULL),
-            .count = 1,
-            .errors = parser->errors,
-            .instances = parser->instances,
-            .instances_count = parser->instances_count,
-            .lated_bodies = NULL,
-            .lated_bodies_count = 0,
-            .is_critical = parser->is_critical};
-    }
-
-    *comp_type = statement_comp_type;
-    ptcl_type statement_type = ptcl_type_create_comp_type_t(comp_type);
-    ptcl_parser_add_instance(parser, ptcl_comp_type_builder_build(&statement_builder, statement_type.comp_type));
-
-    ptcl_func_built_in_builder get_statements_builder = ptcl_func_built_in_builder_create("ptcl_get_statements");
-    ptcl_type array_statements = ptcl_type_create_array(&statement_type, -1);
-    array_statements.array.target->is_static = false;
-    ptcl_func_built_in_builder_bind(&get_statements_builder, ptcl_get_statements_realization);
-    ptcl_func_built_in_builder_add_argument(&get_statements_builder, ptcl_type_any);
-    ptcl_func_built_in_builder_return(&get_statements_builder, array_statements);
-    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&get_statements_builder));
-
-    ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined");
-    ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);
-    ptcl_func_built_in_builder_add_argument(&defined_builder, ptcl_type_create_array(&ptcl_type_character, -1));
-    ptcl_func_built_in_builder_return(&defined_builder, ptcl_type_integer);
-    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&defined_builder));
-
-    ptcl_func_built_in_builder insert_builder = ptcl_func_built_in_builder_create("ptcl_insert");
-    ptcl_type static_any = ptcl_type_any;
-    static_any.is_static = true;
-    ptcl_func_built_in_builder_bind(&insert_builder, ptcl_insert_realization);
-    ptcl_func_built_in_builder_add_argument(&insert_builder, static_any);
-    ptcl_func_built_in_builder_return(&insert_builder, ptcl_type_integer);
-    ptcl_parser_add_instance(parser, ptcl_func_built_in_builder_build(&insert_builder));
+ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
+{
+    ptcl_parser_reset(parser);
+    SETUP_STATIC_ANY();
+    CREATE_TOKEN_TYPE();
+    CREATE_STATEMENT_TYPE();
+    CREATE_EXPRESSION_TYPE();
+    CREATE_GET_STATEMENTS_FUNC();
+    CREATE_DEFINED_FUNC();
+    CREATE_INSERT_FUNC();
 
     ptcl_parser_result result = {
         .configuration = parser->configuration,
@@ -804,11 +792,22 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
         .this_pairs_count = parser->this_pairs_count,
         .is_critical = parser->is_critical};
 
-    ptcl_func_built_in_builder_destroy(&get_statements_builder);
-    ptcl_func_built_in_builder_destroy(&defined_builder);
-    ptcl_func_built_in_builder_destroy(&insert_builder);
-    ptcl_typedata_builder_destroy(&token_builder);
-    ptcl_comp_type_builder_destroy(&statement_builder);
+    goto success;
+
+out_of_memory:
+    ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+    result = (ptcl_parser_result){
+        .body = ptcl_statement_func_body_create(NULL, 0, NULL),
+        .count = 1,
+        .errors = parser->errors,
+        .instances = parser->instances,
+        .instances_count = parser->instances_count,
+        .lated_bodies = NULL,
+        .lated_bodies_count = 0,
+        .is_critical = parser->is_critical};
+
+success:
+    CLEANUP_BUILDERS();
     parser->input->tokens = parser->tokens;
     parser->input->count = parser->count;
     return result;
