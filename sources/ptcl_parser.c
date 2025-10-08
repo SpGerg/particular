@@ -2801,6 +2801,9 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
     ptcl_parser_instance instance = ptcl_parser_syntax_create(ptcl_name_create_fast_w("", false), parser->root, NULL, 0);
     ptcl_parser_syntax *syntax = &instance.syntax;
     bool is_injector = false;
+    ptcl_location last_location;
+    size_t depth = 0;
+    bool except_end_token = false;
 
     while (true)
     {
@@ -2854,20 +2857,7 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                             return;
                         }
 
-                        ptcl_parser_skip(parser);
-                        node = ptcl_parser_syntax_node_create_end_token(next.value, end_token.value);
-
-                        ptcl_parser_syntax_node *buffer = realloc(syntax->nodes, (syntax->count + 1) * sizeof(ptcl_parser_syntax_node));
-                        if (buffer == NULL)
-                        {
-                            ptcl_parser_throw_out_of_memory(parser, location);
-                            ptcl_parser_syntax_destroy(*syntax);
-                            return;
-                        }
-
-                        syntax->nodes = buffer;
-                        syntax->nodes[syntax->count++] = node;
-                        node = ptcl_parser_syntax_node_create_word(end_token.type, ptcl_name_create_fast_w(end_token.value, false));
+                        node = ptcl_parser_syntax_node_create_end_token(next.value);
                     }
                     else
                     {
@@ -2893,6 +2883,13 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                 }
                 else if (strcmp(next.value, "this") == 0)
                 {
+                    if (syntax->count != 0)
+                    {
+                        ptcl_parser_throw_not_allowed_token(parser, current.value, current.location);
+                        ptcl_parser_syntax_destroy(*syntax);
+                        return;
+                    }
+
                     ptcl_parser_except(parser, ptcl_token_right_square_type);
                     if (parser->is_critical)
                     {
@@ -2934,6 +2931,50 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                 ptcl_name_destroy(word);
                 parser->position = start;
                 break;
+            case ptcl_token_left_curly_type:
+                ptcl_parser_except(parser, ptcl_token_right_square_type);
+                if (parser->is_critical)
+                {
+                    ptcl_parser_syntax_destroy(*syntax);
+                    return;
+                }
+
+                depth++;
+                char *left_copy = ptcl_string_duplicate(next.value);
+                if (left_copy == NULL)
+                {
+                    ptcl_parser_syntax_destroy(*syntax);
+                    return;
+                }
+
+                last_location = next.location;
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(left_copy, true, current.location));
+                break;
+            case ptcl_token_right_curly_type:
+                if (depth == 0)
+                {
+                    ptcl_parser_throw_except_token(parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_right_curly_type), next.location);
+                    ptcl_parser_syntax_destroy(*syntax);
+                    return;
+                }
+
+                ptcl_parser_except(parser, ptcl_token_right_square_type);
+                if (parser->is_critical)
+                {
+                    ptcl_parser_syntax_destroy(*syntax);
+                    return;
+                }
+
+                depth--;
+                char *right_copy = ptcl_string_duplicate(next.value);
+                if (right_copy == NULL)
+                {
+                    ptcl_parser_syntax_destroy(*syntax);
+                    return;
+                }
+
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(right_copy, true, current.location));
+                break;
             default:
                 parser->position--;
 
@@ -2966,16 +3007,41 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
             break;
         }
 
+        if (except_end_token)
+        {
+            if (node.type != ptcl_parser_syntax_node_word_type)
+            {
+                ptcl_parser_throw_not_allowed_token(parser, current.value, current.location);
+                ptcl_parser_syntax_node_destroy(node);
+                ptcl_parser_syntax_destroy(*syntax);
+                return;
+            }
+
+            except_end_token = false;
+        }
+        else
+        {
+            except_end_token = node.type == ptcl_parser_syntax_node_variable_type && node.variable.is_variadic;
+        }
+
         ptcl_parser_syntax_node *buffer = realloc(syntax->nodes, (syntax->count + 1) * sizeof(ptcl_parser_syntax_node));
         if (buffer == NULL)
         {
             ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+            ptcl_parser_syntax_node_destroy(node);
             ptcl_parser_syntax_destroy(*syntax);
             return;
         }
 
         syntax->nodes = buffer;
         syntax->nodes[syntax->count++] = node;
+    }
+
+    if (depth != 0)
+    {
+        ptcl_parser_throw_except_token(parser, ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_right_curly_type), last_location);
+        ptcl_parser_syntax_destroy(*syntax);
+        return;
     }
 
     syntax->start = parser->position;
@@ -4453,222 +4519,228 @@ ptcl_name ptcl_parser_name_word_or_type(ptcl_parser *parser)
     return ptcl_parser_name(parser, true);
 }
 
-ptcl_name ptcl_parser_name(ptcl_parser *parser, bool with_type)
+static ptcl_name ptcl_name_expansion(ptcl_parser *parser, bool with_type)
 {
-    ptcl_token operator = ptcl_parser_current(parser);
-    if (operator.type == ptcl_token_exclamation_mark_type)
+    ptcl_parser_skip(parser);
+    const bool is_anonymous = ptcl_parser_match(parser, ptcl_token_tilde_type);
+    ptcl_token current = ptcl_parser_current(parser);
+    ptcl_parser_skip(parser);
+    if (current.type == ptcl_token_less_than_type)
     {
-        ptcl_parser_skip(parser);
-        const bool is_anonymous = ptcl_parser_match(parser, ptcl_token_tilde_type);
-        ptcl_token current = ptcl_parser_current(parser);
-        ptcl_parser_skip(parser);
-        switch (current.type)
-        {
-        case ptcl_token_less_than_type:
-            bool left_succesful;
-            ptcl_name left = ptcl_parser_name(parser, false);
-            if (parser->is_critical)
-            {
-                return (ptcl_name){};
-            }
-
-            ptcl_name right = ptcl_parser_name(parser, false);
-            if (parser->is_critical)
-            {
-                ptcl_name_destroy(left);
-                return (ptcl_name){};
-            }
-
-            ptcl_parser_except(parser, ptcl_token_greater_than_type);
-            if (parser->is_critical)
-            {
-                ptcl_name_destroy(left);
-                ptcl_name_destroy(right);
-                return (ptcl_name){};
-            }
-
-            char *concatenated = ptcl_string(left.value, right.value, NULL);
-            ptcl_name_destroy(left);
-            ptcl_name_destroy(right);
-            if (concatenated == NULL)
-            {
-                ptcl_parser_throw_out_of_memory(parser, left.location);
-                return (ptcl_name){};
-            }
-
-            return ptcl_name_create(concatenated, true, left.location);
-        }
-
-        ptcl_parser_instance *instance;
-        ptcl_name name = ptcl_name_create_fast_w(current.value, is_anonymous);
-        if (!ptcl_parser_try_get_instance(parser, name, ptcl_parser_instance_variable_type, &instance))
-        {
-            ptcl_parser_throw_unknown_variable(parser, name.value, current.location);
-            return (ptcl_name){};
-        }
-
-        bool incorrect_type = false;
-        bool is_free = false;
-        char *value;
-        if (!instance->variable.type.is_static)
-        {
-            incorrect_type = true;
-        }
-        else
-        {
-            switch (instance->variable.type.type)
-            {
-            case ptcl_value_object_type_type:
-                if (!with_type)
-                {
-                    incorrect_type = true;
-                    break;
-                }
-                ptcl_name result = instance->name;
-            case ptcl_value_word_type:
-                if (instance->variable.type.type == ptcl_value_word_type)
-                {
-                    result = instance->variable.built_in->word;
-                }
-
-                return ptcl_name_create(result.value, false, current.location);
-            default:
-                incorrect_type = true;
-                break;
-            }
-        }
-
-        if (incorrect_type)
-        {
-            ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_word, instance->variable.type, current.location);
-            return (ptcl_name){};
-        }
-
-        return (ptcl_name){};
-    }
-    else if (operator.type == ptcl_token_word_word_type)
-    {
-        ptcl_parser_skip(parser);
-        ptcl_location location = ptcl_parser_current(parser).location;
-        ptcl_parser_except(parser, ptcl_token_left_par_type);
+        bool left_succesful;
+        ptcl_name left = ptcl_parser_name(parser, false);
         if (parser->is_critical)
         {
             return (ptcl_name){};
         }
 
-        ptcl_expression *object_type = NULL;
-        ptcl_name target;
-        if (ptcl_parser_current(parser).type == ptcl_token_greater_than_type)
+        ptcl_name right = ptcl_parser_name(parser, false);
+        if (parser->is_critical)
         {
-            object_type = ptcl_parser_value(parser, NULL, false);
-            if (parser->is_critical)
-            {
-                return (ptcl_name){};
-            }
-
-            ptcl_parser_except(parser, ptcl_token_right_par_type);
-            if (parser->is_critical)
-            {
-                ptcl_expression_destroy(object_type);
-                return (ptcl_name){};
-            }
-
-            char *value = ptcl_type_to_word_copy(object_type->object_type.type);
-            ptcl_expression_destroy(object_type);
-            if (value == NULL)
-            {
-                ptcl_parser_throw_out_of_memory(parser, location);
-                return (ptcl_name){};
-            }
-
-            return ptcl_name_create(value, true, location);
+            ptcl_name_destroy(left);
+            return (ptcl_name){};
         }
-        else
+
+        ptcl_parser_except(parser, ptcl_token_greater_than_type);
+        if (parser->is_critical)
         {
-            target = ptcl_parser_name_word(parser);
-            if (parser->is_critical)
+            ptcl_name_destroy(left);
+            ptcl_name_destroy(right);
+            return (ptcl_name){};
+        }
+
+        char *concatenated = ptcl_string(left.value, right.value, NULL);
+        ptcl_name_destroy(left);
+        ptcl_name_destroy(right);
+        if (concatenated == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, left.location);
+            return (ptcl_name){};
+        }
+
+        return ptcl_name_create(concatenated, true, left.location);
+    }
+
+    ptcl_parser_instance *instance;
+    ptcl_name name = ptcl_name_create_fast_w(current.value, is_anonymous);
+    if (!ptcl_parser_try_get_instance(parser, name, ptcl_parser_instance_variable_type, &instance))
+    {
+        ptcl_parser_throw_unknown_variable(parser, name.value, current.location);
+        return (ptcl_name){};
+    }
+
+    bool incorrect_type = false;
+    bool is_free = false;
+    char *value;
+    if (!instance->variable.type.is_static)
+    {
+        incorrect_type = true;
+    }
+    else
+    {
+        switch (instance->variable.type.type)
+        {
+        case ptcl_value_object_type_type:
+            if (!with_type)
             {
-                return (ptcl_name){};
+                incorrect_type = true;
+                break;
             }
+            ptcl_name result = instance->name;
+        case ptcl_value_word_type:
+            if (instance->variable.type.type == ptcl_value_word_type)
+            {
+                result = instance->variable.built_in->word;
+            }
+
+            return ptcl_name_create(result.value, false, current.location);
+        default:
+            incorrect_type = true;
+            break;
+        }
+    }
+
+    if (incorrect_type)
+    {
+        ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_word, instance->variable.type, current.location);
+        return (ptcl_name){};
+    }
+
+    return (ptcl_name){};
+}
+
+static ptcl_name ptcl_parser_to_word(ptcl_parser *parser)
+{
+    ptcl_parser_skip(parser);
+    ptcl_location location = ptcl_parser_current(parser).location;
+    ptcl_parser_except(parser, ptcl_token_left_par_type);
+    if (parser->is_critical)
+    {
+        return (ptcl_name){};
+    }
+
+    ptcl_expression *object_type = NULL;
+    ptcl_name target;
+    if (ptcl_parser_current(parser).type == ptcl_token_greater_than_type)
+    {
+        object_type = ptcl_parser_value(parser, NULL, false);
+        if (parser->is_critical)
+        {
+            return (ptcl_name){};
         }
 
         ptcl_parser_except(parser, ptcl_token_right_par_type);
         if (parser->is_critical)
         {
-            ptcl_name_destroy(target);
+            ptcl_expression_destroy(object_type);
             return (ptcl_name){};
         }
 
-        ptcl_parser_instance *variable;
-        if (!ptcl_parser_try_get_instance(parser, target, ptcl_parser_instance_variable_type, &variable))
+        char *value = ptcl_type_to_word_copy(object_type->object_type.type);
+        ptcl_expression_destroy(object_type);
+        if (value == NULL)
         {
-            ptcl_parser_throw_unknown_variable(parser, target.value, location);
-            ptcl_name_destroy(target);
+            ptcl_parser_throw_out_of_memory(parser, location);
             return (ptcl_name){};
         }
 
-        bool incorrect_type = false;
-        bool is_free = false;
-        char *value;
-        if (!variable->variable.type.is_static)
-        {
-            incorrect_type = true;
-        }
-        else
-        {
-            switch (variable->variable.type.type)
-            {
-            case ptcl_value_object_type_type:
-                is_free = true;
-                value = ptcl_type_to_word_copy(variable->variable.built_in->object_type.type);
-                if (value == NULL)
-                {
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    ptcl_name_destroy(target);
-                    return (ptcl_name){};
-                }
-
-                break;
-            case ptcl_value_integer_type:
-                char *number = ptcl_from_int(variable->variable.built_in->integer_n);
-                if (number == NULL)
-                {
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    ptcl_name_destroy(target);
-                    return (ptcl_name){};
-                }
-
-                value = ptcl_string("_", number, NULL);
-                if (value == NULL)
-                {
-                    free(number);
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    ptcl_name_destroy(target);
-                    return (ptcl_name){};
-                }
-
-                break;
-            case ptcl_value_word_type:
-                value = variable->variable.built_in->word.value;
-                break;
-            default:
-                incorrect_type = true;
-                break;
-            }
-        }
-
-        if (incorrect_type)
-        {
-            ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_word, variable->variable.type, location);
-            ptcl_name_destroy(target);
-            return (ptcl_name){};
-        }
-
-        ptcl_name_destroy(target);
-        return ptcl_name_create(value, is_free, location);
+        return ptcl_name_create(value, true, location);
     }
-    else if (operator.type == ptcl_token_hashtag_type)
+    else
     {
+        target = ptcl_parser_name_word(parser);
+        if (parser->is_critical)
+        {
+            return (ptcl_name){};
+        }
+    }
+
+    ptcl_parser_except(parser, ptcl_token_right_par_type);
+    if (parser->is_critical)
+    {
+        ptcl_name_destroy(target);
+        return (ptcl_name){};
+    }
+
+    ptcl_parser_instance *variable;
+    if (!ptcl_parser_try_get_instance(parser, target, ptcl_parser_instance_variable_type, &variable))
+    {
+        ptcl_parser_throw_unknown_variable(parser, target.value, location);
+        ptcl_name_destroy(target);
+        return (ptcl_name){};
+    }
+
+    bool incorrect_type = false;
+    bool is_free = false;
+    char *value;
+    if (!variable->variable.type.is_static)
+    {
+        incorrect_type = true;
+    }
+    else
+    {
+        switch (variable->variable.type.type)
+        {
+        case ptcl_value_object_type_type:
+            is_free = true;
+            value = ptcl_type_to_word_copy(variable->variable.built_in->object_type.type);
+            if (value == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, location);
+                ptcl_name_destroy(target);
+                return (ptcl_name){};
+            }
+
+            break;
+        case ptcl_value_integer_type:
+            char *number = ptcl_from_int(variable->variable.built_in->integer_n);
+            if (number == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(parser, location);
+                ptcl_name_destroy(target);
+                return (ptcl_name){};
+            }
+
+            value = ptcl_string("_", number, NULL);
+            if (value == NULL)
+            {
+                free(number);
+                ptcl_parser_throw_out_of_memory(parser, location);
+                ptcl_name_destroy(target);
+                return (ptcl_name){};
+            }
+
+            break;
+        case ptcl_value_word_type:
+            value = variable->variable.built_in->word.value;
+            break;
+        default:
+            incorrect_type = true;
+            break;
+        }
+    }
+
+    if (incorrect_type)
+    {
+        ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_word, variable->variable.type, location);
+        ptcl_name_destroy(target);
+        return (ptcl_name){};
+    }
+
+    ptcl_name_destroy(target);
+    return ptcl_name_create(value, is_free, location);
+}
+
+ptcl_name ptcl_parser_name(ptcl_parser *parser, bool with_type)
+{
+    ptcl_token operator = ptcl_parser_current(parser);
+    switch (operator.type)
+    {
+    case ptcl_token_exclamation_mark_type:
+        return ptcl_name_expansion(parser, with_type);
+    case ptcl_token_word_word_type:
+        return ptcl_parser_to_word(parser);
+    case ptcl_token_hashtag_type:
         size_t start = parser->position;
         if (!ptcl_parser_parse_try_syntax_usage_here(parser, false))
         {
@@ -5134,9 +5206,9 @@ bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *n
             if (target->count > count)
             {
                 ptcl_parser_syntax_node last = target->nodes[count];
-                if (last.type == ptcl_parser_syntax_node_variable_type && last.variable.end_token != NULL)
+                if (last.type == ptcl_parser_syntax_node_variable_type && last.variable.is_variadic)
                 {
-                    *end_token = last.variable.end_token;
+                    *end_token = target->nodes[count + 1].word.name.value;
                 }
             }
 

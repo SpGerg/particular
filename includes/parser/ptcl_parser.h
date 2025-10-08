@@ -112,7 +112,7 @@ typedef struct ptcl_parser_syntax_word_variable
 {
     ptcl_type type;
     char *name;
-    char *end_token;
+    bool is_variadic;
 } ptcl_parser_syntax_word_variable;
 
 typedef struct ptcl_parser_tokens_node
@@ -324,18 +324,18 @@ static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_variable(ptcl_type
         .type = ptcl_parser_syntax_node_variable_type,
         .variable = (ptcl_parser_syntax_word_variable){
             .type = type,
-            .end_token = NULL,
+            .is_variadic = false,
             .name = name}};
 }
 
-static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_end_token(char *name, char *end_token)
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_end_token(char *name)
 {
     return (ptcl_parser_syntax_node){
         .type = ptcl_parser_syntax_node_variable_type,
         .variable = (ptcl_parser_syntax_word_variable){
             .name = name,
             .type = ptcl_type_create_array(&ptcl_token_t_type, -1),
-            .end_token = end_token}};
+            .is_variadic = true}};
 }
 
 static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_object_type(ptcl_type type)
