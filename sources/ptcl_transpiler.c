@@ -612,6 +612,10 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
 static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, size_t start, size_t position, size_t length, size_t previous_start)
 {
     bool is_root = false;
+    const size_t original_buffer_pos = ptcl_string_buffer_get_position(transpiler->string_buffer);
+    const bool original_in_inner = transpiler->in_inner;
+    const size_t original_start = transpiler->start;
+    const size_t original_length = transpiler->length;
     if (!transpiler->in_inner)
     {
         ptcl_string_buffer_set_position(transpiler->string_buffer, start);
@@ -635,29 +639,30 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
 
     if (!is_root)
     {
-        transpiler->start = previous_start;
+        transpiler->start = original_start;
     }
     else
     {
-        transpiler->in_inner = false;
+        transpiler->in_inner = original_in_inner;
+        ptcl_string_buffer_set_position(transpiler->string_buffer, original_buffer_pos);
     }
 
-    if (previous_start != -1)
+    if (previous_start != (size_t)-1)
     {
         const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
-        const size_t length_before_body = transpiler->length;
-        const size_t offset = current_length - length_before_body;
+        const size_t offset = current_length - length;
         ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + offset);
     }
     else
     {
         transpiler->from_position = false;
     }
+
 }
 
-// TODO: fix 3 inner problem
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, ptcl_name name, ptcl_type *self)
 {
+    const size_t original_buffer_pos = ptcl_string_buffer_get_position(transpiler->string_buffer);
     if (transpiler->in_inner)
     {
         transpiler->from_position = true;
@@ -667,7 +672,7 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
     int previous_start = -1;
     if (transpiler->start != -1)
     {
-        previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
+        previous_start = (int)original_buffer_pos;
         ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
     }
 

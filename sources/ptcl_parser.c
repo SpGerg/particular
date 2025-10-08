@@ -2547,10 +2547,10 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
     if (is_static)
     {
         ptcl_statement_func_body result;
-        const bool condtion_value = condition->integer_n;
+        const bool condition_value = condition->integer_n;
         ptcl_location location = condition->location;
         ptcl_expression_destroy(condition);
-        if (condtion_value)
+        if (condition_value)
         {
             result = ptcl_parser_func_body(parser, true, false);
             if (parser->is_critical)
@@ -2653,7 +2653,9 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
     {
         ptcl_expression *result;
 
-        if (condition->integer_n)
+        int condition_value = condition->integer_n;
+        ptcl_expression_destroy(condition);
+        if (condition_value)
         {
             result = ptcl_parser_cast(parser, NULL, false);
             if (parser->is_critical)
@@ -4262,6 +4264,20 @@ ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *expected, boo
         {
             return NULL;
         }
+
+        if (with_word)
+        {
+            ptcl_expression *word = ptcl_expression_word_create(word_name, location);
+            if (word == NULL)
+            {
+                ptcl_name_destroy(word_name);
+                ptcl_parser_throw_out_of_memory(parser, location);
+                return NULL;
+            }
+
+            word->return_type.is_static = true;
+            return word;
+        }
     case ptcl_token_word_type:
         if (current.type != ptcl_token_exclamation_mark_type)
         {
@@ -4607,6 +4623,25 @@ ptcl_name ptcl_parser_name(ptcl_parser *parser, bool with_type)
                 value = ptcl_type_to_word_copy(variable->variable.built_in->object_type.type);
                 if (value == NULL)
                 {
+                    ptcl_parser_throw_out_of_memory(parser, location);
+                    ptcl_name_destroy(target);
+                    return (ptcl_name){};
+                }
+
+                break;
+            case ptcl_value_integer_type:
+                char *number = ptcl_from_int(variable->variable.built_in->integer_n);
+                if (number == NULL)
+                {
+                    ptcl_parser_throw_out_of_memory(parser, location);
+                    ptcl_name_destroy(target);
+                    return (ptcl_name){};
+                }
+
+                value = ptcl_string("_", number, NULL);
+                if (value == NULL)
+                {
+                    free(number);
                     ptcl_parser_throw_out_of_memory(parser, location);
                     ptcl_name_destroy(target);
                     return (ptcl_name){};

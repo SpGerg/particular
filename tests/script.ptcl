@@ -99,7 +99,26 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 	}
 }
 
+syntax chain [count: static integer] [prefix: static word] {
+    static if count > 0 {
+        @{
+            function !<!prefix word(count)>(): integer {
+                static if count > 1 {
+                    return #chain count - 1 !prefix
+                } else {
+                    return 1
+                }
+            }
+        }
+        !<!prefix word(count)>()
+    } else {
+        0
+    }
+}
+
 function main(): integer {
+	return #chain 50 func
+
 	#exceptional function test(target: integer*) {
 		value := #deref(>integer)(target)
 	}
