@@ -99,12 +99,14 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 	}
 }
 
-function main(): integer {
-	#exceptional function test(target: integer*) {
-		value := #deref(>integer)(target)
-	}
+function factorial(n: integer): static integer {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
 
-	value := 7
-	test(&value)
+function main(): integer {
+	value := factorial(3)
 	return 0
 }

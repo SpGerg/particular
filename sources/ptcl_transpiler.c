@@ -657,11 +657,15 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
     {
         transpiler->from_position = false;
     }
-
 }
 
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, ptcl_name name, ptcl_type *self)
 {
+    if (func_decl.return_type.is_static)
+    {
+        return;
+    }
+
     const size_t original_buffer_pos = ptcl_string_buffer_get_position(transpiler->string_buffer);
     if (transpiler->in_inner)
     {

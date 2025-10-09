@@ -96,6 +96,8 @@ typedef struct ptcl_parser
     size_t lated_bodies_capacity;
     ptcl_parser_this_s_pair *this_pairs;
     size_t this_pairs_count;
+    bool is_static_parsing;
+    ptcl_expression *returned_value;
 } ptcl_parser;
 
 typedef struct
@@ -497,7 +499,10 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
             NULL, 0,
             parser->root);
         parser->inserted_body = &body;
+        const bool last_static_state = parser->is_static_parsing;
+        parser->is_static_parsing = false;
         ptcl_parser_func_body_by_pointer(parser, parser->inserted_body, true, false);
+        parser->is_static_parsing = last_static_state;
         parser->inserted_body = last_state;
         if (parser->is_critical)
         {
@@ -766,6 +771,8 @@ static void ptcl_parser_reset(ptcl_parser *parser)
     parser->lated_bodies_count = 0;
     parser->this_pairs = NULL;
     parser->this_pairs_count = 0;
+    parser->is_static_parsing = false;
+    parser->returned_value = NULL;
 }
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
@@ -1650,6 +1657,53 @@ ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_
         func_call.is_built_in = true;
         func_call.built_in = result;
     }
+    else if (target.func.return_type.is_static)
+    {
+        ptcl_identifier_destroy(func_call.identifier);
+        for (size_t i = 0; i < func_call.count; i++)
+        {
+            ptcl_argument argument = target.func.arguments[i];
+            ptcl_expression *value = func_call.arguments[i];
+            ptcl_parser_instance instance = ptcl_parser_variable_create(argument.name, value->return_type, value, value->return_type.is_static, target.func.func_body);
+            if (!ptcl_parser_add_instance(parser, instance))
+            {
+                ptcl_parser_throw_out_of_memory(parser, location);
+                for (size_t j = i; j < func_call.count; j++) // Other args will destroyed on parser result destryoing
+                {
+                    ptcl_expression_destroy(func_call.arguments[j]);
+                }
+
+                free(func_call.arguments);
+                return (ptcl_statement_func_call){};
+            }
+        }
+
+        free(func_call.arguments);
+        if (!ptcl_parser_insert_syntax(parser, target.func.body_start, target.func.tokens_count, parser->position, parser->position, false))
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            return (ptcl_statement_func_call){};
+        }
+
+        ptcl_statement_func_body *last_root = parser->root;
+        ptcl_statement_func_body *last_main_root = parser->main_root;
+        parser->root = target.func.func_body;
+        parser->main_root = target.func.func_body;
+        const bool last_state = parser->is_static_parsing;
+        parser->is_static_parsing = true;
+        ptcl_parser_func_body(parser, true, false);
+        parser->is_static_parsing = last_state;
+        parser->root = last_root;
+        parser->main_root = last_main_root;
+        if (parser->is_critical)
+        {
+            return (ptcl_statement_func_call){};
+        }
+
+        func_call.built_in = parser->returned_value;
+        func_call.is_built_in = true;
+        return func_call;
+    }
     else
     {
         func_call.is_built_in = false;
@@ -1678,6 +1732,7 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
 
     ptcl_statement_func_body *previous = parser->root;
     ptcl_statement_func_body *previous_main = parser->main_root;
+    size_t start = parser->position;
     if (change_root)
     {
         parser->root = func_body_pointer;
@@ -1686,6 +1741,11 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
 
     while (true)
     {
+        if (with_brackets && ptcl_parser_match(parser, ptcl_token_right_curly_type))
+        {
+            break;
+        }
+
         if (ptcl_parser_ended(parser))
         {
             if (with_brackets)
@@ -1696,11 +1756,6 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
                 ptcl_statement_func_body_destroy(*func_body_pointer);
             }
 
-            break;
-        }
-
-        if (with_brackets && ptcl_parser_match(parser, ptcl_token_right_curly_type))
-        {
             break;
         }
 
@@ -1736,6 +1791,19 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
         if (statement->type == ptcl_statement_each_type)
         {
             free(statement);
+            continue;
+        }
+
+        if (parser->is_static_parsing)
+        {
+            if (parser->returned_value != NULL)
+            {
+                free(statement);
+                parser->position = start;
+                ptcl_parser_skip_block_or_expression(parser);
+                break;
+            }
+
             continue;
         }
 
@@ -2075,10 +2143,23 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     func_decl.arguments = arguments.arguments;
     func_decl.count = arguments.count;
     func_decl.is_variadic = arguments.has_variadic;
+    func_decl.body_start = parser->position;
+    if (!is_prototype)
+    {
+        ptcl_parser_skip(parser);
+        ptcl_parser_skip_block_or_expression(parser);
+        if (parser->is_critical)
+        {
+            ptcl_statement_func_decl_destroy(func_decl);
+            return (ptcl_statement_func_decl){};
+        }
+
+        func_decl.tokens_count = parser->position - func_decl.body_start;
+    }
+
     ptcl_parser_instance function = ptcl_parser_function_create(is_global ? NULL : parser->root, func_decl);
     ptcl_type *variable_return_type = NULL;
     size_t identifier = parser->instances_count;
-
     if (!parser->is_type_body)
     {
         ptcl_name variable_name = function.name;
@@ -2104,8 +2185,9 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
         }
     }
 
-    if (!is_prototype)
+    if (!return_type.is_static && !is_prototype)
     {
+        parser->position = func_decl.body_start;
         ptcl_type *previous_type = parser->return_type;
         parser->return_type = &return_type;
         for (size_t i = 0; i < func_decl.count; i++)
@@ -2529,7 +2611,18 @@ ptcl_statement_return ptcl_parser_return(ptcl_parser *parser)
         }
     }
 
-    return ptcl_statement_return_create(ptcl_parser_cast(parser, parser->return_type, false));
+    ptcl_expression *value = ptcl_parser_cast(parser, parser->return_type, false);
+    if (parser->is_critical)
+    {
+        return (ptcl_statement_return){};
+    }
+
+    if (parser->is_static_parsing)
+    {
+        parser->returned_value = value;
+    }
+
+    return ptcl_statement_return_create(value);
 }
 
 ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
@@ -2544,7 +2637,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
         return NULL;
     }
 
-    if (is_static)
+    if (is_static || (parser->is_static_parsing && condition->return_type.is_static))
     {
         ptcl_statement_func_body result;
         const bool condition_value = condition->integer_n;
@@ -2601,7 +2694,10 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
         return ptcl_statement_func_body_create_stat(result, location);
     }
 
+    const bool last_state = parser->is_static_parsing;
+    parser->is_static_parsing = false;
     ptcl_statement_func_body body = ptcl_parser_func_body(parser, true, true);
+    parser->is_static_parsing = last_state;
     if (parser->is_critical)
     {
         ptcl_expression_destroy(condition);
@@ -2611,7 +2707,9 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
     ptcl_statement_if if_stat = ptcl_statement_if_create(condition, body, false, (ptcl_statement_func_body){0});
     if (ptcl_parser_match(parser, ptcl_token_else_type))
     {
+        parser->is_static_parsing = false;
         if_stat.else_body = ptcl_parser_func_body(parser, true, true);
+        parser->is_static_parsing = last_state;
         if_stat.with_else = !parser->is_critical;
         if (parser->is_critical)
         {
@@ -2649,7 +2747,7 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
         return NULL;
     }
 
-    if (is_static)
+    if (is_static || (parser->is_static_parsing && condition->return_type.is_static))
     {
         ptcl_expression *result;
 

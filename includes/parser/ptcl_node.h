@@ -344,6 +344,8 @@ typedef struct ptcl_statement_func_decl
     ptcl_type return_type;
     bool is_prototype;
     bool is_variadic;
+    size_t body_start;
+    size_t tokens_count;
 } ptcl_statement_func_decl;
 
 typedef struct ptcl_typedata_member
@@ -1774,6 +1776,7 @@ static ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_expression *
 
     if (finded)
     {
+        free(expression);
         ptcl_expression_destroy(left_child);
         ptcl_expression_destroy(right_child);
         return result;
