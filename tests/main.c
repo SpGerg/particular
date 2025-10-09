@@ -59,7 +59,7 @@ int main()
     ptcl_parser *parser = ptcl_parser_create(&tokens_list, &configuration);
     ptcl_parser_result result = ptcl_parser_parse(parser);
 
-    if (result.count == 0)
+    if (result.errors_count == 0)
     {
         ptcl_transpiler *transpiler = ptcl_transpiler_create(result);
         char *transpiled = ptcl_transpiler_transpile(transpiler);
@@ -70,7 +70,7 @@ int main()
     }
     else
     {
-        for (size_t i = 0; i < result.count; i++)
+        for (size_t i = 0; i < result.errors_count; i++)
         {
             int error_pos = result.errors[i].location.position;
             int line_start = 0;

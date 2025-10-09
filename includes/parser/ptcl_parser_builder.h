@@ -45,7 +45,7 @@ static ptcl_type_comp_type ptcl_comp_type_builder_build_type(ptcl_comp_type_buil
     return ptcl_type_create_comp_type_empty(ptcl_name_create_fast_w(builder->name, false));
 }
 
-static ptcl_parser_instance ptcl_comp_type_builder_build(ptcl_comp_type_builder *builder, ptcl_type_comp_type *type)
+static ptcl_parser_comp_type ptcl_comp_type_builder_build(ptcl_comp_type_builder *builder, ptcl_type_comp_type *type)
 {
     return ptcl_parser_comp_type_create(ptcl_name_create_fast_w(builder->name, false), builder->root, type);
 }
@@ -64,7 +64,7 @@ static ptcl_func_built_in_builder ptcl_func_built_in_builder_create(char *name)
         .count = 0};
 }
 
-static ptcl_parser_instance ptcl_func_built_in_builder_build(ptcl_func_built_in_builder *builder)
+static ptcl_parser_function ptcl_func_built_in_builder_build(ptcl_func_built_in_builder *builder)
 {
     return ptcl_parser_built_in_create(
         builder->root,
@@ -120,7 +120,7 @@ static ptcl_typedata_builder ptcl_typedata_builder_create(char *name)
         .count = 0};
 }
 
-static ptcl_parser_instance ptcl_typedata_builder_build(ptcl_typedata_builder builder)
+static ptcl_parser_typedata ptcl_typedata_builder_build(ptcl_typedata_builder builder)
 {
     return ptcl_parser_typedata_create(builder.root, ptcl_name_create_fast_w(builder.name, false), builder.members, builder.count);
 }
