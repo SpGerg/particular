@@ -13,6 +13,10 @@ UTILITIES_INCLUDES = ./../includes/utilities/
 debug:
 	$(CC) $(CFLAGS) -g main.c $(SOURCES) \
 	-I$(LEXER_INCLUDES) -I$(PARSER_INCLUDES) -I$(TRANSPILER_INCLUDES) -I$(UTILITIES_INCLUDES)
+	
+opt:
+	$(CC) $(CFLAGS) -O5 -g main.c $(SOURCES) \
+	-I$(LEXER_INCLUDES) -I$(PARSER_INCLUDES) -I$(TRANSPILER_INCLUDES) -I$(UTILITIES_INCLUDES)
 
 tests:
 	$(CC) $(TEST_CFLAGS) -g unit\test_parser.c $(SOURCES) \

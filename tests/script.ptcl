@@ -99,14 +99,17 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 	}
 }
 
-function factorial(n: integer): static integer {
-    if n <= 1 {
-        return 1
+function fibonacci(n: static integer): static integer {
+    static if n <= 1 
+	{
+        return n
+    } 
+	else {
+        return fibonacci(n - 1) + fibonacci(n - 2)
     }
-    return n * factorial(n - 1)
 }
 
 function main(): integer {
-	value := factorial(3)
+	value := fibonacci(19)
 	return 0
 }
