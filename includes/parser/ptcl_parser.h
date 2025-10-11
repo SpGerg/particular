@@ -6,6 +6,7 @@
 #include <ptcl_lexer_configuration.h>
 
 #define PTCL_PARSER_MAX_DEPTH 256
+#define PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY 16
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
 #define PTCL_PARSER_EXPRESSION_TYPE_NAME "ptcl_expression_t"
 #define PTCL_PARSER_TOKEN_TYPE_NAME "ptcl_token_t"

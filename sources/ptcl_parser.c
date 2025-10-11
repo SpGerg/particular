@@ -81,14 +81,19 @@ typedef struct ptcl_parser
     size_t errors_count;
     ptcl_parser_syntax *syntaxes;
     size_t syntaxes_count;
+    size_t syntaxes_capacity;
     ptcl_parser_typedata *typedatas;
     size_t typedatas_count;
+    size_t typedatas_capacity;
     ptcl_parser_comp_type *comp_types;
     size_t comp_types_count;
+    size_t comp_types_capacity;
     ptcl_parser_function *functions;
     size_t functions_count;
+    size_t functions_capacity;
     ptcl_parser_variable *variables;
     size_t variables_count;
+    size_t variables_capacity;
     ptcl_statement_func_body *root;
     ptcl_statement_func_body *main_root;
     ptcl_statement_func_body *inserted_body;
@@ -767,32 +772,101 @@ static void ptcl_parser_reset(ptcl_parser *parser)
     parser->return_type = NULL;
     parser->errors = NULL;
     parser->errors_count = 0;
-    parser->syntaxes = NULL;
+
     parser->syntaxes_count = 0;
-    parser->comp_types = NULL;
     parser->comp_types_count = 0;
-    parser->typedatas = NULL;
     parser->typedatas_count = 0;
-    parser->functions = NULL;
     parser->functions_count = 0;
-    parser->variables = NULL;
     parser->variables_count = 0;
+    parser->lated_bodies_count = 0;
+    parser->this_pairs_count = 0;
+
+    parser->syntaxes_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->comp_types_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->typedatas_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->functions_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->variables_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->lated_bodies_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
+    parser->syntaxes = malloc(parser->syntaxes_capacity * sizeof(ptcl_parser_syntax));
+    if (parser->syntaxes == NULL)
+    {
+        goto cleanup;
+    }
+
+    parser->comp_types = malloc(parser->comp_types_capacity * sizeof(ptcl_parser_comp_type));
+    if (parser->comp_types == NULL)
+    {
+        goto cleanup;
+    }
+
+    parser->typedatas = malloc(parser->typedatas_capacity * sizeof(ptcl_parser_typedata));
+    if (parser->typedatas == NULL)
+        goto cleanup;
+
+    parser->functions = malloc(parser->functions_capacity * sizeof(ptcl_parser_function));
+    if (parser->functions == NULL)
+    {
+        goto cleanup;
+    }
+
+    parser->variables = malloc(parser->variables_capacity * sizeof(ptcl_parser_variable));
+    if (parser->variables == NULL)
+    {
+        goto cleanup;
+    }
+
+    parser->lated_bodies = malloc(parser->lated_bodies_capacity * sizeof(ptcl_lated_body));
+    if (parser->lated_bodies == NULL)
+    {
+        goto cleanup;
+    }
+
+    parser->this_pairs = NULL;
     parser->syntax_depth = 0;
     parser->add_errors = true;
     parser->is_syntax_body = true;
     parser->is_type_body = false;
-    parser->lated_bodies = NULL;
-    parser->lated_bodies_capacity = 0;
-    parser->lated_bodies_count = 0;
-    parser->this_pairs = NULL;
-    parser->this_pairs_count = 0;
     parser->is_static_parsing = false;
     parser->returned_value = NULL;
+    return;
+cleanup:
+    ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+    free(parser->syntaxes);
+    free(parser->comp_types);
+    free(parser->typedatas);
+    free(parser->functions);
+    free(parser->variables);
+    free(parser->lated_bodies);
+    parser->syntaxes = NULL;
+    parser->comp_types = NULL;
+    parser->typedatas = NULL;
+    parser->functions = NULL;
+    parser->variables = NULL;
+    parser->lated_bodies = NULL;
+    parser->this_pairs = NULL;
+    parser->syntaxes_count = 0;
+    parser->comp_types_count = 0;
+    parser->typedatas_count = 0;
+    parser->functions_count = 0;
+    parser->variables_count = 0;
+    parser->lated_bodies_count = 0;
+    parser->this_pairs_count = 0;
+    parser->syntaxes_capacity = 0;
+    parser->comp_types_capacity = 0;
+    parser->typedatas_capacity = 0;
+    parser->functions_capacity = 0;
+    parser->variables_capacity = 0;
+    parser->lated_bodies_capacity = 0;
 }
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
 {
     ptcl_parser_reset(parser);
+    if (parser->is_critical)
+    {
+        goto out_of_memory;
+    }
+
     SETUP_STATIC_ANY();
     CREATE_TOKEN_TYPE();
     CREATE_STATEMENT_TYPE();
@@ -5163,13 +5237,18 @@ bool ptcl_parser_add_instance_syntax(ptcl_parser *parser, ptcl_parser_syntax ins
         instance.root = parser->main_root;
     }
 
-    ptcl_parser_syntax *buffer = realloc(parser->syntaxes, (parser->syntaxes_count + 1) * sizeof(ptcl_parser_syntax));
-    if (buffer == NULL)
+    if (parser->syntaxes_count >= parser->syntaxes_capacity)
     {
-        return false;
+        parser->syntaxes_capacity *= 2;
+        ptcl_parser_syntax *buffer = realloc(parser->syntaxes, parser->syntaxes_capacity * sizeof(ptcl_parser_syntax));
+        if (buffer == NULL)
+        {
+            return false;
+        }
+
+        parser->syntaxes = buffer;
     }
 
-    parser->syntaxes = buffer;
     parser->syntaxes[parser->syntaxes_count++] = instance;
     return true;
 }
@@ -5181,13 +5260,18 @@ bool ptcl_parser_add_instance_comp_type(ptcl_parser *parser, ptcl_parser_comp_ty
         instance.root = parser->main_root;
     }
 
-    ptcl_parser_comp_type *buffer = realloc(parser->comp_types, (parser->comp_types_count + 1) * sizeof(ptcl_parser_comp_type));
-    if (buffer == NULL)
+    if (parser->comp_types_count >= parser->comp_types_capacity)
     {
-        return false;
+        parser->comp_types_capacity *= 2;
+        ptcl_parser_comp_type *buffer = realloc(parser->comp_types, parser->comp_types_capacity * sizeof(ptcl_parser_comp_type));
+        if (buffer == NULL)
+        {
+            return false;
+        }
+
+        parser->comp_types = buffer;
     }
 
-    parser->comp_types = buffer;
     parser->comp_types[parser->comp_types_count++] = instance;
     return true;
 }
@@ -5199,13 +5283,18 @@ bool ptcl_parser_add_instance_typedata(ptcl_parser *parser, ptcl_parser_typedata
         instance.root = parser->main_root;
     }
 
-    ptcl_parser_typedata *buffer = realloc(parser->typedatas, (parser->typedatas_count + 1) * sizeof(ptcl_parser_typedata));
-    if (buffer == NULL)
+    if (parser->typedatas_count >= parser->typedatas_capacity)
     {
-        return false;
+        parser->typedatas_capacity *= 2;
+        ptcl_parser_typedata *buffer = realloc(parser->typedatas, parser->typedatas_capacity * sizeof(ptcl_parser_typedata));
+        if (buffer == NULL)
+        {
+            return false;
+        }
+
+        parser->typedatas = buffer;
     }
 
-    parser->typedatas = buffer;
     parser->typedatas[parser->typedatas_count++] = instance;
     return true;
 }
@@ -5217,13 +5306,18 @@ bool ptcl_parser_add_instance_function(ptcl_parser *parser, ptcl_parser_function
         instance.root = parser->main_root;
     }
 
-    ptcl_parser_function *buffer = realloc(parser->functions, (parser->functions_count + 1) * sizeof(ptcl_parser_function));
-    if (buffer == NULL)
+    if (parser->functions_count >= parser->functions_capacity)
     {
-        return false;
+        parser->functions_capacity *= 2;
+        ptcl_parser_function *buffer = realloc(parser->functions, parser->functions_capacity * sizeof(ptcl_parser_function));
+        if (buffer == NULL)
+        {
+            return false;
+        }
+
+        parser->functions = buffer;
     }
 
-    parser->functions = buffer;
     parser->functions[parser->functions_count++] = instance;
     return true;
 }
@@ -5234,14 +5328,19 @@ bool ptcl_parser_add_instance_variable(ptcl_parser *parser, ptcl_parser_variable
     {
         instance.root = parser->main_root;
     }
-    
-    ptcl_parser_variable *buffer = realloc(parser->variables, (parser->variables_count + 1) * sizeof(ptcl_parser_variable));
-    if (buffer == NULL)
+
+    if (parser->variables_count >= parser->variables_capacity)
     {
-        return false;
+        parser->variables_capacity *= 2;
+        ptcl_parser_variable *buffer = realloc(parser->variables, parser->variables_capacity * sizeof(ptcl_parser_variable));
+        if (buffer == NULL)
+        {
+            return false;
+        }
+
+        parser->variables = buffer;
     }
 
-    parser->variables = buffer;
     parser->variables[parser->variables_count++] = instance;
     return true;
 }
