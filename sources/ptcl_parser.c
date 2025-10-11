@@ -128,7 +128,6 @@ static bool ptcl_insert_array_body(ptcl_parser *parser, ptcl_expression *express
     }
 
     size_t current = parser->position;
-    size_t end = current + array.count;
     parser->tokens = buffer;
     parser->count = new_count;
     if (current < old_count)
@@ -437,6 +436,7 @@ static char *ptcl_from_array(ptcl_expression_array array)
     return buffer;
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *name_argument = arguments[0];
@@ -466,7 +466,6 @@ static bool ptcl_insert_body(ptcl_parser *parser, ptcl_token *tokens, size_t cou
     }
 
     size_t current = parser->position;
-    size_t end = current + count;
     parser->tokens = buffer;
     parser->count = new_count;
     if (current < old_count)
@@ -486,6 +485,7 @@ static bool ptcl_insert_body(ptcl_parser *parser, ptcl_token *tokens, size_t cou
     return true;
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *argument = arguments[0];
@@ -540,13 +540,13 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
             if (element == NULL)
             {
                 ptcl_parser_throw_out_of_memory(parser, location);
-                free(statements);
                 ptcl_statement_func_body_destroy(body);
                 for (size_t j = 0; j < i; j++)
                 {
                     free(statements[j]);
                 }
 
+                free(statements);
                 PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
                 return NULL;
             }
@@ -872,6 +872,8 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
         {
             return ptcl_statement_func_body_type;
         }
+
+        break;
     case ptcl_token_word_type:
         if (ptcl_parser_peek(parser, 1).type == ptcl_token_left_par_type)
         {
@@ -911,8 +913,11 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
     case ptcl_token_function_type:
         return ptcl_statement_func_decl_type;
     default:
-        *is_finded = false;
+        break;
     }
+
+    *is_finded = false;
+    return ptcl_statement_func_body_type;
 }
 
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
@@ -1035,6 +1040,8 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
                 ptcl_parser_skip_block_or_expression(parser);
             }
 
+            break;
+        case ptcl_statement_import_type:
             break;
         }
     }
@@ -1321,6 +1328,8 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
     {
         goto destroying;
     }
+
+    return expression;
 }
 
 bool ptcl_parser_parse_try_syntax_usage(
@@ -1343,7 +1352,6 @@ bool ptcl_parser_parse_try_syntax_usage(
         count);
     ptcl_parser_syntax result;
     bool found = false;
-
     while (!ptcl_parser_ended(parser))
     {
         if (!skip_first)
@@ -1953,7 +1961,6 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
     }
 
     parser->position = start;
-    size_t position = parser->position;
     ptcl_parser_extra_body(parser, with_syntax);
     if (parser->is_critical)
     {
@@ -2054,11 +2061,11 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
     case ptcl_token_exclamation_mark_type:
         parser->position--;
         ptcl_name name = ptcl_parser_name_word_or_type(parser);
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough="
         if (parser->is_critical)
         {
             break;
         }
-
     case ptcl_token_word_type:
         // TODO: search type by name in one loop
         if (current.type == ptcl_token_word_type)
@@ -2096,7 +2103,7 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
         }
 
         ptcl_name_destroy(name);
-        // Fallthrough
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough="
     default:
         parse_success = false;
         ptcl_parser_throw_unknown_type(parser, current.value, current.location);
@@ -2162,8 +2169,6 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
         ptcl_name_destroy(name);
         return (ptcl_statement_func_decl){};
     }
-
-    ptcl_statement_func_body func_body = ptcl_statement_func_body_create(NULL, 0, parser->root);
 
     // We set prototype, because on freeing we dont have body
     ptcl_statement_func_decl func_decl = ptcl_statement_func_decl_create(name, NULL, 0, NULL, ptcl_type_integer, true, false);
@@ -2477,7 +2482,7 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_prot
     }
 
     *comp_type = ptcl_type_create_comp_type(decl);
-    ptcl_parser_comp_type instance = ptcl_parser_comp_type_create(comp_type->identifier, is_global ? NULL : parser->root, comp_type);
+    ptcl_parser_comp_type instance = ptcl_parser_comp_type_create(is_global ? NULL : parser->root, comp_type);
     if (!ptcl_parser_add_instance_comp_type(parser, instance))
     {
         ptcl_parser_throw_out_of_memory(parser, location);
@@ -3079,7 +3084,7 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                     return;
                 }
 
-                if (ptcl_parser_try_get_variable(parser, word, &variable) && variable->type.type == ptcl_expression_object_type_type)
+                if (ptcl_parser_try_get_variable(parser, word, &variable) && variable->type.type == ptcl_value_object_type_type)
                 {
                     node = ptcl_parser_syntax_node_create_object_type(*ptcl_type_get_target(variable->type));
                     ptcl_name_destroy(word);
@@ -3505,6 +3510,8 @@ ptcl_expression *ptcl_parser_binary(ptcl_parser *parser, ptcl_type *expected, bo
                 break;
             case ptcl_binary_operator_less_than_type:
                 type = ptcl_binary_operator_less_equals_than_type;
+                break;
+            default:
                 break;
             }
 
@@ -4033,7 +4040,6 @@ static ptcl_expression *ptcl_parser_at(ptcl_parser *parser, ptcl_type *expected,
 
 static ptcl_expression *ptcl_parser_lated_body_void(ptcl_parser *parser, ptcl_location location)
 {
-    size_t start = parser->position;
     ptcl_type *previous = parser->return_type;
     parser->return_type = &ptcl_type_void;
     size_t block_start = parser->position - 1;
@@ -4727,7 +4733,6 @@ static ptcl_name ptcl_name_expansion(ptcl_parser *parser, bool with_type)
     ptcl_parser_skip(parser);
     if (current.type == ptcl_token_less_than_type)
     {
-        bool left_succesful;
         ptcl_name left = ptcl_parser_name(parser, false);
         if (parser->is_critical)
         {
@@ -4770,8 +4775,6 @@ static ptcl_name ptcl_name_expansion(ptcl_parser *parser, bool with_type)
     }
 
     bool incorrect_type = false;
-    bool is_free = false;
-    char *value;
     if (!instance->type.is_static)
     {
         incorrect_type = true;
@@ -4786,6 +4789,7 @@ static ptcl_name ptcl_name_expansion(ptcl_parser *parser, bool with_type)
                 incorrect_type = true;
                 break;
             }
+
             ptcl_name result = instance->name;
         case ptcl_value_word_type:
             if (instance->type.type == ptcl_value_word_type)
@@ -4951,6 +4955,8 @@ ptcl_name ptcl_parser_name(ptcl_parser *parser, bool with_type)
         ptcl_name name = ptcl_parser_name(parser, with_type);
         ptcl_parser_leave_from_syntax(parser);
         return name;
+    default:
+        break;
     }
 
     const bool is_anonymous = ptcl_parser_match(parser, ptcl_token_tilde_type);
@@ -4968,6 +4974,7 @@ ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, pt
     ptcl_expression *result = NULL;
     switch (type.type)
     {
+    case ptcl_value_void_type:
     case ptcl_value_array_type:
     case ptcl_value_type_type:
         ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_any, type, location);
@@ -5015,6 +5022,7 @@ ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, pt
 
         ctor->ctor = ptcl_expression_ctor_create(typedata_name, expressions, instance->count);
         return ctor;
+    case ptcl_value_function_pointer_type:
     case ptcl_value_pointer_type:
         result = ptcl_expression_create_null(location);
         break;
@@ -5150,6 +5158,11 @@ bool ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement_func_body *bod
 
 bool ptcl_parser_add_instance_syntax(ptcl_parser *parser, ptcl_parser_syntax instance)
 {
+    if (instance.root != NULL && parser->syntax_depth > 0 && !instance.name.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+
     ptcl_parser_syntax *buffer = realloc(parser->syntaxes, (parser->syntaxes_count + 1) * sizeof(ptcl_parser_syntax));
     if (buffer == NULL)
     {
@@ -5163,6 +5176,11 @@ bool ptcl_parser_add_instance_syntax(ptcl_parser *parser, ptcl_parser_syntax ins
 
 bool ptcl_parser_add_instance_comp_type(ptcl_parser *parser, ptcl_parser_comp_type instance)
 {
+    if (instance.root != NULL && parser->syntax_depth > 0 && !instance.comp_type->identifier.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+
     ptcl_parser_comp_type *buffer = realloc(parser->comp_types, (parser->comp_types_count + 1) * sizeof(ptcl_parser_comp_type));
     if (buffer == NULL)
     {
@@ -5176,6 +5194,11 @@ bool ptcl_parser_add_instance_comp_type(ptcl_parser *parser, ptcl_parser_comp_ty
 
 bool ptcl_parser_add_instance_typedata(ptcl_parser *parser, ptcl_parser_typedata instance)
 {
+    if (instance.root != NULL && parser->syntax_depth > 0 && !instance.name.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+
     ptcl_parser_typedata *buffer = realloc(parser->typedatas, (parser->typedatas_count + 1) * sizeof(ptcl_parser_typedata));
     if (buffer == NULL)
     {
@@ -5189,6 +5212,11 @@ bool ptcl_parser_add_instance_typedata(ptcl_parser *parser, ptcl_parser_typedata
 
 bool ptcl_parser_add_instance_function(ptcl_parser *parser, ptcl_parser_function instance)
 {
+    if (instance.root != NULL && parser->syntax_depth > 0 && !instance.name.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+
     ptcl_parser_function *buffer = realloc(parser->functions, (parser->functions_count + 1) * sizeof(ptcl_parser_function));
     if (buffer == NULL)
     {
@@ -5202,6 +5230,11 @@ bool ptcl_parser_add_instance_function(ptcl_parser *parser, ptcl_parser_function
 
 bool ptcl_parser_add_instance_variable(ptcl_parser *parser, ptcl_parser_variable instance)
 {
+    if (instance.root != NULL && parser->syntax_depth > 0 && !instance.name.is_anonymous)
+    {
+        instance.root = parser->main_root;
+    }
+    
     ptcl_parser_variable *buffer = realloc(parser->variables, (parser->variables_count + 1) * sizeof(ptcl_parser_variable));
     if (buffer == NULL)
     {
@@ -5342,7 +5375,6 @@ bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *func
         }
     }
 
-    bool breaked = false;
     for (size_t j = 0; j < function->func.count; j++)
     {
         ptcl_argument argument = function->func.arguments[j];
@@ -5393,6 +5425,7 @@ bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *n
 {
     *syntax = NULL;
     *can_continue = false;
+    *end_token = NULL;
     bool full_match_found = false;
     for (int i = parser->syntaxes_count - 1; i >= 0; i--)
     {
@@ -5859,7 +5892,7 @@ void ptcl_parser_result_destroy(ptcl_parser_result result)
         free(result.lated_bodies);
     }
 
-    if (result.this_pairs > 0)
+    if (result.this_pairs_count > 0)
     {
         free(result.this_pairs);
     }

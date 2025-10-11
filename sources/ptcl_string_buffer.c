@@ -75,7 +75,7 @@ bool ptcl_string_buffer_insert(ptcl_string_buffer *string_buffer, char value)
         return false;
     }
 
-    if (string_buffer->position == string_buffer->capacity || string_buffer->position < 0)
+    if (string_buffer->position == string_buffer->capacity)
     {
         return ptcl_string_buffer_append(string_buffer, value);
     }
@@ -104,11 +104,6 @@ bool ptcl_string_buffer_insert_str(ptcl_string_buffer *string_buffer, char *valu
     if (string_buffer->position > string_buffer->capacity)
     {
         return false;
-    }
-
-    if (string_buffer->position < 0)
-    {
-        return ptcl_string_buffer_append_str(string_buffer, value, count);
     }
 
     if (count == 0)

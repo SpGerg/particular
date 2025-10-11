@@ -218,7 +218,7 @@ static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_fun
         .tokens_count = tokens_count};
 }
 
-static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_type_comp_type *type)
+static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_type_comp_type *type)
 {
     return (ptcl_parser_comp_type){
         .root = root,
@@ -281,7 +281,7 @@ static ptcl_parser_function ptcl_parser_built_in_create(ptcl_statement_func_body
 static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_typedata_member *members, size_t count)
 {
     return (ptcl_parser_typedata){
-        .root = NULL,
+        .root = root,
         .name = name,
         .is_out_of_scope = false,
         .members = members,

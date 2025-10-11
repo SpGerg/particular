@@ -13,7 +13,7 @@ typedef struct ptcl_transpiler
     ptcl_statement_func_body *root;
     ptcl_statement_func_body *main_root;
     ptcl_transpiler_anonymous *anonymouses;
-    size_t anonymous_count;
+    int anonymous_count;
     bool from_position;
     bool in_inner;
     bool add_stdlib;
@@ -156,7 +156,7 @@ char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
     }
 
     char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
-    for (size_t i = 0; i < transpiler->anonymous_count; i++)
+    for (int i = 0; i < transpiler->anonymous_count; i++)
     {
         free(transpiler->anonymouses[i].alias);
     }
@@ -314,6 +314,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     if (with_brackets)
     {
         func_body.root = transpiler->root;
+        #pragma GCC diagnostic ignored "-Wdangling-pointer="
         transpiler->root = &func_body;
     }
 
@@ -341,7 +342,6 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
 
 void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *statement, bool is_func_body)
 {
-    size_t start = ptcl_string_buffer_get_position(transpiler->string_buffer);
     transpiler->from_position = transpiler->in_inner ? transpiler->from_position : false;
 
     switch (statement->type)
@@ -437,7 +437,6 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
             ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
         }
 
-        const size_t position = ptcl_string_buffer_get_position(transpiler->string_buffer);
         const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
         ptcl_transpiler_append_word_s(transpiler, "typedef struct");
         ptcl_transpiler_add_name(transpiler, statement->typedata_decl.name, true);
@@ -491,6 +490,12 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         }
 
         break;
+    case ptcl_statement_each_type:
+    case ptcl_statement_syntax_type:
+    case ptcl_statement_unsyntax_type:
+    case ptcl_statement_undefine_type:
+    case ptcl_statement_import_type:
+        break;
     }
 }
 
@@ -516,7 +521,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
     bool added = false;
     if (transpiler->root != transpiler->main_root)
     {
-        for (int i = 0; i < transpiler->variables_count; i++)
+        for (size_t i = 0; i < transpiler->variables_count; i++)
         {
             ptcl_transpiler_variable variable = transpiler->variables[i];
             if (variable.root == transpiler->main_root)
@@ -615,7 +620,6 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
     const size_t original_buffer_pos = ptcl_string_buffer_get_position(transpiler->string_buffer);
     const bool original_in_inner = transpiler->in_inner;
     const size_t original_start = transpiler->start;
-    const size_t original_length = transpiler->length;
     if (!transpiler->in_inner)
     {
         ptcl_string_buffer_set_position(transpiler->string_buffer, start);
@@ -941,6 +945,12 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_word_s(transpiler, "NULL");
         transpiler->add_stdlib = true;
         break;
+    case ptcl_expression_object_type_type:
+    case ptcl_expression_lated_func_body_type:
+    case ptcl_expression_in_statement_type:
+    case ptcl_expression_in_expression_type:
+    case ptcl_expression_in_token_type:
+        break;
     }
 }
 
@@ -1096,6 +1106,10 @@ bool ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type ty
     case ptcl_value_void_type:
         ptcl_transpiler_append_word_s(transpiler, "void");
         break;
+    case ptcl_value_function_pointer_type:
+    case ptcl_value_object_type_type:
+    case ptcl_value_any_type:
+        break;
     }
 
     if (name.value != NULL &&
@@ -1159,6 +1173,9 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
         break;
     case ptcl_binary_operator_less_equals_than_type:
         value = "<=";
+        break;
+    case ptcl_binary_operator_type_equals_type:
+    case ptcl_binary_operator_none_type:
         break;
     }
 

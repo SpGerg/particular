@@ -1,7 +1,7 @@
 NAME = ptcl
 TEST_NAME = ptcl_test
 CC = gcc
-CFLAGS = -o $(NAME)
+CFLAGS = -o $(NAME) -Wall -Wextra -Wno-unused-function -Wno-unused-variable
 TEST_CFLAGS = -o $(TEST_NAME)
 
 SOURCES = $(wildcard ../sources/*.c)
@@ -11,11 +11,7 @@ TRANSPILER_INCLUDES = ./../includes/transpiler/
 UTILITIES_INCLUDES = ./../includes/utilities/
 
 debug:
-	$(CC) $(CFLAGS) -g main.c $(SOURCES) \
-	-I$(LEXER_INCLUDES) -I$(PARSER_INCLUDES) -I$(TRANSPILER_INCLUDES) -I$(UTILITIES_INCLUDES)
-	
-opt:
-	$(CC) $(CFLAGS) -O5 -g main.c $(SOURCES) \
+	$(CC) $(CFLAGS) -O0 -g main.c $(SOURCES) \
 	-I$(LEXER_INCLUDES) -I$(PARSER_INCLUDES) -I$(TRANSPILER_INCLUDES) -I$(UTILITIES_INCLUDES)
 
 tests:

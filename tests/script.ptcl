@@ -110,6 +110,18 @@ function fibonacci(n: static integer): static integer {
 }
 
 function main(): integer {
-	value := fibonacci(21)
+	#object dog {
+		name: character*
+	} with {
+		function constructor(name: character*): void {
+
+		}
+
+		function destructor(): void {
+			
+		}
+	}
+
+	asd := #create dog("Tom")
 	return 0
 }
