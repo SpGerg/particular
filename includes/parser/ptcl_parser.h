@@ -7,6 +7,7 @@
 
 #define PTCL_PARSER_MAX_DEPTH 256
 #define PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY 16
+#define PTCL_PARSER_DECL_INSERT_DEPTH 16
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
 #define PTCL_PARSER_EXPRESSION_TYPE_NAME "ptcl_expression_t"
 #define PTCL_PARSER_TOKEN_TYPE_NAME "ptcl_token_t"
@@ -65,11 +66,17 @@ static ptcl_type ptcl_token_t_type = {
     .is_static = true,
     .comp_type = &ptcl_token_comp_type};
 
+typedef struct ptcl_parser_tokens_state
+{
+    size_t position;
+    ptcl_token *tokens;
+    size_t count;
+} ptcl_parser_tokens_state;
+
 typedef struct ptcl_parser_this_s_pair
 {
     ptcl_statement_func_body *body;
-    size_t start;
-    size_t tokens_count;
+    ptcl_parser_tokens_state state;
 } ptcl_parser_this_s_pair;
 
 typedef struct ptcl_parser_function ptcl_parser_function;
@@ -91,7 +98,7 @@ typedef struct ptcl_parser_typedata
 {
     ptcl_statement_func_body *root;
     ptcl_name name;
-    ptcl_typedata_member *members;
+    ptcl_argument *members;
     size_t count;
     bool is_out_of_scope;
 } ptcl_parser_typedata;
@@ -149,10 +156,15 @@ typedef struct ptcl_parser_syntax
     ptcl_statement_func_body *root;
     ptcl_parser_syntax_node *nodes;
     size_t count;
-    size_t start;
-    size_t tokens_count;
+    size_t index;
     bool is_out_of_scope;
 } ptcl_parser_syntax;
+
+typedef struct ptcl_parser_syntax_pair
+{
+    ptcl_parser_syntax syntax;
+    ptcl_parser_tokens_state state;
+} ptcl_parser_syntax_pair;
 
 typedef struct ptcl_parser ptcl_parser;
 typedef ptcl_expression *(*ptcl_built_in_function_t)(
@@ -181,13 +193,6 @@ typedef enum ptcl_parser_instance_type
     ptcl_parser_instance_syntax_type
 } ptcl_parser_instance_type;
 
-typedef struct ptcl_lated_body
-{
-    ptcl_token *tokens;
-    size_t count;
-    size_t start;
-} ptcl_lated_body;
-
 typedef struct ptcl_parser_result
 {
     ptcl_lexer_configuration *configuration;
@@ -204,19 +209,25 @@ typedef struct ptcl_parser_result
     size_t functions_count;
     ptcl_parser_variable *variables;
     size_t variables_count;
-    ptcl_lated_body *lated_bodies;
-    size_t lated_bodies_count;
+    ptcl_parser_tokens_state *lated_states;
+    size_t lated_states_count;
     ptcl_parser_this_s_pair *this_pairs;
     size_t this_pairs_count;
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, size_t start, size_t tokens_count)
+static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state)
+{
+    return (ptcl_parser_syntax_pair){
+        .syntax = syntax,
+        .state = state};
+}
+
+static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, ptcl_parser_tokens_state state)
 {
     return (ptcl_parser_this_s_pair){
         .body = body,
-        .start = start,
-        .tokens_count = tokens_count};
+        .state = state};
 }
 
 static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_type_comp_type *type)
@@ -279,7 +290,7 @@ static ptcl_parser_function ptcl_parser_built_in_create(ptcl_statement_func_body
             .return_type = return_type}};
 }
 
-static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_typedata_member *members, size_t count)
+static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_argument *members, size_t count)
 {
     return (ptcl_parser_typedata){
         .root = root,
@@ -289,14 +300,15 @@ static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body
         .count = count};
 }
 
-static ptcl_parser_syntax ptcl_parser_syntax_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count)
+static ptcl_parser_syntax ptcl_parser_syntax_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count, size_t index)
 {
     return (ptcl_parser_syntax){
         .root = root,
         .name = name,
         .is_out_of_scope = false,
         .nodes = nodes,
-        .count = count};
+        .count = count,
+        .index = index};
 }
 
 static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_word(ptcl_token_type type, ptcl_name name)
@@ -418,7 +430,7 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
 ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_function *function, bool is_expression);
 
-ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
+ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global, bool is_static);
 
 ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
 
@@ -482,13 +494,31 @@ ptcl_token ptcl_parser_peek(ptcl_parser *parser, size_t offset);
 
 ptcl_token ptcl_parser_current(ptcl_parser *parser);
 
+ptcl_parser_tokens_state ptcl_parser_state(ptcl_parser *parser);
+
+void ptcl_parser_set_state(ptcl_parser *parser, ptcl_parser_tokens_state state);
+
+ptcl_token *ptcl_parser_tokens(ptcl_parser *parser);
+
+void ptcl_parser_set_tokens(ptcl_parser *parser, ptcl_token *tokens);
+
+size_t ptcl_parser_count(ptcl_parser *parser);
+
+void ptcl_parser_set_count(ptcl_parser *parser, size_t count);
+
+size_t ptcl_parser_position(ptcl_parser *parser);
+
+void ptcl_parser_set_position(ptcl_parser *parser, size_t position);
+
 void ptcl_parser_skip(ptcl_parser *parser);
+
+void ptcl_parser_back(ptcl_parser *parser);
 
 bool ptcl_parser_ended(ptcl_parser *parser);
 
 bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance);
 
-bool ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement_func_body *body);
+ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *statement, ptcl_statement_func_body *body);
 
 bool ptcl_parser_add_instance_syntax(ptcl_parser *parser, ptcl_parser_syntax instance);
 
@@ -510,13 +540,15 @@ bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_pars
 
 bool ptcl_parser_try_get_variable(ptcl_parser *parser, ptcl_name name, ptcl_parser_variable **instance);
 
+int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, ptcl_location location);
+
 bool ptcl_parser_is_defined(ptcl_parser *parser, ptcl_name name);
 
 bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression **arguments, size_t count);
 
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *can_continue, char **end_token);
 
-bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, char *member_name, ptcl_typedata_member **member);
+bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, char *member_name, ptcl_argument **member, size_t *index);
 
 void ptcl_parser_clear_scope(ptcl_parser *parser);
 
@@ -550,7 +582,7 @@ void ptcl_parser_throw_unknown_variable(ptcl_parser *parser, char *name, ptcl_lo
 
 void ptcl_parser_throw_unknown_syntax(ptcl_parser *parser, ptcl_parser_syntax syntax, ptcl_location location);
 
-void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression **values, size_t count, ptcl_location location);
+void ptcl_parser_throw_wrong_arguments(ptcl_parser *parser, char *name, ptcl_expression **values, size_t count, ptcl_argument *arguments, size_t arguments_count, ptcl_location location);
 
 void ptcl_parser_throw_max_depth(ptcl_parser *parser, ptcl_location location);
 

@@ -99,17 +99,33 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 	}
 }
 
-function fibonacci(n: static integer): static integer {
-    static if n <= 1 
-	{
-        return n
-    } 
+syntax fibonacci of [value: static integer] {
+	static if value <= 0 {
+		0
+	}
 	else {
-        return fibonacci(n - 1) + fibonacci(n - 2)
-    }
+		static if value == 1 {
+			1
+		}
+		else {	
+			(#fibonacci of (value - 2)) + (#fibonacci of (value - 1))
+		}
+	}
 }
 
 function main(): integer {
-	asd := fibonacci(23)
+	#object dog {
+		fibonacci: integer
+	} with {
+		function constructor(fibonacci: integer): void {
+			self.fibonacci = fibonacci
+		}
+
+		function destructor(): void {
+			self.fibonacci = -1
+		}
+	}
+
+	instance := #create dog(#fibonacci of 21)
 	return 0
 }

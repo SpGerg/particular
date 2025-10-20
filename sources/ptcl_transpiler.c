@@ -443,7 +443,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '{');
         for (size_t i = 0; i < statement->typedata_decl.count; i++)
         {
-            ptcl_typedata_member member = statement->typedata_decl.members[i];
+            ptcl_argument member = statement->typedata_decl.members[i];
             ptcl_transpiler_add_type_and_name(transpiler, member.type, member.name, NULL, false, false);
             ptcl_transpiler_append_character(transpiler, ';');
         }

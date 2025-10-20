@@ -8,7 +8,7 @@ typedef struct ptcl_typedata_builder
 {
     char *name;
     ptcl_statement_func_body *root;
-    ptcl_typedata_member *members;
+    ptcl_argument *members;
     size_t count;
 } ptcl_typedata_builder;
 
@@ -140,14 +140,14 @@ static void ptcl_typedata_builder_destroy(ptcl_typedata_builder *builder)
 
 static bool ptcl_typedata_builder_add_member(ptcl_typedata_builder *builder, char *name, ptcl_type type)
 {
-    ptcl_typedata_member *buffer = realloc(builder->members, (builder->count + 1) * sizeof(ptcl_typedata_member));
+    ptcl_argument *buffer = realloc(builder->members, (builder->count + 1) * sizeof(ptcl_argument));
     if (buffer == NULL)
     {
         return false;
     }
 
     builder->members = buffer;
-    builder->members[builder->count] = ptcl_typedata_member_create(ptcl_name_create_fast_w(name, false), type, builder->count);
+    builder->members[builder->count] = ptcl_argument_create(type, ptcl_name_create_fast_w(name, false));
     builder->count++;
     return true;
 }
