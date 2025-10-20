@@ -1005,10 +1005,16 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
 {
     if (parser->is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, true))
     {
+        size_t depth = parser->syntax_depth;
         ptcl_attributes attributes = ptcl_parser_parse_attributes(parser);
         if (parser->is_critical)
         {
-            ptcl_parser_leave_from_syntax(parser);
+        leave:
+            if (parser->syntax_depth == depth)
+            {
+                ptcl_parser_leave_from_syntax(parser);
+            }
+
             return NULL;
         }
 
@@ -1016,9 +1022,9 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         ptcl_statement *statement = ptcl_statement_create(ptcl_statement_func_body_type, parser->root, attributes, location);
         if (statement == NULL)
         {
-            ptcl_parser_leave_from_syntax(parser);
             ptcl_attributes_destroy(attributes);
             ptcl_parser_throw_out_of_memory(parser, location);
+            goto leave;
             return NULL;
         }
 
@@ -1033,6 +1039,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         {
             free(statement);
             ptcl_attributes_destroy(attributes);
+            goto leave;
             return NULL;
         }
 
