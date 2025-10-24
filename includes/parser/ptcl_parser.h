@@ -518,6 +518,8 @@ bool ptcl_parser_ended(ptcl_parser *parser);
 
 bool ptcl_parser_critical(ptcl_parser *parser);
 
+ptcl_statement_func_body *ptcl_parser_root(ptcl_parser *parser);
+
 size_t ptcl_parser_variables_count(ptcl_parser *parser);
 
 ptcl_parser_variable *ptcl_parser_variables(ptcl_parser *parser);

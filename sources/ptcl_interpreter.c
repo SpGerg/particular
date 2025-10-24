@@ -264,7 +264,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         for (size_t i = 0; i < count; i++)
         {
             ptcl_parser_variable variable = variables[i];
-            if (variable.is_out_of_scope || !variable.is_built_in)
+            if (variable.is_out_of_scope || !variable.is_built_in || !ptcl_func_body_can_access(variable.root, ptcl_parser_root(interpreter->parser)))
             {
                 continue;
             }
