@@ -132,7 +132,7 @@ syntax let [name: static word] {
 }
 
 syntax value {
-	2 +
+	
 }
 
 function main(): integer {

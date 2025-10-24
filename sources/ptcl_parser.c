@@ -5015,6 +5015,16 @@ inline bool ptcl_parser_critical(ptcl_parser *parser)
     return parser->is_critical;
 }
 
+inline size_t ptcl_parser_variables_count(ptcl_parser *parser)
+{
+    return parser->variables_count;
+}
+
+inline ptcl_parser_variable *ptcl_parser_variables(ptcl_parser *parser)
+{
+    return parser->variables;
+}
+
 bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance)
 {
     ptcl_parser_this_s_pair *buffer = realloc(parser->this_pairs, (parser->this_pairs_count + 1) * sizeof(ptcl_parser_this_s_pair));

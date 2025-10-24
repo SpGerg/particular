@@ -12,6 +12,7 @@ typedef struct ptcl_interpreter
     ptcl_interpreter_variable *variables;
     size_t variables_count;
     size_t variables_capacity;
+    bool is_busy;
 } ptcl_interpreter;
 
 ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
@@ -31,6 +32,7 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
         return NULL;
     }
 
+    interpreter->is_busy = false;
     return interpreter;
 }
 
@@ -253,6 +255,28 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
 ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, ptcl_location location)
 {
+    const bool is_root = !interpreter->is_busy;
+    if (is_root)
+    {
+        interpreter->is_busy = true;
+        size_t count = ptcl_parser_variables_count(interpreter->parser);
+        ptcl_parser_variable *variables = ptcl_parser_variables(interpreter->parser);
+        for (size_t i = 0; i < count; i++)
+        {
+            ptcl_parser_variable variable = variables[i];
+            if (variable.is_out_of_scope || !variable.is_built_in)
+            {
+                continue;
+            }
+
+            if (!ptcl_interpreter_add_variable(interpreter, variable.name, variable.built_in))
+            {
+                ptcl_parser_throw_out_of_memory(interpreter->parser, location);
+                return NULL;
+            }
+        }
+    }
+
     size_t variables_count = interpreter->variables_count;
     for (size_t i = 0; i < func_call.count; i++)
     {
