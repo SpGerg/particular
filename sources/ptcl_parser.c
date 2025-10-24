@@ -3254,8 +3254,9 @@ void ptcl_parser_each(ptcl_parser *parser)
         }
     }
 
-    size_t count = ptcl_parser_root(parser)->count + empty.count;
-    ptcl_statement **buffer = realloc(ptcl_parser_root(parser)->statements, count * sizeof(ptcl_statement *));
+    ptcl_statement_func_body *body_root = ptcl_parser_root(parser);
+    size_t count = body_root->count + empty.count;
+    ptcl_statement **buffer = realloc(body_root->statements, count * sizeof(ptcl_statement *));
     if (buffer == NULL)
     {
         ptcl_parser_throw_out_of_memory(parser, location);
@@ -3264,13 +3265,13 @@ void ptcl_parser_each(ptcl_parser *parser)
         return;
     }
 
-    ptcl_parser_root(parser)->statements = buffer;
+    body_root->statements = buffer;
     for (size_t i = 0; i < empty.count; i++)
     {
-        ptcl_parser_root(parser)->statements[i + ptcl_parser_root(parser)->count] = empty.statements[i];
+        body_root->statements[i + body_root->count] = empty.statements[i];
     }
 
-    ptcl_parser_root(parser)->count = count;
+    body_root->count = count;
     free(empty.statements);
     ptcl_expression_destroy(value);
 }
