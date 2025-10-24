@@ -12,6 +12,7 @@ typedef enum ptcl_token_type
     ptcl_token_character_type,
     ptcl_token_number_type,
     ptcl_token_global_type,
+    ptcl_token_auto_type,
     ptcl_token_return_type,
     ptcl_token_static_type,
     ptcl_token_pointer_type,

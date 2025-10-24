@@ -4,7 +4,7 @@
 #include <string.h>
 #include <ptcl_token.h>
 
-#define PTCL_LEXER_CONFIGURATION_TOKENS_COUNT 54
+#define PTCL_LEXER_CONFIGURATION_TOKENS_COUNT 55
 #define PTCL_LEXER_CONFIGURATION_ADD_TOKEN(type, value) ptcl_lexer_configuration_add_token(configuration_pointer, type, value); // internal
 
 typedef struct ptcl_lexer_token_config
@@ -39,6 +39,7 @@ static ptcl_lexer_configuration ptcl_lexer_configuration_default()
     ptcl_lexer_configuration configuration = {.count = 0};
     ptcl_lexer_configuration *configuration_pointer = &configuration;
 
+    PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_auto_type, "auto");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_global_type, "global");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_null_type, "null");
     PTCL_LEXER_CONFIGURATION_ADD_TOKEN(ptcl_token_none_type, "none");

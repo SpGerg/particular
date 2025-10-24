@@ -12,7 +12,6 @@ typedef struct ptcl_interpreter
     ptcl_interpreter_variable *variables;
     size_t variables_count;
     size_t variables_capacity;
-    bool is_busy;
 } ptcl_interpreter;
 
 ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
@@ -24,7 +23,6 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
     }
 
     interpreter->parser = parser;
-    interpreter->is_busy = false;
     interpreter->variables_capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
     interpreter->variables = malloc(interpreter->variables_capacity * sizeof(ptcl_interpreter_variable));
     if (interpreter->variables == NULL)
@@ -255,7 +253,6 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
 ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, ptcl_location location)
 {
-    interpreter->is_busy = true;
     size_t variables_count = interpreter->variables_count;
     for (size_t i = 0; i < func_call.count; i++)
     {
@@ -266,11 +263,6 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         }
 
         ptcl_expression *call_argument = func_call.arguments[i];
-        if (call_argument == NULL)
-        {
-            continue;
-        }
-
         if (!ptcl_interpreter_add_variable(interpreter, argument.name, call_argument))
         {
             ptcl_parser_throw_out_of_memory(interpreter->parser, location);

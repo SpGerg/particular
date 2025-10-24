@@ -1026,12 +1026,6 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         ptcl_attributes attributes = ptcl_parser_parse_attributes(parser);
         if (ptcl_parser_critical(parser))
         {
-        leave:
-            if (parser->syntax_depth == depth)
-            {
-                ptcl_parser_leave_from_syntax(parser);
-            }
-
             return NULL;
         }
 
@@ -1041,7 +1035,6 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         {
             ptcl_attributes_destroy(attributes);
             ptcl_parser_throw_out_of_memory(parser, location);
-            goto leave;
             return NULL;
         }
 
@@ -1051,12 +1044,15 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
             : parser->inserted_body->root == parser->main_root ? parser->inserted_body
                                                                : parser->main_root);
         ptcl_parser_func_body_by_pointer(parser, &body, false, false);
-        ptcl_parser_leave_from_syntax(parser);
+        if (parser->syntax_depth == depth)
+        {
+            ptcl_parser_leave_from_syntax(parser);
+        }
+
         if (ptcl_parser_critical(parser))
         {
             free(statement);
             ptcl_attributes_destroy(attributes);
-            goto leave;
             return NULL;
         }
 
@@ -1855,7 +1851,8 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
         parser->main_root = func_body_pointer;
     }
 
-    while (true)
+    size_t depth = parser->syntax_depth;
+    while (depth <= parser->syntax_depth)
     {
         if (with_brackets && ptcl_parser_match(parser, ptcl_token_right_curly_type))
         {
@@ -4936,9 +4933,18 @@ ptcl_token ptcl_parser_current(ptcl_parser *parser)
 {
     ptcl_token *tokens = ptcl_parser_tokens(parser);
     size_t count = ptcl_parser_count(parser);
-    if (ptcl_parser_ended(parser) && count > 0)
+    if (ptcl_parser_ended(parser))
     {
-        return tokens[count - 1];
+        if (parser->syntax_depth > 0)
+        {
+            ptcl_parser_leave_from_syntax(parser);
+            return ptcl_parser_current(parser);
+        }
+
+        if (count > 0)
+        {
+            return tokens[count - 1];
+        }
     }
 
     return tokens[ptcl_parser_position(parser)];

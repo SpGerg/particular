@@ -127,7 +127,16 @@ static function fibonacci(argument: integer): integer {
 	}
 }
 
+syntax let [name: static word] {
+	!name := #value 2
+}
+
+syntax value {
+	2 +
+}
+
 function main(): integer {
+	#let asd
 	value := fibonacci(21)
 	return 0
 }
