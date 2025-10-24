@@ -516,6 +516,8 @@ void ptcl_parser_back(ptcl_parser *parser);
 
 bool ptcl_parser_ended(ptcl_parser *parser);
 
+bool ptcl_parser_critical(ptcl_parser *parser);
+
 bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance);
 
 ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *statement, ptcl_statement_func_body *body);

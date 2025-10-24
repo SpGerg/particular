@@ -113,19 +113,21 @@ syntax fibonacci of [value: static integer] {
 	}
 }
 
-function main(): integer {
-	#object dog {
-		fibonacci: integer
-	} with {
-		function constructor(fibonacci: integer): void {
-			self.fibonacci = fibonacci
+static function fibonacci(argument: integer): integer {
+	if argument == 0 {
+		return 0
+	}
+	else {
+		if argument == 1 {
+			return 1
 		}
-
-		function destructor(): void {
-			self.fibonacci = -1
+		else {
+			return fibonacci(argument - 1) + fibonacci(argument - 2)
 		}
 	}
+}
 
-	instance := #create dog(#fibonacci of 21)
+function main(): integer {
+	value := fibonacci(21)
 	return 0
 }
