@@ -6,9 +6,17 @@ typedef struct ptcl_interpreter_variable
     ptcl_expression *value;
 } ptcl_interpreter_variable;
 
+typedef struct ptcl_interpreter_var_index
+{
+    ptcl_expression *value;
+    size_t index;
+} ptcl_interpreter_var_index;
+
 typedef struct ptcl_interpreter
 {
     ptcl_parser *parser;
+    ptcl_name stack_trace[PTCL_INTERPRETER_MAX_STACK_TRACE];
+    size_t stack_trace_count;
     ptcl_interpreter_variable *variables;
     size_t variables_count;
     size_t variables_capacity;
@@ -32,6 +40,7 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
         return NULL;
     }
 
+    interpreter->stack_trace_count = 0;
     interpreter->is_busy = false;
     return interpreter;
 }
@@ -203,7 +212,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         result = ptcl_expression_unary_static_evaluate(expression->unary.type, unary_value);
         break;
     case ptcl_expression_variable_type:
-        result = ptcl_interpreter_try_get_value(interpreter, expression->variable.name);
+        result = ptcl_interpreter_get_value(interpreter, expression->variable.name);
         if (result == NULL)
         {
             return NULL;
@@ -277,6 +286,60 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         }
     }
 
+    if (ptcl_interpreter_was_called(interpreter, func_call.func_decl.name))
+    {
+        ptcl_interpreter_var_index arguments_array[PTCL_INTERPRETER_DEFAULT_ARGUMENTS_CAPACITY];
+        ptcl_interpreter_var_index *arguments = arguments_array;
+        bool needs_free = (func_call.func_decl.count >= PTCL_INTERPRETER_MAX_ARGUMENTS);
+        if (needs_free)
+        {
+            arguments = malloc(func_call.func_decl.count * sizeof(ptcl_interpreter_var_index));
+            if (arguments == NULL)
+            {
+                ptcl_parser_throw_out_of_memory(interpreter->parser, location);
+                return NULL;
+            }
+        }
+
+        for (size_t i = 0; i < func_call.func_decl.count; i++)
+        {
+            for (int j = interpreter->variables_count - 1; j >= 0; j--)
+            {
+                ptcl_interpreter_variable *variable = &interpreter->variables[i];
+                if (!ptcl_name_compare(variable->name, func_call.func_decl.arguments[i].name))
+                {
+                    continue;
+                }
+
+                ptcl_interpreter_var_index *pair = &arguments[i];
+                pair->index = j;
+                pair->value = variable->value;
+                variable->value = func_call.arguments[i];
+            }
+        }
+
+        ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl.func_body, location);
+        for (size_t i = 0; i < func_call.func_decl.count; i++)
+        {
+            ptcl_interpreter_var_index pair = arguments[i];
+            interpreter->variables[pair.index].value = pair.value;
+        }
+
+        if (is_root)
+        {
+            interpreter->is_busy = false;
+            interpreter->stack_trace_count = 0;
+        }
+
+        if (needs_free)
+        {
+            free(arguments);
+        }
+
+        return result;
+    }
+
+    interpreter->stack_trace[interpreter->stack_trace_count++] = func_call.func_decl.name;
     size_t variables_count = interpreter->variables_count;
     for (size_t i = 0; i < func_call.count; i++)
     {
@@ -286,8 +349,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             continue;
         }
 
-        ptcl_expression *call_argument = func_call.arguments[i];
-        if (!ptcl_interpreter_add_variable(interpreter, argument.name, call_argument))
+        if (!ptcl_interpreter_add_variable(interpreter, argument.name, func_call.arguments[i]))
         {
             ptcl_parser_throw_out_of_memory(interpreter->parser, location);
             return NULL;
@@ -296,10 +358,16 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
 
     ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl.func_body, location);
     interpreter->variables_count = variables_count;
+    if (is_root)
+    {
+        interpreter->is_busy = false;
+        interpreter->stack_trace_count = 0;
+    }
+
     return result;
 }
 
-ptcl_expression *ptcl_interpreter_try_get_value(ptcl_interpreter *interpreter, ptcl_name name)
+ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_name name)
 {
     for (int i = interpreter->variables_count - 1; i >= 0; i--)
     {
@@ -334,6 +402,21 @@ bool ptcl_interpreter_add_variable(ptcl_interpreter *interpreter, ptcl_name name
         .name = name,
         .value = value};
     return true;
+}
+
+bool ptcl_interpreter_was_called(ptcl_interpreter *interpreter, ptcl_name name)
+{
+    for (size_t i = 0; i < interpreter->stack_trace_count; i++)
+    {
+        if (!ptcl_name_compare(interpreter->stack_trace[i], name))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 void ptcl_interpreter_reset(ptcl_interpreter *interpreter)

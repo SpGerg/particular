@@ -4,6 +4,7 @@
 #define PTCL_INTERPRETER_DEFAULT_VARIABLES_CAPACITY 16
 #define PTCL_INTERPRETER_DEFAULT_ARGUMENTS_CAPACITY 16
 #define PTCL_INTERPRETER_MAX_ARGUMENTS 16
+#define PTCL_INTERPRETER_MAX_STACK_TRACE 256
 
 #include <ptcl_parser.h>
 
@@ -19,9 +20,11 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
 ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, ptcl_location location);
 
-ptcl_expression *ptcl_interpreter_try_get_value(ptcl_interpreter *interpreter, ptcl_name name);
+ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_name name);
 
 bool ptcl_interpreter_add_variable(ptcl_interpreter *interpreter, ptcl_name name, ptcl_expression *value);
+
+bool ptcl_interpreter_was_called(ptcl_interpreter *interpreter, ptcl_name name);
 
 void ptcl_interpreter_reset(ptcl_interpreter *interpreter);
 

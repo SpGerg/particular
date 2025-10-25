@@ -137,6 +137,6 @@ syntax value {
 
 function main(): integer {
 	#let asd
-	value := fibonacci(21)
+	value := fibonacci(35)
 	return 0
 }
