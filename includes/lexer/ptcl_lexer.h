@@ -5,6 +5,8 @@
 #include <ptcl_token.h>
 #include <ptcl_lexer_configuration.h>
 
+#define PTCL_DEFAULT_POOL_SIZE 16
+
 typedef struct ptcl_lexer ptcl_lexer;
 
 ptcl_lexer* ptcl_lexer_create(char* executor, char* source, ptcl_lexer_configuration *configuration);
@@ -21,9 +23,13 @@ void ptcl_lexer_add_buffer(ptcl_lexer* lexer, bool check_token);
 
 bool ptcl_lexer_add_token(ptcl_lexer* lexer, ptcl_token token);
 
-bool ptcl_lexer_add_token_string(ptcl_lexer* lexer, ptcl_token_type type, char* value, bool is_free_name);
+bool ptcl_lexer_add_token_string(ptcl_lexer* lexer, ptcl_token_type type, char* value);
 
 bool ptcl_lexer_add_token_char(ptcl_lexer* lexer, ptcl_token_type type, char value);
+
+char * ptcl_lexer_try_get_or_add_string(ptcl_lexer *lexer, char *string);
+
+bool ptcl_lexer_add_pool_string(ptcl_lexer *lexer, char *string);
 
 ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer* lexer);
 

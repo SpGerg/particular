@@ -13,6 +13,9 @@ typedef struct ptcl_lexer
     size_t capacity;
     ptcl_string_buffer *buffer;
     ptcl_lexer_configuration *configuration;
+    char **strings;
+    size_t strings_count;
+    size_t strings_capacity;
     size_t position;
 } ptcl_lexer;
 
@@ -33,16 +36,24 @@ ptcl_lexer *ptcl_lexer_create(char *executor, char *source, ptcl_lexer_configura
     if (lexer->buffer == NULL)
     {
         free(lexer);
-
         return NULL;
     }
 
+    lexer->strings_capacity = PTCL_DEFAULT_POOL_SIZE;
+    lexer->strings = malloc(lexer->strings_capacity * sizeof(char *));
+    if (lexer->strings == NULL)
+    {
+        ptcl_string_buffer_destroy(lexer->buffer);
+        free(lexer);
+        return NULL;
+    }
+
+    lexer->strings_count = 0;
     lexer->source = source;
     lexer->length = strlen(source);
     lexer->executor = executor;
     lexer->configuration = configuration;
     lexer->position = 0;
-
     return lexer;
 }
 
@@ -76,7 +87,7 @@ void ptcl_lexer_add_token_by_str(ptcl_lexer *lexer, char *value, bool check_toke
         ptcl_lexer_configuration_try_get_token(lexer->configuration, value, &type);
     }
 
-    ptcl_lexer_add_token_string(lexer, type, value, true);
+    ptcl_lexer_add_token_string(lexer, type, value);
 }
 
 void ptcl_lexer_add_buffer(ptcl_lexer *lexer, bool check_token)
@@ -98,9 +109,16 @@ bool ptcl_lexer_add_token(ptcl_lexer *lexer, ptcl_token token)
     return true;
 }
 
-bool ptcl_lexer_add_token_string(ptcl_lexer *lexer, ptcl_token_type type, char *value, bool is_free_name)
+bool ptcl_lexer_add_token_string(ptcl_lexer *lexer, ptcl_token_type type, char *value)
 {
-    ptcl_token token = ptcl_token_create(type, value, ptcl_lexer_create_location(lexer), is_free_name);
+    char *pooled = ptcl_lexer_try_get_or_add_string(lexer, value);
+    bool is_free = pooled == value;
+    if (!is_free)
+    {
+        free(value);
+    }
+
+    ptcl_token token = ptcl_token_create(type, pooled, ptcl_lexer_create_location(lexer), is_free);
     return ptcl_lexer_add_token(lexer, token);
 }
 
@@ -123,6 +141,42 @@ bool ptcl_lexer_add_token_char(ptcl_lexer *lexer, ptcl_token_type type, char val
     }
 
     return true;
+}
+
+bool ptcl_lexer_add_pool_string(ptcl_lexer *lexer, char *string)
+{
+    if (lexer->strings_count >= lexer->strings_capacity)
+    {
+        lexer->strings_capacity *= 2;
+        char **buffer = realloc(lexer->strings, lexer->strings_capacity * sizeof(char *));
+        if (buffer == NULL)
+        {
+            lexer->strings_capacity /= 2;
+            return false;
+        }
+
+        lexer->strings = buffer;
+    }
+
+    lexer->strings[lexer->strings_count++] = string;
+    return true;
+}
+
+char *ptcl_lexer_try_get_or_add_string(ptcl_lexer *lexer, char *string)
+{
+    for (int i = lexer->strings_count - 1; i >= 0; i--)
+    {
+        char *pool = lexer->strings[i];
+        if (strcmp(pool, string) != 0)
+        {
+            continue;
+        }
+
+        return pool;
+    }
+
+    ptcl_lexer_add_pool_string(lexer, string);
+    return string;
 }
 
 ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
@@ -151,7 +205,7 @@ ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
                 current = ptcl_lexer_current(lexer);
             }
 
-            ptcl_lexer_add_token_string(lexer, ptcl_token_number_type, ptcl_string_buffer_copy_and_clear(lexer->buffer), true);
+            ptcl_lexer_add_token_string(lexer, ptcl_token_number_type, ptcl_string_buffer_copy_and_clear(lexer->buffer));
             continue;
         }
 
@@ -173,7 +227,7 @@ ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
             }
 
             ptcl_lexer_skip(lexer);
-            ptcl_lexer_add_token_string(lexer, ptcl_token_string_type, ptcl_string_buffer_copy_and_clear(lexer->buffer), true);
+            ptcl_lexer_add_token_string(lexer, ptcl_token_string_type, ptcl_string_buffer_copy_and_clear(lexer->buffer));
             continue;
         }
         else if (current == '\'')
@@ -237,7 +291,7 @@ ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
                 continue;
             }
 
-            ptcl_lexer_add_token_string(lexer, type, value, true);
+            ptcl_lexer_add_token_string(lexer, type, value);
             continue;
         }
 
@@ -295,5 +349,6 @@ ptcl_tokens_list ptcl_lexer_tokenize(ptcl_lexer *lexer)
 void ptcl_lexer_destroy(ptcl_lexer *lexer)
 {
     ptcl_string_buffer_destroy(lexer->buffer);
+    free(lexer->strings);
     free(lexer);
 }

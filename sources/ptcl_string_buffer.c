@@ -13,14 +13,12 @@ typedef struct ptcl_string_buffer
 ptcl_string_buffer *ptcl_string_buffer_create()
 {
     ptcl_string_buffer *string_buffer = malloc(sizeof(ptcl_string_buffer));
-
     if (string_buffer == NULL)
     {
         return NULL;
     }
 
     char *buffer = malloc(sizeof(char));
-
     if (buffer == NULL)
     {
         free(string_buffer);

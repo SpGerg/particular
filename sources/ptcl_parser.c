@@ -137,7 +137,7 @@ static ptcl_token *ptcl_parser_tokens_from_array(ptcl_expression *expression)
 static bool ptcl_parser_try_parse_insert(ptcl_parser *parser, ptcl_parser_tokens_state *state, ptcl_location location)
 {
     ptcl_token name = ptcl_parser_current(parser);
-    if (strcmp(name.value, ptcl_insert_name.value) != 0 || ptcl_parser_peek(parser, 1).type != ptcl_token_left_par_type)
+    if ((name.value == ptcl_insert_name.value || strcmp(name.value, ptcl_insert_name.value)) != 0 || ptcl_parser_peek(parser, 1).type != ptcl_token_left_par_type)
     {
         return false;
     }
@@ -1314,7 +1314,7 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
 
         ptcl_token current = ptcl_parser_current(parser);
         ptcl_parser_skip(parser);
-        if (strcmp(current.value, end_token) != 0)
+        if ((current.value == end_token || strcmp(current.value, end_token) != 0))
         {
             if (original_count >= original_capacity)
             {
@@ -1335,17 +1335,9 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
 
                 buffer = reallocated;
             }
-
-            char *copy = ptcl_string_duplicate(current.value);
-            if (copy == NULL)
-            {
-                goto destroying;
-            }
-
-            ptcl_expression *expression = ptcl_expression_create_token(ptcl_token_create(current.type, copy, current.location, true));
+            ptcl_expression *expression = ptcl_expression_create_token(current);
             if (expression == NULL)
             {
-                free(copy);
                 goto destroying;
             }
 
@@ -1538,7 +1530,7 @@ bool ptcl_parser_parse_try_syntax_usage(
             variable.built_in = expression;
             if (expression->return_type.is_static && expression->return_type.type == ptcl_value_word_type)
             {
-                variable.built_in->word.value = ptcl_string_duplicate(variable.built_in->word.value);
+                variable.built_in->word.value = variable.built_in->word.value;
                 variable.is_syntax_word = true;
             }
 
@@ -3054,15 +3046,8 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                 }
 
                 depth++;
-                char *left_copy = ptcl_string_duplicate(next.value);
-                if (left_copy == NULL)
-                {
-                    ptcl_parser_syntax_destroy(syntax);
-                    return;
-                }
-
                 last_location = next.location;
-                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(left_copy, true, current.location));
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(next.value, false, current.location));
                 break;
             case ptcl_token_right_curly_type:
                 if (depth == 0)
@@ -3080,38 +3065,17 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                 }
 
                 depth--;
-                char *right_copy = ptcl_string_duplicate(next.value);
-                if (right_copy == NULL)
-                {
-                    ptcl_parser_syntax_destroy(syntax);
-                    return;
-                }
-
-                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(right_copy, true, current.location));
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(next.value, false, current.location));
                 break;
             default:
                 ptcl_parser_back(parser);
-                char *copy = ptcl_string_duplicate(current.value);
-                if (copy == NULL)
-                {
-                    ptcl_parser_syntax_destroy(syntax);
-                    return;
-                }
-
-                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(copy, true, current.location));
+                node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
                 break;
             }
 
             break;
         default:
-            char *copy = ptcl_string_duplicate(current.value);
-            if (copy == NULL)
-            {
-                ptcl_parser_syntax_destroy(syntax);
-                return;
-            }
-
-            node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(copy, true, current.location));
+            node = ptcl_parser_syntax_node_create_word(current.type, ptcl_name_create(current.value, false, current.location));
             break;
         }
 
@@ -4061,16 +4025,10 @@ static ptcl_expression *ptcl_parser_func_call_or_var(ptcl_parser *parser, ptcl_n
         }
         else
         {
-            char *name_copy = ptcl_string_duplicate(name.value);
-            if (name_copy != NULL)
+            result = ptcl_expression_create_variable(name, variable->type, current.location);
+            if (result == NULL)
             {
-                name.value = name_copy;
-                name.is_free = true;
-                result = ptcl_expression_create_variable(name, variable->type, current.location);
-                if (result == NULL)
-                {
-                    ptcl_name_destroy(name);
-                }
+                ptcl_name_destroy(name);
             }
         }
 
@@ -5329,20 +5287,7 @@ int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_
 
         for (size_t i = 0; i < tokens_count; i++)
         {
-            ptcl_token copy = ptcl_parser_tokens(parser)[start + i];
-            copy.value = ptcl_string_duplicate(copy.value);
-            if (copy.value == NULL)
-            {
-                for (size_t j = 0; j < i; j++)
-                {
-                    ptcl_token_destroy(body_tokens[j]);
-                }
-                free(body_tokens);
-                ptcl_parser_throw_out_of_memory(parser, location);
-                return -1;
-            }
-
-            body_tokens[i] = copy;
+            body_tokens[i] = ptcl_parser_tokens(parser)[start + i];
         }
     }
 
@@ -5446,7 +5391,7 @@ static bool compare_syntax_nodes(ptcl_parser_syntax_node *left, ptcl_parser_synt
             return false;
         }
 
-        return strcmp(left->word.name.value, right->word.name.value) == 0;
+        return ptcl_name_compare(left->word.name, right->word.name);
     case ptcl_parser_syntax_node_variable_type:
         return right->type == ptcl_parser_syntax_node_value_type &&
                ptcl_type_is_castable(left->variable.type, right->value->return_type);
@@ -5942,13 +5887,7 @@ void ptcl_parser_result_destroy(ptcl_parser_result result)
     free(result.variables);
     for (size_t i = 0; i < result.lated_states_count; i++)
     {
-        ptcl_parser_tokens_state body = result.lated_states[i];
-        for (size_t j = 0; j < body.count; j++)
-        {
-            free(body.tokens[j].value);
-        }
-
-        free(body.tokens);
+        free(result.lated_states[i].tokens);
     }
 
     free(result.lated_states);

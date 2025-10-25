@@ -390,7 +390,6 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
 {
     if (variable.is_syntax_word)
     {
-        free(variable.built_in->word.value);
         free(variable.built_in);
     }
     else if (variable.is_function_pointer)
