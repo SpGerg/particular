@@ -280,6 +280,7 @@ typedef struct ptcl_expression_cast
 {
     ptcl_expression *value;
     ptcl_type type;
+    bool is_free;
 } ptcl_expression_cast;
 
 typedef struct ptcl_statement_func_body
@@ -943,14 +944,15 @@ static ptcl_expression *ptcl_expression_binary_create(ptcl_binary_operator_type 
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_cast_create(ptcl_expression *value, ptcl_type type, ptcl_location location)
+static ptcl_expression *ptcl_expression_cast_create(ptcl_expression *value, ptcl_type type, bool is_free, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_cast_type, type, location);
     if (expression != NULL)
     {
         expression->cast = (ptcl_expression_cast){
             .type = type,
-            .value = value};
+            .value = value,
+            .is_free = is_free};
     }
 
     return expression;
@@ -2651,7 +2653,11 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         break;
     case ptcl_expression_cast_type:
         ptcl_expression_destroy(expression->cast.value);
-        ptcl_type_destroy(expression->cast.type);
+        if (expression->cast.is_free)
+        {
+            ptcl_type_destroy(expression->cast.type);
+        }
+
         break;
     case ptcl_expression_unary_type:
         ptcl_expression_destroy(expression->unary.child);

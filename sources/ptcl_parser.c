@@ -3304,6 +3304,32 @@ here:
 
 ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, bool with_word)
 {
+    if (ptcl_parser_match(parser, ptcl_token_auto_type))
+    {
+        ptcl_location location = ptcl_parser_current(parser).location;
+        if (expected == NULL)
+        {
+            ptcl_parser_throw_except_type_specifier(parser, location);
+            return NULL;
+        }
+
+        ptcl_expression *value = ptcl_parser_cast(parser, expected, with_word);
+        if (parser->is_critical)
+        {
+            return value;
+        }
+
+        ptcl_expression *cast = ptcl_expression_cast_create(value, *expected, false, location);
+        if (cast == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            ptcl_expression_destroy(value);
+            return NULL;
+        }
+
+        return ptcl_expression_static_cast(cast);
+    }
+
     ptcl_expression *left = ptcl_parser_binary(parser, expected, with_word);
     if (ptcl_parser_critical(parser))
     {
@@ -3342,7 +3368,7 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, bool
             }
         }
 
-        ptcl_expression *cast = ptcl_expression_cast_create(left, type, location);
+        ptcl_expression *cast = ptcl_expression_cast_create(left, type, true, location);
         if (cast == NULL)
         {
             ptcl_parser_throw_out_of_memory(parser, location);

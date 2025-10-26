@@ -161,6 +161,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         ptcl_statement_func_call func_call = expression->func_call;
         func_call.arguments = arguments;
         result = ptcl_interpreter_evaluate_function_call(interpreter, func_call, location);
+        ptcl_expression_by_count_destroy(func_call.arguments, func_call.count);
         if (needs_free)
         {
             free(arguments);
