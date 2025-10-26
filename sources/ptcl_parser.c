@@ -49,6 +49,15 @@
     ptcl_func_built_in_builder_return(&get_statements_builder, array_statements);                                 \
     ptcl_parser_add_instance_function(parser, ptcl_func_built_in_builder_build(&get_statements_builder))
 
+#define CREATE_ERROR_FUNC()                                                                     \
+    ptcl_func_built_in_builder error_builder = ptcl_func_built_in_builder_create("ptcl_error"); \
+    ptcl_type string_type = ptcl_type_create_array(&ptcl_type_character, -1);                   \
+    string_type.is_static = true;                                                               \
+    ptcl_func_built_in_builder_bind(&error_builder, ptcl_error_realization);                    \
+    ptcl_func_built_in_builder_add_argument(&error_builder, string_type);                       \
+    ptcl_func_built_in_builder_return(&error_builder, ptcl_type_void);                          \
+    ptcl_parser_add_instance_function(parser, ptcl_func_built_in_builder_build(&error_builder))
+
 #define CREATE_DEFINED_FUNC()                                                                                    \
     ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined");              \
     ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);                                 \
@@ -67,6 +76,7 @@
     ptcl_func_built_in_builder_destroy(&get_statements_builder); \
     ptcl_func_built_in_builder_destroy(&defined_builder);        \
     ptcl_func_built_in_builder_destroy(&insert_builder);         \
+    ptcl_func_built_in_builder_destroy(&error_builder);          \
     ptcl_comp_type_builder_destroy(&token_builder);              \
     ptcl_comp_type_builder_destroy(&statement_builder);          \
     ptcl_comp_type_builder_destroy(&expression_builder)
@@ -483,6 +493,21 @@ static char *ptcl_from_array(ptcl_expression_array array)
 }
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+static ptcl_expression *ptcl_error_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
+{
+    char *message = ptcl_from_array(arguments[0]->array);
+    PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+    if (message == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return NULL;
+    }
+
+    ptcl_parser_throw_user(parser, message, location);
+    return NULL;
+}
+
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *name_argument = arguments[0];
@@ -892,6 +917,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     CREATE_EXPRESSION_TYPE();
     CREATE_GET_STATEMENTS_FUNC();
     CREATE_DEFINED_FUNC();
+    CREATE_ERROR_FUNC();
     CREATE_INSERT_FUNC();
 
     ptcl_parser_result result = {
@@ -2583,6 +2609,18 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
         return (ptcl_statement_assign){};
     }
 
+    if (value->return_type.type == ptcl_value_void_type)
+    {
+        ptcl_parser_throw_except_type_specifier(parser, location);
+        if (with_type)
+        {
+            ptcl_type_destroy(type);
+        }
+
+        ptcl_identifier_destroy(identifier);
+        return (ptcl_statement_assign){};
+    }
+
     if (!with_type)
     {
         type = value->return_type;
@@ -2634,6 +2672,12 @@ ptcl_statement_return ptcl_parser_return(ptcl_parser *parser)
     ptcl_expression *value = ptcl_parser_cast(parser, parser->return_type, false);
     if (ptcl_parser_critical(parser))
     {
+        return (ptcl_statement_return){};
+    }
+
+    if (value->return_type.type == ptcl_value_void_type)
+    {
+        ptcl_parser_throw_except_type_specifier(parser, ptcl_parser_current(parser).location);
         return (ptcl_statement_return){};
     }
 
@@ -3316,7 +3360,7 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, bool
         ptcl_expression *value = ptcl_parser_cast(parser, expected, with_word);
         if (parser->is_critical)
         {
-            return value;
+            return NULL;
         }
 
         ptcl_expression *cast = ptcl_expression_cast_create(value, *expected, false, location);
@@ -3333,7 +3377,7 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, bool
     ptcl_expression *left = ptcl_parser_binary(parser, expected, with_word);
     if (ptcl_parser_critical(parser))
     {
-        return left;
+        return NULL;
     }
 
     while (true)
@@ -5853,6 +5897,13 @@ void ptcl_parser_throw_redefination(ptcl_parser *parser, char *name, ptcl_locati
     char *message = ptcl_string("Redefination '", name, "'", NULL);
     ptcl_parser_error error = ptcl_parser_error_create(
         ptcl_parser_error_redefinition_type, false, message, true, location);
+    ptcl_parser_add_error(parser, error);
+}
+
+void ptcl_parser_throw_user(ptcl_parser *parser, char *message, ptcl_location location)
+{
+    ptcl_parser_error error = ptcl_parser_error_create(
+        ptcl_parser_error_max_depth_type, true, message, true, location);
     ptcl_parser_add_error(parser, error);
 }
 

@@ -601,6 +601,8 @@ void ptcl_parser_throw_unknown_type(ptcl_parser *parser, char *value, ptcl_locat
 
 void ptcl_parser_throw_redefination(ptcl_parser *parser, char *name, ptcl_location location);
 
+void ptcl_parser_throw_user(ptcl_parser *parser, char *message, ptcl_location location);
+
 void ptcl_parser_add_error(ptcl_parser *parser, ptcl_parser_error error);
 
 void ptcl_parser_result_destroy(ptcl_parser_result result);
