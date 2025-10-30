@@ -127,7 +127,12 @@ static function fibonacci(argument: integer): integer {
 	}
 }
 
+static function example(): void 
+{
+    ptcl_error("Error for only now")
+}
+
 function main(): integer {
-	ptcl_error("Error here")
+	value := fibonacci(5)
 	return 0
 }

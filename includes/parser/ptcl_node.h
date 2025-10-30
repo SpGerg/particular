@@ -1178,6 +1178,22 @@ static bool ptcl_type_function_equals(ptcl_type_functon_pointer_type left, ptcl_
     return true;
 }
 
+static char *ptcl_string_from_array(ptcl_expression_array expression)
+{
+    char *characters = malloc(sizeof(char) * expression.count);
+    if (characters == NULL)
+    {
+        return NULL;
+    }
+
+    for (size_t i = 0;i < expression.count;i++)
+    {
+        characters[i] = expression.expressions[i]->character;
+    }
+
+    return characters;
+}
+
 static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
 {
     if (left.type != right.type)

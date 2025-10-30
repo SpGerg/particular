@@ -11,6 +11,7 @@
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
 #define PTCL_PARSER_EXPRESSION_TYPE_NAME "ptcl_expression_t"
 #define PTCL_PARSER_TOKEN_TYPE_NAME "ptcl_token_t"
+#define PTCL_PARSER_ERROR_FUNC_NAME "ptcl_error"
 
 static ptcl_name const ptcl_statement_t_name = {
     .value = PTCL_PARSER_STATEMENT_TYPE_NAME,
@@ -451,9 +452,9 @@ void ptcl_parser_each(ptcl_parser *parser);
 
 void ptcl_parser_undefine(ptcl_parser *parser);
 
-ptcl_statement_func_body ptcl_parser_func_body(ptcl_parser *parser, bool with_brackets, bool change_root);
+ptcl_statement_func_body ptcl_parser_func_body(ptcl_parser *parser, bool with_brackets, bool change_root, bool is_ignore_error);
 
-void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root);
+void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root, bool is_static);
 
 void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax);
 
