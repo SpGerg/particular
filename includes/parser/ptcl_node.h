@@ -309,7 +309,7 @@ typedef struct ptcl_statement_func_decl
 
 typedef struct ptcl_statement_func_call
 {
-    ptcl_statement_func_decl func_decl;
+    ptcl_statement_func_decl *func_decl;
     ptcl_identifier identifier;
     ptcl_expression **arguments;
     size_t count;
@@ -621,7 +621,7 @@ static ptcl_statement *ptcl_statement_func_body_create_stat(ptcl_statement_func_
     return statement;
 }
 
-static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_statement_func_decl func_decl, ptcl_identifier identifier, ptcl_expression **arguments, size_t count)
+static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_statement_func_decl *func_decl, ptcl_identifier identifier, ptcl_expression **arguments, size_t count)
 {
     return (ptcl_statement_func_call){
         .func_decl = func_decl,
@@ -1186,7 +1186,7 @@ static char *ptcl_string_from_array(ptcl_expression_array expression)
         return NULL;
     }
 
-    for (size_t i = 0;i < expression.count;i++)
+    for (size_t i = 0; i < expression.count; i++)
     {
         characters[i] = expression.expressions[i]->character;
     }

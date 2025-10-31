@@ -114,6 +114,11 @@ syntax fibonacci of [value: static integer] {
 }
 
 static function fibonacci(argument: integer): integer {
+	if argument < 0 {
+		ptcl_error("Not allowed")
+		return -1
+	}
+
 	if argument == 0 {
 		return 0
 	}
@@ -133,6 +138,6 @@ static function example(): void
 }
 
 function main(): integer {
-	value := fibonacci(5)
+	value := fibonacci(21)
 	return 0
 }

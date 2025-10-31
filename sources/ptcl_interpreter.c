@@ -237,7 +237,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         return NULL;
     }
 
-    if (func_call.func_decl.is_prototype || func_call.func_decl.func_body == NULL)
+    if (func_call.func_decl->is_prototype || func_call.func_decl->func_body == NULL)
     {
         return NULL;
     }
@@ -264,14 +264,14 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         }
     }
 
-    if (ptcl_interpreter_was_called(interpreter, func_call.func_decl.name))
+    if (ptcl_interpreter_was_called(interpreter, func_call.func_decl->name))
     {
         ptcl_interpreter_var_index arguments_array[PTCL_INTERPRETER_DEFAULT_ARGUMENTS_CAPACITY];
         ptcl_interpreter_var_index *arguments = arguments_array;
-        bool needs_free = (func_call.func_decl.count >= PTCL_INTERPRETER_MAX_ARGUMENTS);
+        bool needs_free = (func_call.func_decl->count >= PTCL_INTERPRETER_MAX_ARGUMENTS);
         if (needs_free)
         {
-            arguments = malloc(func_call.func_decl.count * sizeof(ptcl_interpreter_var_index));
+            arguments = malloc(func_call.func_decl->count * sizeof(ptcl_interpreter_var_index));
             if (arguments == NULL)
             {
                 ptcl_parser_throw_out_of_memory(interpreter->parser, location);
@@ -279,12 +279,12 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             }
         }
 
-        for (size_t i = 0; i < func_call.func_decl.count; i++)
+        for (size_t i = 0; i < func_call.func_decl->count; i++)
         {
             for (int j = interpreter->variables_count - 1; j >= 0; j--)
             {
                 ptcl_interpreter_variable *variable = &interpreter->variables[i];
-                if (!ptcl_name_compare(variable->name, func_call.func_decl.arguments[i].name))
+                if (!ptcl_name_compare(variable->name, func_call.func_decl->arguments[i].name))
                 {
                     continue;
                 }
@@ -300,8 +300,8 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             }
         }
 
-        ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl.func_body, location);
-        for (size_t i = 0; i < func_call.func_decl.count; i++)
+        ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl->func_body, location);
+        for (size_t i = 0; i < func_call.func_decl->count; i++)
         {
             ptcl_interpreter_var_index pair = arguments[i];
             ptcl_interpreter_variable *variable = &interpreter->variables[pair.index];
@@ -327,11 +327,11 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         return result;
     }
 
-    interpreter->stack_trace[interpreter->stack_trace_count++] = func_call.func_decl.name;
+    interpreter->stack_trace[interpreter->stack_trace_count++] = func_call.func_decl->name;
     size_t variables_count = interpreter->variables_count;
     for (size_t i = 0; i < func_call.count; i++)
     {
-        ptcl_argument argument = func_call.func_decl.arguments[i];
+        ptcl_argument argument = func_call.func_decl->arguments[i];
         if (argument.is_variadic)
         {
             continue;
@@ -347,7 +347,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         }
     }
 
-    ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl.func_body, location);
+    ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl->func_body, location);
     for (size_t i = variables_count; i < interpreter->variables_count; i++)
     {
         ptcl_interpreter_variable variable = interpreter->variables[i];

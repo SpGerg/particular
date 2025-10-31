@@ -1609,7 +1609,7 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
 static inline ptcl_statement_func_call ptcl_handle_builtin_execution(ptcl_parser *parser, ptcl_parser_function *target,
                                                                      ptcl_statement_func_call *func_call, ptcl_location location, bool is_expression)
 {
-    if (parser->is_ignore_error && strcmp(func_call->func_decl.name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
+    if (parser->is_ignore_error && strcmp(func_call->func_decl->name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
     {
         return *func_call;
     }
@@ -1716,7 +1716,7 @@ ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_
     }
 
     size_t expected_arguments = target.func.is_variadic ? target.func.count + 4 : target.func.count;
-    ptcl_statement_func_call func_call = ptcl_statement_func_call_create(function->func, identifier, NULL, 0);
+    ptcl_statement_func_call func_call = ptcl_statement_func_call_create(&function->func, identifier, NULL, 0);
     if (expected_arguments > 0)
     {
         func_call.arguments = malloc(expected_arguments * sizeof(ptcl_expression *));
@@ -2264,7 +2264,6 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     func_decl.arguments = arguments.arguments;
     func_decl.count = arguments.count;
     func_decl.is_variadic = arguments.has_variadic;
-    func_decl.is_prototype = is_prototype;
     func_decl.is_static = is_static || func_decl.return_type.is_static;
     ptcl_parser_function function = ptcl_parser_function_create(is_global ? NULL : ptcl_parser_root(parser), func_decl);
     ptcl_type *variable_return_type = NULL;
@@ -2312,6 +2311,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
             }
         }
 
+        ptcl_parser_function *function_instance = &parser->functions[function_identifier];
         ptcl_parser_func_body_by_pointer(parser, func_decl.func_body, true, true, func_decl.is_static);
         if (ptcl_parser_critical(parser))
         {
@@ -2323,13 +2323,13 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
             if (!parser->is_type_body)
             {
                 parser->variables[variable_identifier].is_out_of_scope = true;
-                parser->functions[function_identifier].is_out_of_scope = true;
+                function_instance->is_out_of_scope = true;
             }
 
             return (ptcl_statement_func_decl){};
         }
 
-        func_decl.is_prototype = false;
+        function_instance->func.is_prototype = func_decl.is_prototype = false;
         if (!parser->is_type_body)
         {
             ptcl_parser_function *original = &parser->functions[function_identifier];
