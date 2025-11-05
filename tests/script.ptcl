@@ -113,31 +113,24 @@ syntax fibonacci of [value: static integer] {
 	}
 }
 
-static function fibonacci(argument: integer): integer {
-	if argument < 0 {
-		ptcl_error("Not allowed")
-		return -1
+type string: static character[] {
+	static function self_here(): character* {
+		return self
 	}
 
-	if argument == 0 {
-		return 0
-	}
-	else {
-		if argument == 1 {
-			return 1
-		}
-		else {
-			return fibonacci(argument - 1) + fibonacci(argument - 2)
-		}
+	static function get(foo: integer): integer {
+		value := foo
+		return value
 	}
 }
 
-static function example(): void 
-{
-    ptcl_error("Error for only now")
+static function caller(value: static string, foo: integer): integer {
+	return value.get(foo)
 }
 
 function main(): integer {
-	value := fibonacci(21)
+	str := "Hello, world" :: static string
+	value := str.self_here()
+	foo := caller(str, 2)
 	return 0
 }

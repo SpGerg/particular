@@ -181,35 +181,64 @@ typedef struct ptcl_argument
     bool is_variadic;
 } ptcl_argument;
 
+static ptcl_name ptcl_self_name = {
+    .value = "self",
+    .location = (ptcl_location){0},
+    .is_anonymous = false,
+    .is_free = false};
+
 static ptcl_type ptcl_type_any = {
-    .type = ptcl_value_any_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_any_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_any_pointer = {
-    .type = ptcl_value_pointer_type, .pointer = {.is_any = true, .is_null = false, .target = NULL}, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_pointer_type,
+    .pointer = {.is_any = true, .is_null = false, .target = NULL},
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_any_type = {
-    .type = ptcl_value_object_type_type, .object_type = (ptcl_type_object_type){.target = &ptcl_type_any}, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_object_type_type,
+    .object_type = (ptcl_type_object_type){.target = &ptcl_type_any},
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type const ptcl_type_word = {
-    .type = ptcl_value_word_type, .is_primitive = true, .is_static = true};
+    .type = ptcl_value_word_type,
+    .is_primitive = true,
+    .is_static = true};
 
 static ptcl_type ptcl_type_character = {
-    .type = ptcl_value_character_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_character_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_double = {
-    .type = ptcl_value_double_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_double_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_float = {
-    .type = ptcl_value_float_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_float_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_integer = {
-    .type = ptcl_value_integer_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_integer_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_void = {
-    .type = ptcl_value_void_type, .is_primitive = true, .is_static = false};
+    .type = ptcl_value_void_type,
+    .is_primitive = true,
+    .is_static = false};
 
 static ptcl_type ptcl_type_null = {
-    .type = ptcl_value_pointer_type, .is_primitive = true, .is_static = false, .pointer = {.is_any = false, .is_null = true, .target = NULL}};
+    .type = ptcl_value_pointer_type,
+    .is_primitive = true,
+    .is_static = false,
+    .pointer = {.is_any = false, .is_null = true, .target = NULL}};
 
 typedef struct ptcl_expression_variable
 {
@@ -324,6 +353,7 @@ typedef struct ptcl_expression
     ptcl_type return_type;
     ptcl_location location;
     bool is_original;
+    bool with_type;
 
     union
     {
@@ -433,6 +463,7 @@ static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_t
         expression->return_type = return_type;
         expression->location = location;
         expression->is_original = true;
+        expression->with_type = true;
     }
 
     return expression;
@@ -1223,6 +1254,10 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
     if (type.type == ptcl_value_array_type)
     {
         return ptcl_type_is_castable_to_unstatic(*type.array.target);
+    }
+    else if (type.type == ptcl_value_type_type && type.comp_type->types[0].type.is_static)
+    {
+        return false;
     }
     else if (type.type == ptcl_value_type_type)
     {

@@ -106,8 +106,10 @@ typedef struct ptcl_parser_typedata
 
 typedef struct ptcl_parser_comp_type
 {
+    ptcl_name identifier;
     ptcl_statement_func_body *root;
     ptcl_type_comp_type *comp_type;
+    ptcl_type_comp_type *static_type;
     bool is_out_of_scope;
 } ptcl_parser_comp_type;
 
@@ -231,11 +233,13 @@ static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_fun
         .state = state};
 }
 
-static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_type_comp_type *type)
+static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_name identifier, ptcl_type_comp_type *type, bool is_static)
 {
     return (ptcl_parser_comp_type){
         .root = root,
-        .comp_type = type,
+        .identifier = identifier,
+        .static_type = is_static ? type : NULL,
+        .comp_type = is_static ? NULL : type,
         .is_out_of_scope = false};
 }
 
@@ -409,6 +413,7 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
 static void ptcl_parser_comp_type_destroy(ptcl_parser_comp_type comp_type)
 {
     free(comp_type.comp_type);
+    free(comp_type.static_type);
 }
 
 ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuration *configuration);
@@ -428,7 +433,7 @@ bool ptcl_parser_parse_try_syntax_usage(
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
-ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_function *function, bool is_expression);
+ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function, ptcl_expression *self, bool is_expression);
 
 ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global, bool is_static);
 
@@ -540,7 +545,9 @@ bool ptcl_parser_add_instance_variable(ptcl_parser *parser, ptcl_parser_variable
 
 bool ptcl_parser_try_get_syntax(ptcl_parser *parser, ptcl_name name, ptcl_parser_syntax **instance);
 
-bool ptcl_parser_try_get_comp_type(ptcl_parser *parser, ptcl_name name, ptcl_parser_comp_type **instance);
+bool ptcl_parser_try_get_comp_type(ptcl_parser *parser, ptcl_name name, bool is_static, ptcl_parser_comp_type **instance);
+
+bool ptcl_parser_try_get_any_comp_type(ptcl_parser *parser, ptcl_name name, ptcl_parser_comp_type **instance);
 
 bool ptcl_parser_try_get_typedata(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata **instance);
 

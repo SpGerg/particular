@@ -10,7 +10,7 @@ typedef struct ptcl_interpreter_variable
 typedef struct ptcl_interpreter_var_index
 {
     ptcl_interpreter_variable variable;
-    size_t index;
+    int index;
 } ptcl_interpreter_var_index;
 
 typedef struct ptcl_interpreter
@@ -73,8 +73,25 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     {
     case ptcl_statement_func_body_type:
     case ptcl_statement_func_call_type:
-        return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, location);
+        return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
     case ptcl_statement_assign_type:
+        if (!statement->assign.is_define)
+        {
+            return NULL;
+        }
+
+        ptcl_expression *variable_value = ptcl_interpreter_evaluate_expression(interpreter, statement->assign.value, location);
+        if (variable_value == NULL)
+        {
+            return NULL;
+        }
+
+        if (!ptcl_interpreter_add_variable(interpreter, statement->assign.identifier.name, variable_value, true))
+        {
+            return NULL;
+        }
+
+        break;
     case ptcl_statement_if_type:
         ptcl_expression *condition = ptcl_interpreter_evaluate_expression(interpreter, statement->if_stat.condition, location);
         if (condition == NULL)
@@ -122,13 +139,12 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
     case ptcl_expression_in_statement_type:
     case ptcl_expression_in_expression_type:
     case ptcl_expression_in_token_type:
-    case ptcl_expression_array_type:
     case ptcl_expression_null_type:
     case ptcl_expression_object_type_type:
     case ptcl_expression_word_type:
     case ptcl_expression_func_call_type:
     {
-        result = ptcl_interpreter_evaluate_function_call(interpreter, expression->func_call, true, location);
+        result = ptcl_interpreter_evaluate_function_call(interpreter, expression->func_call, true, NULL, location);
         if (result == NULL)
         {
             return NULL;
@@ -136,11 +152,45 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
         break;
     }
+    case ptcl_expression_array_type:
+        ptcl_expression *array_expression = ptcl_expression_array_create(expression->return_type, expression->array.expressions, expression->array.count, location);
+        if (array_expression == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(interpreter->parser, location);
+            return NULL;
+        }
+
+        array_expression->is_original = false;
+        array_expression->with_type = false;
+        return array_expression;
     case ptcl_expression_if_type:
     case ptcl_expression_ctor_type:
     case ptcl_expression_dot_type:
+        if (expression->dot.is_name)
+        {
+            ptcl_expression *left = ptcl_interpreter_evaluate_expression(interpreter, expression->dot.left, location);
+            if (left == NULL)
+            {
+                return NULL;
+            }
+
+            // TODO
+        }
+        else
+        {
+            ptcl_expression *self = ptcl_interpreter_evaluate_expression(interpreter, expression->dot.left, location);
+            if (self == NULL)
+            {
+                return NULL;
+            }
+
+            return ptcl_interpreter_evaluate_function_call(interpreter, expression->dot.right->func_call, true, self, location);
+        }
+
+        break;
     case ptcl_expression_array_element_type:
     case ptcl_expression_cast_type:
+        return ptcl_interpreter_evaluate_expression(interpreter, expression->cast.value, location);
     case ptcl_expression_binary_type:
         ptcl_binary_operator_type binary_type = expression->binary.type;
         if (binary_type == ptcl_binary_operator_reference_type || binary_type == ptcl_binary_operator_dereference_type)
@@ -180,7 +230,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         break;
     case ptcl_expression_variable_type:
         result = ptcl_interpreter_get_value(interpreter, expression->variable.name);
-        if (result == NULL)
+        if (result == NULL || !result->return_type.is_static)
         {
             return NULL;
         }
@@ -229,7 +279,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
     return result;
 }
 
-ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, bool evaluate_arguments, ptcl_location location)
+ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, bool evaluate_arguments, ptcl_expression *self, ptcl_location location)
 {
     if (func_call.identifier.is_name && strcmp(func_call.identifier.name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
     {
@@ -279,11 +329,21 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             }
         }
 
+        ptcl_interpreter_var_index last_self;
+        last_self.index = -1;
         for (size_t i = 0; i < func_call.func_decl->count; i++)
         {
             for (int j = interpreter->variables_count - 1; j >= 0; j--)
             {
                 ptcl_interpreter_variable *variable = &interpreter->variables[i];
+                if (self != NULL && ptcl_name_compare(variable->name, ptcl_self_name))
+                {
+                    last_self.index = j;
+                    last_self.variable = *variable;
+                    variable->value = self;
+                    continue;
+                }
+
                 if (!ptcl_name_compare(variable->name, func_call.func_decl->arguments[i].name))
                 {
                     continue;
@@ -313,6 +373,12 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             *variable = pair.variable;
         }
 
+        if (last_self.index > 0)
+        {
+            ptcl_expression_destroy(last_self.variable.value);
+            interpreter->variables[last_self.index] = last_self.variable;
+        }
+
         if (is_root)
         {
             interpreter->is_busy = false;
@@ -329,6 +395,16 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
 
     interpreter->stack_trace[interpreter->stack_trace_count++] = func_call.func_decl->name;
     size_t variables_count = interpreter->variables_count;
+    if (self != NULL)
+    {
+        ptcl_argument argument = ptcl_argument_create(self->return_type, ptcl_self_name);
+        if (!ptcl_interpreter_add_variable(interpreter, argument.name, self, evaluate_arguments))
+        {
+            ptcl_parser_throw_out_of_memory(interpreter->parser, location);
+            return NULL;
+        }
+    }
+
     for (size_t i = 0; i < func_call.count; i++)
     {
         ptcl_argument argument = func_call.func_decl->arguments[i];
