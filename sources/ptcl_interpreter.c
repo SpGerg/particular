@@ -54,7 +54,6 @@ ptcl_expression *ptcl_interpreter_evaluate_func_body(ptcl_interpreter *interpret
         result = ptcl_interpreter_evaluate_statement(interpreter, func_body.statements[i], location);
         if (ptcl_parser_critical(interpreter->parser))
         {
-            ptcl_interpreter_reset(interpreter);
             break;
         }
 
@@ -88,6 +87,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
 
         if (!ptcl_interpreter_add_variable(interpreter, statement->assign.identifier.name, variable_value, true))
         {
+            ptcl_expression_destroy(variable_value);
             return NULL;
         }
 

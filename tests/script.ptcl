@@ -119,6 +119,10 @@ type string: static character[] {
 	}
 
 	static function get(foo: integer): integer {
+		if foo > 2 {
+			ptcl_error("Not allowed")
+		}
+
 		value := foo
 		return value
 	}
@@ -131,6 +135,6 @@ static function caller(value: static string, foo: integer): integer {
 function main(): integer {
 	str := "Hello, world" :: static string
 	value := str.self_here()
-	foo := caller(str, 2)
+	foo := caller(str, 3)
 	return 0
 }
