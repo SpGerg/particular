@@ -350,8 +350,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_add_func_body(transpiler, statement->body, false, false);
         break;
     case ptcl_statement_func_call_type:
-        ptcl_transpiler_add_func_call(transpiler, statement->func_call);
-        ptcl_transpiler_append_character(transpiler, ';');
+        if (ptcl_transpiler_add_func_call(transpiler, statement->func_call))
+        {
+            ptcl_transpiler_append_character(transpiler, ';');
+        }
+
         break;
     case ptcl_statement_assign_type:
         if (statement->assign.is_define && statement->assign.type.is_static)
@@ -418,6 +421,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         break;
     case ptcl_statement_type_decl_type:
         ptcl_type base_type = statement->type_decl.types[0].type;
+        if (base_type.is_static)
+        {
+            break;
+        }
+
         if (statement->type_decl.functions != NULL)
         {
             for (size_t i = 0; i < statement->type_decl.functions->count; i++)
@@ -698,13 +706,18 @@ void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_f
     ptcl_transpiler_add_func_decl_body(transpiler, func_decl, start, position, length, previous_start);
 }
 
-void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call)
+bool ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call)
 {
+    if (func_call.identifier.is_name && strcmp(func_call.identifier.name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
+    {
+        return false;
+    }
+
     ptcl_transpiler_add_identifier(transpiler, func_call.identifier, false);
     // Dot already have func call expression
     if (!func_call.identifier.is_name)
     {
-        return;
+        return true;
     }
 
     ptcl_transpiler_append_character(transpiler, '(');
@@ -726,6 +739,7 @@ void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_f
     }
 
     ptcl_transpiler_append_character(transpiler, ')');
+    return true;
 }
 
 static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl_expression *expression)

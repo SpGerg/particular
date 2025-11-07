@@ -92,7 +92,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
 
 void ptcl_transpiler_add_func_decl(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, ptcl_name name, ptcl_type *self);
 
-void ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call);
+bool ptcl_transpiler_add_func_call(ptcl_transpiler *transpiler, ptcl_statement_func_call func_call);
 
 void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression *expression, bool specify_type);
 

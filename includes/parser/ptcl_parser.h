@@ -475,7 +475,7 @@ ptcl_expression *ptcl_parser_multiplicative(ptcl_parser *parser, ptcl_type *exce
 
 ptcl_expression *ptcl_parser_unary(ptcl_parser *parser, bool only_value, ptcl_type *except, bool with_word);
 
-ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word);
+ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool is_expression, bool with_word);
 
 ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word);
 
@@ -556,6 +556,16 @@ bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_pars
 bool ptcl_parser_try_get_variable(ptcl_parser *parser, ptcl_name name, ptcl_parser_variable **instance);
 
 int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, ptcl_location location);
+
+bool ptcl_parser_is_syntax_defined(ptcl_parser *parser, ptcl_name name);
+
+bool ptcl_parser_is_comp_type_defined(ptcl_parser *parser, ptcl_name name, bool is_static);
+
+bool ptcl_parser_is_typedata_defined(ptcl_parser *parser, ptcl_name name);
+
+bool ptcl_parser_is_function_defined(ptcl_parser *parser, ptcl_name name);
+
+bool ptcl_parser_is_variable_defined(ptcl_parser *parser, ptcl_name name);
 
 bool ptcl_parser_is_defined(ptcl_parser *parser, ptcl_name name);
 

@@ -113,28 +113,28 @@ syntax fibonacci of [value: static integer] {
 	}
 }
 
-type string: static character[] {
-	static function self_here(): character* {
-		return self
-	}
+typedata array_object(entities: integer*, capacity: integer)
 
-	static function get(foo: integer): integer {
-		if foo > 2 {
-			ptcl_error("Not allowed")
+type array: array_object {
+
+}
+
+type array: static array_object {
+	static function get(index: integer): integer {
+		if (index > self.capacity) {
+			ptcl_error("Max range")
 		}
 
-		value := foo
-		return value
+		return self.entities[index]
 	}
 }
 
-static function caller(value: static string, foo: integer): integer {
-	return value.get(foo)
+static function array(): static array {
+	return array_object(null, 8) :: static array
 }
 
 function main(): integer {
-	str := "Hello, world" :: static string
-	value := str.self_here()
-	foo := caller(str, 3)
+	value := array()
+	value.get(12)
 	return 0
 }

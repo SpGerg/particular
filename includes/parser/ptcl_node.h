@@ -135,6 +135,8 @@ typedef struct ptcl_type_comp_type
     ptcl_type_member *types;
     size_t count;
     ptcl_statement_func_body *functions;
+    bool is_static;
+    bool has_invariant;
     bool is_optional;
     bool is_any;
 } ptcl_type_comp_type;
@@ -237,7 +239,7 @@ static ptcl_type ptcl_type_void = {
 static ptcl_type ptcl_type_null = {
     .type = ptcl_value_pointer_type,
     .is_primitive = true,
-    .is_static = false,
+    .is_static = true,
     .pointer = {.is_any = false, .is_null = true, .target = NULL}};
 
 typedef struct ptcl_expression_variable
@@ -604,13 +606,14 @@ static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
             .is_null = false}};
 }
 
-static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl type_decl)
+static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl type_decl, bool is_static)
 {
     return (ptcl_type_comp_type){
         .identifier = ptcl_name_create_fast_w(type_decl.name.value, false),
         .types = type_decl.types,
         .count = type_decl.types_count,
         .functions = type_decl.functions,
+        .is_static = is_static,
         .is_optional = type_decl.is_optional,
         .is_any = false};
 }
@@ -1255,13 +1258,14 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
     {
         return ptcl_type_is_castable_to_unstatic(*type.array.target);
     }
-    else if (type.type == ptcl_value_type_type && type.comp_type->types[0].type.is_static)
-    {
-        return false;
-    }
     else if (type.type == ptcl_value_type_type)
     {
-        return type.comp_type->count != 0;
+        if (type.comp_type->count == 0 || (type.comp_type->is_static && type.comp_type->has_invariant))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     return true;
@@ -1299,6 +1303,11 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
         if (target.type != ptcl_value_type_type || !ptcl_name_compare(expected.comp_type->identifier, target.comp_type->identifier))
         {
             return ptcl_comp_type_equals(expected.comp_type, target, true);
+        }
+
+        if (expected.comp_type->is_static && !target.comp_type->is_static)
+        {
+            return false;
         }
 
         return true;
