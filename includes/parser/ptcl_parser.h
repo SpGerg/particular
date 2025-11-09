@@ -577,6 +577,8 @@ bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, ch
 
 void ptcl_parser_clear_scope(ptcl_parser *parser);
 
+ptcl_expression *ptcl_parser_get_ctor_from_dot(ptcl_parser *parser, ptcl_expression *dot, bool is_root);
+
 void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location);
 
 void ptcl_parser_throw_not_allowed_token(ptcl_parser *parser, char *token, ptcl_location location);

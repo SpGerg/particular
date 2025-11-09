@@ -20,6 +20,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
 ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, bool evaluate_arguments, ptcl_expression *self, ptcl_location location);
 
+ptcl_expression *ptcl_interpreter_get_member_from_dot(ptcl_interpreter *interpreter, ptcl_expression *expression, ptcl_location location);
+
 ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_name name);
 
 bool ptcl_interpreter_add_variable(ptcl_interpreter *interpreter, ptcl_name name, ptcl_expression *value, bool is_destroy);

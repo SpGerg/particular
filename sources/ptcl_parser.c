@@ -1138,6 +1138,13 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
                     return NULL;
                 }
 
+                if (expression->return_type.is_static)
+                {
+                    ptcl_attributes_destroy(attributes);
+                    free(statement);
+                    return NULL;
+                }
+
                 identifier = ptcl_identifier_create_by_expr(expression);
                 statement->func_call = ptcl_statement_func_call_create(expression->dot.right->func_call.func_decl, identifier, NULL, 0);
             }
@@ -2551,49 +2558,6 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_prot
     return decl;
 }
 
-static ptcl_expression *ptcl_parser_get_ctor_from_dot(ptcl_parser *parser, ptcl_expression *dot, bool is_root)
-{
-    if (!dot->dot.is_name)
-    {
-        return NULL;
-    }
-
-    ptcl_location location = ptcl_parser_current(parser).location;
-    ptcl_expression *left = dot->dot.left;
-    if (left->type != ptcl_expression_ctor_type)
-    {
-        return ptcl_parser_get_ctor_from_dot(parser, left, false);
-    }
-
-    ptcl_name name = dot->dot.name;
-    ptcl_expression_ctor ctor = left->ctor;
-    ptcl_argument *member;
-    size_t index;
-    if (!ptcl_parser_try_get_typedata_member(parser, left->return_type.typedata, name.value, &member, &index))
-    {
-        ptcl_parser_throw_unknown_member(parser, name.value, location);
-        ptcl_expression_destroy(left);
-        return NULL;
-    }
-
-    if (is_root)
-    {
-        return left;
-    }
-
-    ptcl_expression *static_value = ptcl_expression_copy(ctor.values[index], location);
-    if (static_value == NULL)
-    {
-        ptcl_expression_destroy(left);
-        ptcl_parser_throw_out_of_memory(parser, location);
-        return NULL;
-    }
-
-    static_value->return_type.is_static = true;
-    ptcl_expression_destroy(left);
-    return static_value;
-}
-
 ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
 {
     ptcl_location location = ptcl_parser_current(parser).location;
@@ -2619,7 +2583,7 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
         {
             ctor = ptcl_parser_get_ctor_from_dot(parser, identifier.value, true);
             ptcl_argument *placeholder;
-            if (!ptcl_parser_try_get_typedata_member(parser, ctor->return_type.typedata, name.value, &placeholder, &index))
+            if (!ptcl_parser_try_get_typedata_member(parser, ctor->return_type.typedata, identifier.value->dot.name.value, &placeholder, &index))
             {
                 ptcl_parser_throw_unknown_member(parser, name.value, location);
                 ptcl_expression_destroy(identifier.value);
@@ -5829,6 +5793,49 @@ void ptcl_parser_clear_scope(ptcl_parser *parser)
 
         instance->is_out_of_scope = true;
     }
+}
+
+ptcl_expression *ptcl_parser_get_ctor_from_dot(ptcl_parser *parser, ptcl_expression *dot, bool is_root)
+{
+    if (dot->type != ptcl_expression_dot_type || !dot->dot.is_name)
+    {
+        return NULL;
+    }
+
+    ptcl_location location = ptcl_parser_current(parser).location;
+    ptcl_expression *left = dot->dot.left;
+    if (left->type != ptcl_expression_ctor_type)
+    {
+        return ptcl_parser_get_ctor_from_dot(parser, left, false);
+    }
+
+    ptcl_name name = dot->dot.name;
+    ptcl_expression_ctor ctor = left->ctor;
+    ptcl_argument *member;
+    size_t index;
+    if (!ptcl_parser_try_get_typedata_member(parser, left->return_type.typedata, name.value, &member, &index))
+    {
+        ptcl_parser_throw_unknown_member(parser, name.value, location);
+        ptcl_expression_destroy(left);
+        return NULL;
+    }
+
+    if (is_root)
+    {
+        return left;
+    }
+
+    ptcl_expression *static_value = ptcl_expression_copy(ctor.values[index], location);
+    if (static_value == NULL)
+    {
+        ptcl_expression_destroy(left);
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return NULL;
+    }
+
+    static_value->return_type.is_static = true;
+    ptcl_expression_destroy(left);
+    return static_value;
 }
 
 void ptcl_parser_throw_out_of_memory(ptcl_parser *parser, ptcl_location location)

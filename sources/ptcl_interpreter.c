@@ -74,21 +74,40 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     case ptcl_statement_func_call_type:
         return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
     case ptcl_statement_assign_type:
-        if (!statement->assign.is_define)
-        {
-            return NULL;
-        }
-
         ptcl_expression *variable_value = ptcl_interpreter_evaluate_expression(interpreter, statement->assign.value, location);
         if (variable_value == NULL)
         {
             return NULL;
         }
 
-        if (!ptcl_interpreter_add_variable(interpreter, statement->assign.identifier.name, variable_value, true))
+        if (statement->assign.is_define)
         {
-            ptcl_expression_destroy(variable_value);
-            return NULL;
+            if (!ptcl_interpreter_add_variable(interpreter, statement->assign.identifier.name, variable_value, true))
+            {
+                ptcl_expression_destroy(variable_value);
+                return NULL;
+            }
+        }
+        else
+        {
+            if (statement->assign.identifier.is_name)
+            {
+            }
+            else
+            {
+                if (statement->assign.identifier.value->type == ptcl_expression_dot_type)
+                {
+                    ptcl_expression *left = ptcl_interpreter_get_member_from_dot(interpreter, statement->assign.identifier.value, location);
+                    if (left == NULL)
+                    {
+                        return NULL;
+                    }
+
+                    *left = *variable_value;
+                    free(variable_value);
+                    return left;
+                }
+            }
         }
 
         break;
@@ -185,30 +204,12 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
     case ptcl_expression_dot_type:
         if (expression->dot.is_name)
         {
-            ptcl_expression *left = ptcl_interpreter_evaluate_expression(interpreter, expression->dot.left, location);
-            if (left == NULL)
+            ptcl_expression *value = ptcl_interpreter_get_member_from_dot(interpreter, expression, location);
+            if (value == NULL)
             {
                 return NULL;
             }
 
-            ptcl_name typedata = left->return_type.typedata;
-            if (left->return_type.type == ptcl_value_type_type)
-            {
-                typedata = left->return_type.comp_type->types[0].type.typedata;
-            }
-
-            ptcl_name name = expression->dot.name;
-            ptcl_argument *member;
-            size_t index;
-            if (!ptcl_parser_try_get_typedata_member(interpreter->parser, typedata, name.value, &member, &index))
-            {
-                ptcl_parser_throw_unknown_member(interpreter->parser, name.value, location);
-                ptcl_expression_destroy(left);
-                return NULL;
-            }
-
-            ptcl_expression *value = left->ctor.values[index];
-            ptcl_expression_destroy(left);
             return ptcl_interpreter_evaluate_expression(interpreter, value, location);
         }
         else
@@ -482,6 +483,40 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     }
 
     return result;
+}
+
+ptcl_expression *ptcl_interpreter_get_member_from_dot(ptcl_interpreter *interpreter, ptcl_expression *expression, ptcl_location location)
+{
+    if (!expression->dot.is_name)
+    {
+        return NULL;
+    }
+
+    ptcl_expression *left = ptcl_interpreter_evaluate_expression(interpreter, expression->dot.left, location);
+    if (left == NULL)
+    {
+        return NULL;
+    }
+
+    ptcl_name typedata = left->return_type.typedata;
+    if (left->return_type.type == ptcl_value_type_type)
+    {
+        typedata = left->return_type.comp_type->types[0].type.typedata;
+    }
+
+    ptcl_name name = expression->dot.name;
+    ptcl_argument *member;
+    size_t index;
+    if (!ptcl_parser_try_get_typedata_member(interpreter->parser, typedata, name.value, &member, &index))
+    {
+        ptcl_parser_throw_unknown_member(interpreter->parser, name.value, location);
+        ptcl_expression_destroy(left);
+        return NULL;
+    }
+
+    ptcl_expression *value = left->ctor.values[index];
+    ptcl_expression_destroy(left);
+    return value;
 }
 
 ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_name name)

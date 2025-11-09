@@ -113,7 +113,7 @@ syntax fibonacci of [value: static integer] {
 	}
 }
 
-typedata array_object(entities: integer*, capacity: integer)
+typedata array_object(entities: integer*, example: integer, capacity: integer)
 
 type array: array_object {
 
@@ -125,16 +125,21 @@ type array: static array_object {
 			ptcl_error("Max range")
 		}
 
-		return self.entities[index]
+		return self.example
+	}
+
+	static function set(value: integer): void {
+		self.example = value
 	}
 }
 
 static function array(): static array {
-	return array_object(null, 8) :: static array
+	return array_object(null, 0, 8) :: static array
 }
 
 function main(): integer {
 	value := array()
-	value.get(12)
+	value.set(5) 
+	printn(value.get(0))
 	return 0
 }
