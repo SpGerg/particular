@@ -74,6 +74,12 @@ typedef struct ptcl_parser_tokens_state
     size_t count;
 } ptcl_parser_tokens_state;
 
+typedef struct ptcl_parser_insert_state
+{
+    ptcl_parser_tokens_state state;
+    size_t syntax_depth;
+} ptcl_parser_insert_state;
+
 typedef struct ptcl_parser_this_s_pair
 {
     ptcl_statement_func_body *body;
@@ -395,6 +401,7 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
 {
     if (variable.is_syntax_word)
     {
+        ptcl_name_destroy(variable.built_in->word);
         free(variable.built_in);
     }
     else if (variable.is_function_pointer)
@@ -433,7 +440,9 @@ bool ptcl_parser_parse_try_syntax_usage(
 
 void ptcl_parser_leave_from_syntax(ptcl_parser *parser);
 
-ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_statement_func_decl *function, ptcl_expression *self, bool is_expression);
+void ptcl_parser_leave_from_insert_state(ptcl_parser *parser);
+
+ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression *self, bool is_expression);
 
 ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global, bool is_static);
 
@@ -522,6 +531,10 @@ void ptcl_parser_back(ptcl_parser *parser);
 bool ptcl_parser_ended(ptcl_parser *parser);
 
 bool ptcl_parser_critical(ptcl_parser *parser);
+
+size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
+
+ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index);
 
 ptcl_statement_func_body *ptcl_parser_root(ptcl_parser *parser);
 

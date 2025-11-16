@@ -1011,6 +1011,7 @@ static ptcl_expression *ptcl_expression_create_token(ptcl_token token)
     if (expression != NULL)
     {
         expression->internal_token = token;
+        expression->internal_token.is_free_value = false;
         expression->return_type.is_static = true;
     }
 
@@ -2600,6 +2601,7 @@ static void ptcl_typedata_member_destroy(ptcl_argument typedata)
 
 static void ptcl_statement_typedata_decl_destroy(ptcl_statement_typedata_decl typedata)
 {
+    ptcl_name_destroy(typedata.name);
     for (size_t i = 0; i < typedata.count; i++)
     {
         ptcl_typedata_member_destroy(typedata.members[i]);
