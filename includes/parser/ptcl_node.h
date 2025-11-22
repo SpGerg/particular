@@ -2375,15 +2375,12 @@ static void ptcl_attributes_destroy(ptcl_attributes attributes)
 
 static void ptcl_statement_func_body_destroy(ptcl_statement_func_body func_body)
 {
-    if (func_body.count > 0)
+    for (size_t i = 0; i < func_body.count; i++)
     {
-        for (size_t i = 0; i < func_body.count; i++)
-        {
-            ptcl_statement_destroy(func_body.statements[i]);
-        }
-
-        free(func_body.statements);
+        ptcl_statement_destroy(func_body.statements[i]);
     }
+
+    free(func_body.statements);
 }
 
 static void ptcl_statement_if_destroy(ptcl_statement_if if_stat)

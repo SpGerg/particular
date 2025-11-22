@@ -140,6 +140,7 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
     transpiler->start = -1;
     transpiler->length = 0;
     transpiler->add_stdlib = false;
+    transpiler->from_position = false;
     return transpiler;
 }
 

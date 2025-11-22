@@ -52,10 +52,11 @@ static inline char *ptcl_from_float(float number)
 static inline char *ptcl_from_int(int number)
 {
     size_t length = snprintf(NULL, 0, "%d", number) + 1;
-
     char *result = malloc(length);
-    if (!result)
+    if (result == NULL)
+    {
         return NULL;
+    }
 
     snprintf(result, length, "%d", number);
     return result;

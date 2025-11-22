@@ -108,7 +108,7 @@ syntax dogs [value: static integer] {
 				self.name = name
 			}
 
-			function speak(): void {
+			#exceptional function speak() {
 				printf(self.name)
 			}
 
@@ -121,7 +121,8 @@ syntax dogs [value: static integer] {
 	}
 }
 
+
 function main(): integer {
-	#dogs 243
+	#dogs 2
 	return 0
 }
