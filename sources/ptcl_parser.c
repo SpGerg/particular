@@ -1424,11 +1424,6 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
         break;
     }
 
-    if (original_count == 0)
-    {
-        free(buffer);
-    }
-
     ptcl_expression *expression = ptcl_expression_create_array(
         ptcl_type_create_array(&ptcl_token_t_type, original_count),
         buffer,
@@ -1579,7 +1574,7 @@ bool ptcl_parser_parse_try_syntax_usage(
             return false;
         }
 
-        *temp = ptcl_statement_func_body_create(NULL, 0, ptcl_parser_root(parser));
+        *temp = ptcl_statement_func_body_create(NULL, 0, parser->main_root);
         parser->root = temp;
 
         // Process syntax variables
@@ -1624,7 +1619,11 @@ bool ptcl_parser_parse_try_syntax_usage(
         }
 
         ptcl_parser_set_position(parser, stop);
-        parser->syntaxes_nodes[parser->syntax_depth++] = ptcl_parser_syntax_pair_create(syntax, parser->state);
+        size_t current = parser->syntax_depth;
+        parser->syntax_depth++;
+        parser->syntaxes_nodes[current] = ptcl_parser_syntax_pair_create(
+            syntax, parser->state, temp,
+            parser->syntax_depth >= 1 ? temp->root : parser->syntaxes_nodes[current].body);
         ptcl_parser_tokens_state lated_body = parser->lated_states[result.index];
         ptcl_parser_set_state(parser, lated_body);
         ptcl_parser_set_position(parser, 0);
@@ -1654,11 +1653,11 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
 {
     ptcl_parser_clear_scope(parser);
 
-    ptcl_statement_func_body *temp = ptcl_parser_root(parser);
-    ptcl_statement_func_body_destroy(*temp);
-    parser->root = temp->root;
     ptcl_parser_syntax_pair pair = parser->syntaxes_nodes[--parser->syntax_depth];
     parser->state = pair.state;
+    ptcl_statement_func_body *temp = pair.body;
+    ptcl_statement_func_body_destroy(*temp);
+    parser->root = pair.previous_body;
     free(pair.syntax.nodes);
     free(temp);
 }
@@ -1894,6 +1893,7 @@ ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_
     }
 
     func_call.return_type = target.return_type;
+    func_call.func_decl = &function->func;
     if (function != NULL && function->is_built_in)
     {
         return ptcl_handle_builtin_execution(parser, function, &func_call, location, is_expression);
@@ -2046,7 +2046,7 @@ void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax)
         parser->root = previous;
         return;
     }
-    
+
     ptcl_statement_func_body *root_body = ptcl_parser_root(parser);
     size_t new_count = root_body->count + 1;
     ptcl_statement **new_statements = realloc(root_body->statements,
@@ -2403,7 +2403,6 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
         parser->is_type_body = false;
         ptcl_parser_func_body_by_pointer(parser, func_decl.func_body, true, true, func_decl.is_static);
         parser->is_type_body = last_state;
-        ptcl_parser_function *function_instance = &parser->functions[function_identifier];
         if (ptcl_parser_critical(parser))
         {
             free(func_decl.func_body);
@@ -2414,15 +2413,15 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
             if (!parser->is_type_body)
             {
                 parser->variables[variable_identifier].is_out_of_scope = true;
-                function_instance->is_out_of_scope = true;
+                parser->functions[function_identifier].is_out_of_scope = true;
             }
 
             return (ptcl_statement_func_decl){};
         }
 
-        function_instance->func.is_prototype = func_decl.is_prototype = false;
         if (!parser->is_type_body)
         {
+            func_decl.is_prototype = false;
             ptcl_parser_function *original = &parser->functions[function_identifier];
             original->func = func_decl;
         }
@@ -2814,7 +2813,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
         return NULL;
     }
 
-    if (is_static)
+    if (condition->return_type.is_static || is_static)
     {
         ptcl_statement_func_body result;
         const bool condition_value = condition->integer_n;

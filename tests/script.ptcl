@@ -101,6 +101,7 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 
 syntax dogs [value: static integer] {
 	static if value > 1 {
+		~fact := factorial(value)
 		#object !<dog word(value)> {
 			name: character*
 		} with {
@@ -109,6 +110,8 @@ syntax dogs [value: static integer] {
 			}
 
 			#exceptional function speak() {
+				value2: character* = null
+				foo := #deref(>character)(value2)
 				printf(self.name)
 			}
 
@@ -121,8 +124,23 @@ syntax dogs [value: static integer] {
 	}
 }
 
+static function factorial(number: integer): integer {
+	if number <= 1 {
+		return 1
+	}
+	else {
+		return number * factorial(number - 1)
+	}
+}
+
+syntax quote [value: static integer] {
+	static if value > 0 {
+		~fact := factorial(value)
+		#quote value - 1
+	}
+}
 
 function main(): integer {
-	#dogs 2
+	#quote 2
 	return 0
 }

@@ -2669,16 +2669,12 @@ static void ptcl_expression_ctor_destroy(ptcl_expression_ctor ctor)
 
 static void ptcl_expression_array_destroy(ptcl_expression_array array)
 {
-    if (array.count > 0)
+    for (size_t i = 0; i < array.count; i++)
     {
-        for (size_t i = 0; i < array.count; i++)
-        {
-            ptcl_expression_destroy(array.expressions[i]);
-        }
-
-        free(array.expressions);
+        ptcl_expression_destroy(array.expressions[i]);
     }
 
+    free(array.expressions);
     ptcl_type_destroy(array.type);
 }
 

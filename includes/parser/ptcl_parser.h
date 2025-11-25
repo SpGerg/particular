@@ -98,6 +98,7 @@ typedef struct ptcl_parser_variable
     bool is_syntax_word;
     bool is_function_pointer;
     bool is_syntax_variable;
+    bool is_syntax_anonymous;
     bool is_out_of_scope;
 } ptcl_parser_variable;
 
@@ -171,6 +172,8 @@ typedef struct ptcl_parser_syntax
 
 typedef struct ptcl_parser_syntax_pair
 {
+    ptcl_statement_func_body *body;
+    ptcl_statement_func_body *previous_body;
     ptcl_parser_syntax syntax;
     ptcl_parser_tokens_state state;
 } ptcl_parser_syntax_pair;
@@ -225,11 +228,13 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
-static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state)
+static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state, ptcl_statement_func_body *body, ptcl_statement_func_body *previos_body)
 {
     return (ptcl_parser_syntax_pair){
         .syntax = syntax,
-        .state = state};
+        .state = state,
+        .body = body,
+        .previous_body = previos_body};
 }
 
 static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, ptcl_parser_tokens_state state)
@@ -260,7 +265,8 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
-        .is_syntax_variable = false};
+        .is_syntax_variable = false,
+        .is_syntax_anonymous = false};
 }
 
 static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_statement_func_body *root)
@@ -273,7 +279,8 @@ static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptc
         .is_built_in = false,
         .is_syntax_word = false,
         .is_function_pointer = true,
-        .is_syntax_variable = false};
+        .is_syntax_variable = false,
+        .is_syntax_anonymous = false};
 }
 
 static ptcl_parser_function ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func)
