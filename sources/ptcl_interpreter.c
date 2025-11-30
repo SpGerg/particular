@@ -71,6 +71,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     switch (statement->type)
     {
     case ptcl_statement_func_body_type:
+        return ptcl_interpreter_evaluate_func_body(interpreter, statement->body, location);
     case ptcl_statement_func_call_type:
         return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
     case ptcl_statement_assign_type:
@@ -344,7 +345,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         for (size_t i = 0; i < count; i++)
         {
             ptcl_parser_variable variable = variables[i];
-            if (variable.is_out_of_scope || !variable.is_built_in || !ptcl_func_body_can_access(variable.root, ptcl_parser_root(interpreter->parser)))
+            if (variable.is_out_of_scope || variable.is_syntax_variable || !variable.is_built_in || !ptcl_func_body_can_access(variable.root, ptcl_parser_root(interpreter->parser)))
             {
                 continue;
             }

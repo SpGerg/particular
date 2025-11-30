@@ -1410,6 +1410,7 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
 
                 buffer = reallocated;
             }
+
             ptcl_expression *expression = ptcl_expression_create_token(current);
             if (expression == NULL)
             {
@@ -1619,11 +1620,10 @@ bool ptcl_parser_parse_try_syntax_usage(
         }
 
         ptcl_parser_set_position(parser, stop);
-        size_t current = parser->syntax_depth;
-        parser->syntax_depth++;
+        size_t current = parser->syntax_depth++;
         parser->syntaxes_nodes[current] = ptcl_parser_syntax_pair_create(
             syntax, parser->state, temp,
-            parser->syntax_depth >= 1 ? temp->root : parser->syntaxes_nodes[current].body);
+            parser->syntax_depth == 1 ? temp->root : parser->syntaxes_nodes[current - 1].body);
         ptcl_parser_tokens_state lated_body = parser->lated_states[result.index];
         ptcl_parser_set_state(parser, lated_body);
         ptcl_parser_set_position(parser, 0);
@@ -2419,9 +2419,9 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
             return (ptcl_statement_func_decl){};
         }
 
+        func_decl.is_prototype = false;
         if (!parser->is_type_body)
         {
-            func_decl.is_prototype = false;
             ptcl_parser_function *original = &parser->functions[function_identifier];
             original->func = func_decl;
         }
@@ -4119,8 +4119,7 @@ static ptcl_expression *ptcl_parser_try_ctor(ptcl_parser *parser, ptcl_name name
 
 static ptcl_expression *ptcl_parser_try_func(ptcl_parser *parser, ptcl_name name, ptcl_parser_function *func_instance, ptcl_token current)
 {
-    ptcl_parser_function placeholder = *func_instance;
-    ptcl_statement_func_call func_call = ptcl_parser_func_call(parser, &placeholder, NULL, true);
+    ptcl_statement_func_call func_call = ptcl_parser_func_call(parser, func_instance, NULL, true);
     if (ptcl_parser_critical(parser))
     {
         ptcl_name_destroy(name);

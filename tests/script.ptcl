@@ -133,14 +133,28 @@ static function factorial(number: integer): integer {
 	}
 }
 
+static function fibonnaci(number: integer): integer {
+	if number == 0 {
+		return 0
+	}
+	else {
+		if number == 1 {
+			return 1
+		}
+		else {
+			return fibonnaci(number - 2) + fibonnaci(number - 1)
+		}
+	}
+}
+
 syntax quote [value: static integer] {
 	static if value > 0 {
-		~fact := factorial(value)
+		~fact := fibonnaci(value)
 		#quote value - 1
 	}
 }
 
 function main(): integer {
-	#quote 2
+	#dogs 50
 	return 0
 }
