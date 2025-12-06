@@ -74,8 +74,8 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
         return ptcl_interpreter_evaluate_func_body(interpreter, statement->body, location);
     case ptcl_statement_func_call_type:
         return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
-    case ptcl_statement_assign_type:
-        ptcl_expression *variable_value = ptcl_interpreter_evaluate_expression(interpreter, statement->assign.value, location);
+    case ptcl_statement_assign_type: {
+        ptcl_expression* variable_value = ptcl_interpreter_evaluate_expression(interpreter, statement->assign.value, location);
         if (variable_value == NULL)
         {
             return NULL;
@@ -98,7 +98,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
             {
                 if (statement->assign.identifier.value->type == ptcl_expression_dot_type)
                 {
-                    ptcl_expression *left = ptcl_interpreter_get_member_from_dot(interpreter, statement->assign.identifier.value, location);
+                    ptcl_expression* left = ptcl_interpreter_get_member_from_dot(interpreter, statement->assign.identifier.value, location);
                     if (left == NULL)
                     {
                         return NULL;
@@ -112,8 +112,9 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
         }
 
         break;
-    case ptcl_statement_if_type:
-        ptcl_expression *condition = ptcl_interpreter_evaluate_expression(interpreter, statement->if_stat.condition, location);
+    }
+    case ptcl_statement_if_type: {
+        ptcl_expression* condition = ptcl_interpreter_evaluate_expression(interpreter, statement->if_stat.condition, location);
         if (condition == NULL)
         {
             break;
@@ -134,6 +135,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
         }
 
         break;
+    }
     case ptcl_statement_return_type:
         return ptcl_interpreter_evaluate_expression(interpreter, statement->ret.value, location);
     case ptcl_statement_import_type:
@@ -173,8 +175,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
         break;
     }
-    case ptcl_expression_array_type:
-        ptcl_expression *array_expression = ptcl_expression_array_create(expression->return_type, expression->array.expressions, expression->array.count, location);
+    case ptcl_expression_array_type: {
+        ptcl_expression* array_expression = ptcl_expression_array_create(expression->return_type, expression->array.expressions, expression->array.count, location);
         if (array_expression == NULL)
         {
             ptcl_parser_throw_out_of_memory(interpreter->parser, location);
@@ -184,8 +186,9 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         array_expression->is_original = false;
         array_expression->with_type = false;
         return array_expression;
-    case ptcl_expression_if_type:
-        ptcl_expression *condition = ptcl_interpreter_evaluate_expression(interpreter, expression->if_expr.condition, location);
+    }
+    case ptcl_expression_if_type: {
+        ptcl_expression* condition = ptcl_interpreter_evaluate_expression(interpreter, expression->if_expr.condition, location);
         if (condition == NULL)
         {
             break;
@@ -199,6 +202,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         }
 
         return ptcl_interpreter_evaluate_expression(interpreter, expression->if_expr.else_body, location);
+    }
     case ptcl_expression_ctor_type:
         result = ptcl_expression_copy(expression, location);
         break;
@@ -226,8 +230,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
         break;
     case ptcl_expression_array_element_type:
-    case ptcl_expression_cast_type:
-        ptcl_expression *cast_value = ptcl_interpreter_evaluate_expression(interpreter, expression->cast.value, location);
+    case ptcl_expression_cast_type: {
+        ptcl_expression* cast_value = ptcl_interpreter_evaluate_expression(interpreter, expression->cast.value, location);
         if (cast_value != NULL)
         {
             cast_value->return_type = expression->cast.type;
@@ -235,20 +239,21 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         }
 
         return cast_value;
-    case ptcl_expression_binary_type:
+    }
+    case ptcl_expression_binary_type: {
         ptcl_binary_operator_type binary_type = expression->binary.type;
         if (binary_type == ptcl_binary_operator_reference_type || binary_type == ptcl_binary_operator_dereference_type)
         {
             return NULL;
         }
 
-        ptcl_expression *left = ptcl_interpreter_evaluate_expression(interpreter, expression->binary.left, location);
+        ptcl_expression* left = ptcl_interpreter_evaluate_expression(interpreter, expression->binary.left, location);
         if (left == NULL)
         {
             return NULL;
         }
 
-        ptcl_expression *right = ptcl_interpreter_evaluate_expression(interpreter, expression->binary.right, location);
+        ptcl_expression* right = ptcl_interpreter_evaluate_expression(interpreter, expression->binary.right, location);
         if (right == NULL)
         {
             ptcl_expression_destroy(left);
@@ -257,14 +262,15 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
         result = ptcl_expression_binary_static_evaluate(expression->binary.type, left, right);
         break;
-    case ptcl_expression_unary_type:
+    }
+    case ptcl_expression_unary_type: {
         ptcl_binary_operator_type unary_type = expression->binary.type;
         if (unary_type == ptcl_binary_operator_reference_type || unary_type == ptcl_binary_operator_dereference_type)
         {
             return NULL;
         }
 
-        ptcl_expression *unary_value = ptcl_interpreter_evaluate_expression(interpreter, expression->unary.child, location);
+        ptcl_expression* unary_value = ptcl_interpreter_evaluate_expression(interpreter, expression->unary.child, location);
         if (unary_value == NULL)
         {
             return NULL;
@@ -272,6 +278,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
 
         result = ptcl_expression_unary_static_evaluate(expression->unary.type, unary_value);
         break;
+    }
     case ptcl_expression_variable_type:
         result = ptcl_interpreter_get_value(interpreter, expression->variable.name);
         if (result == NULL || !result->return_type.is_static)

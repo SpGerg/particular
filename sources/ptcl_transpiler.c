@@ -389,7 +389,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
 
         if (statement->assign.is_define)
         {
-            char* name = ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, statement->assign.identifier.name, NULL, false, true);
+            char *name = ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, statement->assign.identifier.name, NULL, false, true);
             ptcl_name generated_name = name == NULL ? statement->assign.identifier.name : ptcl_name_create_l(name, true, false, statement->assign.identifier.name.location);
             // ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type);
             ptcl_transpiler_add_variable_f(
@@ -421,7 +421,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     case ptcl_statement_func_decl_type:
         ptcl_transpiler_add_func_decl(transpiler, statement->func_decl, statement->func_decl.name, NULL);
         break;
-    case ptcl_statement_type_decl_type:
+    case ptcl_statement_type_decl_type: {
         ptcl_type base_type = statement->type_decl.types[0].type;
         if (base_type.is_static)
         {
@@ -433,14 +433,15 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
             for (size_t i = 0; i < statement->type_decl.functions->count; i++)
             {
                 ptcl_statement_func_decl function = statement->type_decl.functions->statements[i]->func_decl;
-                char *name = ptcl_transpiler_get_func_name_in_type(statement->type_decl.name.value, function.name.value);
+                char* name = ptcl_transpiler_get_func_name_in_type(statement->type_decl.name.value, function.name.value);
                 ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &base_type);
                 free(name);
             }
         }
 
         break;
-    case ptcl_statement_typedata_decl_type:
+    }
+    case ptcl_statement_typedata_decl_type: {
         const bool last = transpiler->from_position;
         if (transpiler->in_inner)
         {
@@ -485,6 +486,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         }
 
         break;
+    }
     case ptcl_statement_return_type:
         ptcl_transpiler_append_word_s(transpiler, "return");
         if (statement->ret.value != NULL)
@@ -531,7 +533,7 @@ static void ptcl_transpiler_add_argument(ptcl_transpiler *transpiler, ptcl_argum
 
 static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl_statement_func_decl func_decl, ptcl_name name, ptcl_type *self)
 {
-    bool return_function = ptcl_transpiler_add_type_and_name(transpiler, func_decl.return_type, ptcl_name_create_fast_w(NULL, false), &func_decl, false, true);
+    ptcl_transpiler_add_type_and_name(transpiler, func_decl.return_type, ptcl_name_create_fast_w(NULL, false), &func_decl, false, true);
     ptcl_transpiler_add_name(transpiler, name, true);
     ptcl_transpiler_append_character(transpiler, '(');
 
@@ -622,7 +624,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
     }
 
     ptcl_transpiler_append_character(transpiler, ')');
-    if (return_function)
+    if (func_decl.return_type.type == ptcl_value_function_pointer_type)
     {
         ptcl_transpiler_append_character(transpiler, ')');
         ptcl_type_functon_pointer_type function;
@@ -843,8 +845,8 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, ':');
         ptcl_transpiler_add_expression(transpiler, expression->if_expr.else_body, false);
         break;
-    case ptcl_expression_variable_type:
-        ptcl_transpiler_variable *variable;
+    case ptcl_expression_variable_type: {
+        ptcl_transpiler_variable* variable;
         if (strcmp(expression->variable.name.value, "self") == 0)
         {
             if (ptcl_transpiler_try_get_variable(transpiler, ptcl_name_create_fast_w("this", false), &variable))
@@ -891,6 +893,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
 
         ptcl_transpiler_add_name(transpiler, expression->variable.name, false);
         break;
+    }
     case ptcl_expression_word_type:
         ptcl_transpiler_append_character(transpiler, '\"');
         ptcl_transpiler_append_word(transpiler, expression->word.value);
@@ -931,8 +934,8 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_add_expression(transpiler, expression->array_element.index, false);
         ptcl_transpiler_append_character(transpiler, ']');
         break;
-    case ptcl_expression_double_type:
-        char *double_n = ptcl_from_double(expression->double_n);
+    case ptcl_expression_double_type: {
+        char* double_n = ptcl_from_double(expression->double_n);
         if (double_n != NULL)
         {
             ptcl_transpiler_append_word_s(transpiler, double_n);
@@ -940,8 +943,9 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         }
 
         break;
-    case ptcl_expression_float_type:
-        char *float_n = ptcl_from_float(expression->float_n);
+    }
+    case ptcl_expression_float_type: {
+        char* float_n = ptcl_from_float(expression->float_n);
         if (float_n != NULL)
         {
             ptcl_transpiler_append_word_s(transpiler, float_n);
@@ -949,8 +953,9 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         }
 
         break;
-    case ptcl_expression_integer_type:
-        char *integer_n = ptcl_from_int(expression->integer_n);
+    }
+    case ptcl_expression_integer_type: {
+        char* integer_n = ptcl_from_int(expression->integer_n);
         if (integer_n != NULL)
         {
             ptcl_transpiler_append_word_s(transpiler, integer_n);
@@ -958,6 +963,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         }
 
         break;
+    }
     case ptcl_expression_ctor_type:
         if (specify_type)
         {
@@ -1105,11 +1111,12 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
     switch (type.type)
     {
     case ptcl_value_typedata_type:
-        return ptcl_transpiler_add_name(transpiler, type.typedata, false);
+        ptcl_transpiler_add_name(transpiler, type.typedata, false);
+        break;
     case ptcl_value_type_type:
         return ptcl_transpiler_add_type_and_name(transpiler, type.comp_type->types[0].type, name, NULL, false, is_define);
-    case ptcl_value_array_type:
-        char *array = ptcl_transpiler_add_type_and_name(transpiler, *type.array.target, ptcl_name_create_fast_w(NULL, false), NULL, with_array, is_define);
+    case ptcl_value_array_type: {
+        char* array = ptcl_transpiler_add_type_and_name(transpiler, *type.array.target, ptcl_name_create_fast_w(NULL, false), NULL, with_array, is_define);
         if (with_array)
         {
             ptcl_transpiler_append_character(transpiler, '[');
@@ -1126,6 +1133,7 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
         }
 
         return array;
+    }
     case ptcl_value_pointer_type:
         if (type.pointer.is_any || type.pointer.is_null)
         {
@@ -1133,7 +1141,7 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
             break;
         }
 
-        char* pointer = ptcl_transpiler_add_type_and_name(transpiler, *type.pointer.target, ptcl_name_create_fast_w(NULL, false), NULL, with_array, is_define);
+        char *pointer = ptcl_transpiler_add_type_and_name(transpiler, *type.pointer.target, ptcl_name_create_fast_w(NULL, false), NULL, with_array, is_define);
         ptcl_transpiler_append_character(transpiler, '*');
         if (name.value != NULL)
         {

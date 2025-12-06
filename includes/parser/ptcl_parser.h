@@ -20,7 +20,12 @@ static ptcl_name const ptcl_statement_t_name = {
     .is_anonymous = false};
 
 static ptcl_type_comp_type const ptcl_statement_comp_type = {
-    .identifier = ptcl_statement_t_name,
+    .identifier = {
+        .value = PTCL_PARSER_STATEMENT_TYPE_NAME,
+        .location = {0},
+        .is_free = false,
+        .is_anonymous = false
+    },
     .types = NULL,
     .count = 0,
     .functions = NULL,
@@ -40,7 +45,12 @@ static ptcl_name const ptcl_token_t_name = {
     .is_anonymous = false};
 
 static ptcl_type_comp_type const ptcl_token_comp_type = {
-    .identifier = ptcl_token_t_name,
+    .identifier = {
+        .value = PTCL_PARSER_TOKEN_TYPE_NAME,
+        .location = {0},
+        .is_free = false,
+        .is_anonymous = false
+    },
     .types = NULL,
     .count = 0,
     .functions = NULL,

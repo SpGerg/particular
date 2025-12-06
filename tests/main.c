@@ -2,6 +2,7 @@
 #include <ptcl_transpiler.h>
 #include <ptcl_parser.h>
 #include <ptcl_lexer.h>
+#include <windows.h>
 
 int main()
 {

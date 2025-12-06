@@ -185,7 +185,7 @@ typedef struct ptcl_argument
 
 static ptcl_name ptcl_self_name = {
     .value = "self",
-    .location = (ptcl_location){0},
+    .location = {0},
     .is_anonymous = false,
     .is_free = false};
 
@@ -202,7 +202,7 @@ static ptcl_type ptcl_type_any_pointer = {
 
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type,
-    .object_type = (ptcl_type_object_type){.target = &ptcl_type_any},
+    .object_type = {.target = &ptcl_type_any},
     .is_primitive = true,
     .is_static = false};
 
@@ -718,7 +718,7 @@ static ptcl_expression *ptcl_expression_create_character(char character, ptcl_lo
 
 static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expressions, size_t count, ptcl_location location)
 {
-    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){}, location);
+    ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){0}, location);
     if (expression != NULL)
     {
         ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int)count);
@@ -1544,11 +1544,11 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
 
         copy.pointer.is_any = type.pointer.is_any;
         break;
-    case ptcl_value_function_pointer_type:
-        ptcl_type *return_type = malloc(sizeof(ptcl_type));
+    case ptcl_value_function_pointer_type: {
+        ptcl_type* return_type = malloc(sizeof(ptcl_type));
         *return_type = ptcl_type_copy(*type.function_pointer.return_type);
         return_type->is_primitive = false;
-        ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
+        ptcl_argument* arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             ptcl_argument target_argument = type.function_pointer.arguments[i];
@@ -1567,6 +1567,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
         copy.function_pointer.return_type = return_type;
         copy.function_pointer.arguments = arguments;
         break;
+    }
     case ptcl_value_array_type:
         if (type.array.target != NULL)
         {
@@ -2252,17 +2253,18 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     case ptcl_value_typedata_type:
         name = ptcl_string(is_static, "typedata (", type.typedata.value, ")", NULL);
         break;
-    case ptcl_value_array_type:
-        char *array_name = ptcl_type_to_present_string_copy(*type.array.target);
+    case ptcl_value_array_type: {
+        char* array_name = ptcl_type_to_present_string_copy(*type.array.target);
         name = ptcl_string(is_static, "array (", array_name, ")", NULL);
         free(array_name);
         break;
-    case ptcl_value_function_pointer_type:
-        char *return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
+    }
+    case ptcl_value_function_pointer_type: {
+        char* return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
         name = ptcl_string(is_static, "function (", NULL);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
-            char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
+            char* argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
             name = ptcl_string_append(name, argument, NULL);
             if (i != type.function_pointer.count - 1)
             {
@@ -2275,6 +2277,7 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         name = ptcl_string_append(name, "): ", return_type, NULL);
         free(return_type);
         break;
+    }
     case ptcl_value_pointer_type:
         if (type.pointer.is_any || type.pointer.is_null)
         {
@@ -2682,12 +2685,16 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
 {
     if (!expression->is_original)
     {
-        ptcl_type_destroy(expression->return_type);
+        if (expression->with_type)
+        {
+            ptcl_type_destroy(expression->return_type);
+        }
+
         free(expression);
         return;
     }
 
-    if (ptcl_expression_with_own_type(expression->type))
+    if (expression->with_type && ptcl_expression_with_own_type(expression->type))
     {
         ptcl_type_destroy(expression->return_type);
     }
@@ -2754,7 +2761,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         ptcl_token_destroy(expression->internal_token);
         break;
     case ptcl_expression_object_type_type:
-        ptcl_type_destroy(expression->object_type.type);
+        //ptcl_type_destroy(expression->object_type.type);
         break;
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:

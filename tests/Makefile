@@ -1,6 +1,6 @@
 NAME = ptcl
 TEST_NAME = ptcl_test
-CC = gcc
+CC = clang -static -fuse-ld=lld
 CFLAGS = -o $(NAME) -Wall -Wextra -Wno-unused-function -Wno-unused-variable -Wno-unused-variable
 TEST_CFLAGS = -o $(TEST_NAME)
 
@@ -11,7 +11,7 @@ TRANSPILER_INCLUDES = ./../includes/transpiler/
 UTILITIES_INCLUDES = ./../includes/utilities/
 
 debug:
-	$(CC) $(CFLAGS) -O0 -g main.c $(SOURCES) \
+	$(CC) $(CFLAGS) -fsanitize=address -O0 -g main.c $(SOURCES) \
 	-I$(LEXER_INCLUDES) -I$(PARSER_INCLUDES) -I$(TRANSPILER_INCLUDES) -I$(UTILITIES_INCLUDES)
 
 opt:

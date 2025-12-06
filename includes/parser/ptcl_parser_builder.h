@@ -50,7 +50,7 @@ static ptcl_parser_comp_type ptcl_comp_type_builder_build(ptcl_comp_type_builder
     return ptcl_parser_comp_type_create(builder->root, type->identifier, type, false);
 }
 
-static void ptcl_comp_type_builder_destroy()
+static void ptcl_comp_type_builder_destroy(ptcl_comp_type_builder *builder)
 {
 }
 
