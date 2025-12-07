@@ -138,8 +138,11 @@ function main(): integer {
 	#object listener {
 		list: #list(>(): void)
 	} with {
+		function constructor(func: (): void): void {
 
+		}
 	}
 
+	v := #create listener(null)
 	return 0
 }

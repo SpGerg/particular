@@ -115,6 +115,7 @@ typedef struct ptcl_type_pointer
 {
     ptcl_type *target;
     bool is_any;
+    // TODO: make own null pointer type instead of it
     bool is_null;
 } ptcl_type_pointer;
 
@@ -1335,6 +1336,10 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
         {
             return ptcl_comp_type_equals(target.comp_type, expected, false);
         }
+        else if (expected.type == ptcl_value_function_pointer_type && target.type == ptcl_value_pointer_type && target.pointer.is_null)
+        {
+            return true;
+        }
 
         return false;
     }
@@ -1544,11 +1549,12 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
 
         copy.pointer.is_any = type.pointer.is_any;
         break;
-    case ptcl_value_function_pointer_type: {
-        ptcl_type* return_type = malloc(sizeof(ptcl_type));
+    case ptcl_value_function_pointer_type:
+    {
+        ptcl_type *return_type = malloc(sizeof(ptcl_type));
         *return_type = ptcl_type_copy(*type.function_pointer.return_type);
         return_type->is_primitive = false;
-        ptcl_argument* arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
+        ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             ptcl_argument target_argument = type.function_pointer.arguments[i];
@@ -2253,18 +2259,20 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     case ptcl_value_typedata_type:
         name = ptcl_string(is_static, "typedata (", type.typedata.value, ")", NULL);
         break;
-    case ptcl_value_array_type: {
-        char* array_name = ptcl_type_to_present_string_copy(*type.array.target);
+    case ptcl_value_array_type:
+    {
+        char *array_name = ptcl_type_to_present_string_copy(*type.array.target);
         name = ptcl_string(is_static, "array (", array_name, ")", NULL);
         free(array_name);
         break;
     }
-    case ptcl_value_function_pointer_type: {
-        char* return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
+    case ptcl_value_function_pointer_type:
+    {
+        char *return_type = ptcl_type_to_present_string_copy(*type.function_pointer.return_type);
         name = ptcl_string(is_static, "function (", NULL);
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
-            char* argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
+            char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
             name = ptcl_string_append(name, argument, NULL);
             if (i != type.function_pointer.count - 1)
             {
@@ -2761,7 +2769,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression)
         ptcl_token_destroy(expression->internal_token);
         break;
     case ptcl_expression_object_type_type:
-        //ptcl_type_destroy(expression->object_type.type);
+        // ptcl_type_destroy(expression->object_type.type);
         break;
     case ptcl_expression_character_type:
     case ptcl_expression_double_type:

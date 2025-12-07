@@ -136,7 +136,7 @@ static function fibonnaci(number: integer): integer {
 
 function main(): integer {
 	#object listener {
-		list: #list(>(): void)
+		list: #list((): void)
 	} with {
 
 	}
