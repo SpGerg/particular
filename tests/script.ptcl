@@ -17,21 +17,24 @@ syntax list_object_name([T: static type]) {
 syntax list([T: static type]) {
 	@{
 		~type_name: static word = #list_name(T)
-		~type_object_name: static word = #list_object_name(T)
-		global typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
-		global type !~type_name: !~type_object_name {
-			function add(entity: !T): void {
-				self.entities[self.length] = entity
-				self.length = self.length + 1
+		static if not ptcl_defined(~type_name)
+		{
+			~type_object_name: static word = #list_object_name(T)
+			global typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
+			global type !~type_name: !~type_object_name {
+				function add(entity: !T): void {
+					self.entities[self.length] = entity
+					self.length = self.length + 1
+				}
+
+				function at(index: integer): !T {
+					return self.entities[index]
+				}
 			}
 
-			function at(index: integer): !T {
-				return self.entities[index]
+			syntax [left: !~type_name][[index: integer]] {
+				left.at(index)
 			}
-		}
-
-		syntax [left: !~type_name][[index: integer]] {
-			left.at(index)
 		}
 	}
 
@@ -97,9 +100,15 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 
 syntax dogs [value: static integer] {
 	static if value > 1 {
-		~fact := fibonnaci(value)
 		#object !<dog word(value)> {
-			name: character*
+			name: character*,
+			list: #list(>(): void),
+			list2: #list(>(): void),
+			list3: #list(>(): void),
+			list4: #list(>(): void),
+			list5: #list(>(): void),
+			list6: #list(>(): void),
+			list7: #list(>(): void),
 		} with {
 			function constructor(name: character*): void {
 				self.name = name
@@ -109,6 +118,7 @@ syntax dogs [value: static integer] {
 				value2: character* = "Hello, world"
 				foo := #deref(character)(value2)
 				printf(self.name)
+				self.list.add(null)
 			}
 
 			function destructor(): void {
@@ -135,14 +145,6 @@ static function fibonnaci(number: integer): integer {
 }
 
 function main(): integer {
-	#object listener {
-		list: #list(>(): void)
-	} with {
-		function constructor(func: (): void): void {
-
-		}
-	}
-
-	v := #create listener(null)
+	#dogs 252
 	return 0
 }

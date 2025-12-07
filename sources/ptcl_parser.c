@@ -58,11 +58,11 @@
     ptcl_func_built_in_builder_return(&error_builder, ptcl_type_void);                                         \
     ptcl_parser_add_instance_function(parser, ptcl_func_built_in_builder_build(&error_builder))
 
-#define CREATE_DEFINED_FUNC()                                                                                    \
-    ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined");              \
-    ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);                                 \
-    ptcl_func_built_in_builder_add_argument(&defined_builder, ptcl_type_create_array(&ptcl_type_character, -1)); \
-    ptcl_func_built_in_builder_return(&defined_builder, ptcl_type_integer);                                      \
+#define CREATE_DEFINED_FUNC()                                                                       \
+    ptcl_func_built_in_builder defined_builder = ptcl_func_built_in_builder_create("ptcl_defined"); \
+    ptcl_func_built_in_builder_bind(&defined_builder, ptcl_defined_realization);                    \
+    ptcl_func_built_in_builder_add_argument(&defined_builder, static_any);                          \
+    ptcl_func_built_in_builder_return(&defined_builder, ptcl_type_integer);                         \
     ptcl_parser_add_instance_function(parser, ptcl_func_built_in_builder_build(&defined_builder))
 
 #define CREATE_INSERT_FUNC()                                                                      \
@@ -505,16 +505,30 @@ static ptcl_expression *ptcl_error_realization(ptcl_parser *parser, ptcl_express
 static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *name_argument = arguments[0];
-    ptcl_name name = ptcl_name_create_fast_w(ptcl_string_from_array(name_argument->array), false);
-    if (name.value == NULL)
+    ptcl_name name;
+    if (name_argument->return_type.type == ptcl_value_array_type && name_argument->return_type.array.target->type == ptcl_value_character_type)
     {
+        name = ptcl_name_create(ptcl_string_from_array(name_argument->array), true, location);
+        if (name.value == NULL)
+        {
+            PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+            ptcl_parser_throw_out_of_memory(parser, location);
+            return NULL;
+        }
+    }
+    else if (name_argument->return_type.type == ptcl_value_word_type)
+    {
+        name = ptcl_name_create(name_argument->word.value, false, location);
+    }
+    else
+    {
+        ptcl_parser_throw_fast_incorrect_type(parser, ptcl_type_word, name_argument->return_type, location);
         PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-        ptcl_parser_throw_out_of_memory(parser, location);
         return NULL;
     }
 
     bool is_defined = ptcl_parser_is_defined(parser, name);
-    free(name.value);
+    ptcl_name_destroy(name);
     PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
     return ptcl_expression_create_integer(is_defined, location);
 }
