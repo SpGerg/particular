@@ -182,6 +182,7 @@ static bool ptcl_parser_try_parse_insert(ptcl_parser *parser, ptcl_parser_tokens
     state->tokens = expression_tokens;
     state->count = expression->array.count;
     state->position = 0;
+    state->is_free = true;
     expression->is_original = false;
     ptcl_expression_destroy(expression);
     return true;
@@ -1688,6 +1689,11 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
     ptcl_parser_clear_scope(parser);
 
     ptcl_parser_syntax_pair pair = parser->syntaxes_nodes[--parser->syntax_depth];
+    if (parser->state.is_free)
+    {
+        free(ptcl_parser_tokens(parser));
+    }
+
     parser->state = pair.state;
     ptcl_statement_func_body *temp = pair.body;
     ptcl_statement_func_body_destroy(*temp);
@@ -1698,7 +1704,11 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
 
 void ptcl_parser_leave_from_insert_state(ptcl_parser *parser)
 {
-    free(ptcl_parser_tokens(parser));
+    if (parser->state.is_free)
+    {
+        free(ptcl_parser_tokens(parser));
+    }
+
     ptcl_parser_set_state(parser, ptcl_parser_insert_state_at(parser, --parser->insert_states_count)->state);
 }
 
@@ -3334,7 +3344,7 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
 
     // -1 because of curly
     size_t tokens_count = (ptcl_parser_position(parser) - start) - 1;
-    size_t index = ptcl_parser_add_lated_body(parser, start, tokens_count, location);
+    size_t index = ptcl_parser_add_lated_body(parser, start, tokens_count, false, location);
     if (ptcl_parser_critical(parser))
     {
         ptcl_parser_syntax_destroy(syntax);
@@ -4118,7 +4128,7 @@ static ptcl_expression *ptcl_parser_lated_body_void(ptcl_parser *parser, ptcl_lo
 
     parser->return_type = previous;
     size_t token_count = ptcl_parser_position(parser) - block_start;
-    size_t index = ptcl_parser_add_lated_body(parser, block_start, token_count, location);
+    size_t index = ptcl_parser_add_lated_body(parser, block_start, token_count, false, location);
     if (ptcl_parser_critical(parser))
     {
         return NULL;
@@ -5662,7 +5672,7 @@ bool ptcl_parser_try_get_variable(ptcl_parser *parser, ptcl_name name, ptcl_pars
     return false;
 }
 
-int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, ptcl_location location)
+int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, bool is_free, ptcl_location location)
 {
     ptcl_token *body_tokens = NULL;
     if (tokens_count > 0)
@@ -5704,6 +5714,7 @@ int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_
     ptcl_parser_tokens_state *body = &parser->lated_states[parser->lated_states_count];
     body->tokens = body_tokens;
     body->count = tokens_count;
+    body->is_free = is_free;
     return parser->lated_states_count++;
 }
 

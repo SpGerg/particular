@@ -82,6 +82,7 @@ typedef struct ptcl_parser_tokens_state
     size_t position;
     ptcl_token *tokens;
     size_t count;
+    bool is_free;
 } ptcl_parser_tokens_state;
 
 typedef struct ptcl_parser_insert_state
@@ -585,7 +586,7 @@ bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_pars
 
 bool ptcl_parser_try_get_variable(ptcl_parser *parser, ptcl_name name, ptcl_parser_variable **instance);
 
-int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, ptcl_location location);
+int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, bool is_free, ptcl_location location);
 
 bool ptcl_parser_is_syntax_defined(ptcl_parser *parser, ptcl_name name);
 
