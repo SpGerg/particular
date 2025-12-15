@@ -100,6 +100,7 @@ syntax exceptional function [name: static word]([arguments: ...]) [body: static 
 
 syntax dogs [value: static integer] {
 	static if value > 1 {
+		~fact := value * value
 		#object !<dog word(value)> {
 			name: character*,
 			list: #list(>(): void),
@@ -150,7 +151,54 @@ static function fibonnaci(number: integer): integer {
 	}
 }
 
+type disposable: (pointer): void {
+	function dispose(entity: pointer): void {
+		self(entity)
+	}
+}
+
+prototype function file_destroy(file: pointer): void
+
+type file: pointer {
+	static function disposable(): disposable {
+		return file_destroy :: disposable
+	}
+
+	function read(): character* {
+		return null
+	}
+
+	function destroy(): void {
+
+	}
+}
+
+function file_destroy(file: pointer): void {
+	target := *(file :: file*)
+	target.destroy()	
+}
+
+-- static значит, что стоит попробовать во время компиляции вычислить
+static function create_file(): file {
+	return null :: file
+}
+
+syntax using([name: static word]=[value: pointer], [target: disposable]) [body: static (): void] {
+	@[inline]
+	function ~unique(): void {
+		!name := value
+		ptcl_insert(ptcl_get_statements(body))
+		target.dispose(value)
+	}
+
+	~unique()
+}
+
 function main(): integer {
-	#dogs 252
+	file := create_file()
+	#using (text = &file, file.disposable()) {
+		content := file.read()
+	}
+
 	return 0
 }

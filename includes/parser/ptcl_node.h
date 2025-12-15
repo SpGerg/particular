@@ -147,6 +147,8 @@ typedef struct ptcl_type_functon_pointer_type
     ptcl_type *return_type;
     ptcl_argument *arguments;
     size_t count;
+    bool is_variadic;
+    bool is_static_by_declaration;
 } ptcl_type_functon_pointer_type;
 
 typedef struct ptcl_type
@@ -839,7 +841,8 @@ static ptcl_type *ptcl_type_get_target(ptcl_type type)
     }
 }
 
-static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_argument *arguments, size_t count)
+static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_argument *arguments, size_t count, bool is_static_by_declaration,
+                                       bool is_variadic)
 {
     return (ptcl_type){
         .type = ptcl_value_function_pointer_type,
@@ -847,7 +850,9 @@ static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_argument *ar
         .is_static = false,
         .function_pointer.return_type = return_type,
         .function_pointer.arguments = arguments,
-        .function_pointer.count = count};
+        .function_pointer.count = count,
+        .function_pointer.is_static_by_declaration = is_static_by_declaration,
+        .function_pointer.is_variadic = is_variadic};
 }
 
 static ptcl_token_type ptcl_value_type_to_token(ptcl_value_type type)
@@ -1295,7 +1300,7 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
         return true;
     }
 
-    if (target.type == ptcl_value_function_pointer_type && target.is_static && !expected.is_static)
+    if (target.type == ptcl_value_function_pointer_type && !expected.is_static && (target.is_static && !target.function_pointer.is_static_by_declaration))
     {
         return false;
     }
@@ -1365,6 +1370,7 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
     case ptcl_value_float_type:
     case ptcl_value_integer_type:
     case ptcl_value_void_type:
+    case ptcl_value_function_pointer_type:
         return true;
     default:
         return true;
@@ -1692,7 +1698,7 @@ static ptcl_expression *ptcl_expression_static_cast(ptcl_expression *expression)
 
     ptcl_type type = expression->cast.type;
     ptcl_expression *value = expression->cast.value;
-    if (!ptcl_type_is_primitive(expression->return_type.type) || !ptcl_type_is_primitive(type.type))
+    if (value->return_type.type == ptcl_value_function_pointer_type || !ptcl_type_is_primitive(expression->return_type.type) || !ptcl_type_is_primitive(type.type))
     {
         return expression;
     }

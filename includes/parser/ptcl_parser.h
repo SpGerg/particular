@@ -504,9 +504,9 @@ ptcl_expression *ptcl_parser_unary(ptcl_parser *parser, bool only_value, ptcl_ty
 
 ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool is_expression, bool with_word);
 
-ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word);
+ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, bool with_word, bool is_expression);
 
-ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *except, bool with_word);
+ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *except, bool with_word, bool is_expression);
 
 ptcl_expression_ctor ptcl_parser_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata typedata);
 
