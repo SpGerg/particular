@@ -615,7 +615,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
                 ptcl_transpiler_append_character(transpiler, ',');
             }
 
-            ptcl_type pointer = ptcl_type_create_pointer(&variable.type);
+            ptcl_type pointer = ptcl_type_create_pointer(&variable.type, false);
             ptcl_argument argument = ptcl_argument_create(pointer, variable.name);
             ptcl_transpiler_add_argument(transpiler, argument);
             added = true;
@@ -657,7 +657,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
 
     if (self != NULL)
     {
-        ptcl_type pointer = self->is_static ? *self : ptcl_type_create_pointer(self);
+        ptcl_type pointer = self->is_static ? *self : ptcl_type_create_pointer(self, false);
         ptcl_argument argument = ptcl_argument_create(pointer, ptcl_name_create_fast_w("self", false));
         ptcl_transpiler_add_argument(transpiler, argument);
         if (func_decl.count > 0)
@@ -1179,6 +1179,11 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
         return func;
     }
 
+    if (type.is_const)
+    {
+        ptcl_transpiler_append_word_s(transpiler, "const");
+    }
+
     switch (type.type)
     {
     case ptcl_value_typedata_type:
@@ -1215,6 +1220,11 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
 
         char *pointer = ptcl_transpiler_add_type_and_name(transpiler, *type.pointer.target, ptcl_name_create_fast_w(NULL, false), NULL, with_array, is_define);
         ptcl_transpiler_append_character(transpiler, '*');
+        if (type.is_const)
+        {
+            ptcl_transpiler_append_word_s(transpiler, "const");
+        }
+        
         if (name.value != NULL)
         {
             ptcl_transpiler_append_word_s(transpiler, name.value);

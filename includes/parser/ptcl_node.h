@@ -117,6 +117,7 @@ typedef struct ptcl_type_pointer
     bool is_any;
     // TODO: make own null pointer type instead of it
     bool is_null;
+    bool is_const;
 } ptcl_type_pointer;
 
 typedef struct ptcl_type_array
@@ -156,6 +157,7 @@ typedef struct ptcl_type
     ptcl_value_type type;
     bool is_primitive;
     bool is_static;
+    bool is_const;
 
     union
     {
@@ -195,54 +197,64 @@ static ptcl_name ptcl_self_name = {
 static ptcl_type ptcl_type_any = {
     .type = ptcl_value_any_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_any_pointer = {
     .type = ptcl_value_pointer_type,
     .pointer = {.is_any = true, .is_null = false, .target = NULL},
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_any_type = {
     .type = ptcl_value_object_type_type,
     .object_type = {.target = &ptcl_type_any},
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type const ptcl_type_word = {
     .type = ptcl_value_word_type,
     .is_primitive = true,
-    .is_static = true};
+    .is_static = true,
+    .is_const = false};
 
 static ptcl_type ptcl_type_character = {
     .type = ptcl_value_character_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_double = {
     .type = ptcl_value_double_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_float = {
     .type = ptcl_value_float_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_integer = {
     .type = ptcl_value_integer_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_void = {
     .type = ptcl_value_void_type,
     .is_primitive = true,
-    .is_static = false};
+    .is_static = false,
+    .is_const = false};
 
 static ptcl_type ptcl_type_null = {
     .type = ptcl_value_pointer_type,
     .is_primitive = true,
     .is_static = true,
+    .is_const = false,
     .pointer = {.is_any = false, .is_null = true, .target = NULL}};
 
 typedef struct ptcl_expression_variable
@@ -573,40 +585,47 @@ static ptcl_identifier ptcl_identifier_create_by_str(char *value)
         .name = ptcl_name_create_fast_w(value, false)};
 }
 
-static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_anonymous)
+static ptcl_type ptcl_type_create_base(ptcl_value_type type, bool is_primitive, bool is_const, bool is_static)
 {
     return (ptcl_type){
-        .type = ptcl_value_typedata_type,
-        .typedata = ptcl_name_create_fast_w(identifier, is_anonymous)};
+        .type = type,
+        .is_primitive = is_primitive,
+        .is_const = is_const,
+        .is_static = is_static};
 }
 
-static ptcl_type ptcl_type_create_array(ptcl_type *type, int count)
+static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_const, bool is_anonymous)
 {
-    return (ptcl_type){
-        .type = ptcl_value_array_type,
-        .is_static = true,
-        .array = (ptcl_type_array){
-            .target = type,
-            .count = count}};
+    ptcl_type base = ptcl_type_create_base(ptcl_value_typedata_type, true, is_const, false);
+    base.typedata = ptcl_name_create_fast_w(identifier, is_anonymous);
+    return base;
 }
 
-static ptcl_type ptcl_type_create_object_type(ptcl_type *type)
+static ptcl_type ptcl_type_create_array(ptcl_type *type, bool is_const, int count)
 {
-    return (ptcl_type){
-        .type = ptcl_value_object_type_type,
-        .object_type.target = type,
-        .is_primitive = true,
-        .is_static = false};
+    ptcl_type base = ptcl_type_create_base(ptcl_value_array_type, true, is_const, true);
+    base.array = (ptcl_type_array){
+        .target = type,
+        .count = count};
+    return base;
 }
 
-static ptcl_type ptcl_type_create_pointer(ptcl_type *type)
+static ptcl_type ptcl_type_create_object_type(ptcl_type *type, bool is_const)
 {
-    return (ptcl_type){
-        .type = ptcl_value_pointer_type,
-        .pointer = (ptcl_type_pointer){
-            .target = type,
-            .is_any = false,
-            .is_null = false}};
+    ptcl_type base = ptcl_type_create_base(ptcl_value_object_type_type, true, is_const, false);
+    base.object_type.target = type;
+    return base;
+}
+
+static ptcl_type ptcl_type_create_pointer(ptcl_type *type, bool is_const)
+{
+    ptcl_type base = ptcl_type_create_base(ptcl_value_pointer_type, true, is_const, false);
+    base.pointer = (ptcl_type_pointer){
+        .target = type,
+        .is_any = false,
+        .is_null = false,
+        .is_const = is_const};
+    return base;
 }
 
 static ptcl_type_comp_type ptcl_type_create_comp_type(ptcl_statement_type_decl type_decl, bool is_static)
@@ -632,11 +651,11 @@ static ptcl_type_comp_type ptcl_type_create_comp_type_empty(ptcl_name name)
         .is_any = false};
 }
 
-static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type *type)
+static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type *type, bool is_const)
 {
-    return (ptcl_type){
-        .type = ptcl_value_type_type,
-        .comp_type = type};
+    ptcl_type base = ptcl_type_create_base(ptcl_value_type_type, true, is_const, false);
+    base.comp_type = type;
+    return base;
 }
 
 static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement **statements, size_t count, ptcl_statement_func_body *root)
@@ -724,7 +743,7 @@ static ptcl_expression *ptcl_expression_create_characters(ptcl_expression **expr
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, (ptcl_type){0}, location);
     if (expression != NULL)
     {
-        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, (int)count);
+        ptcl_type array_type = ptcl_type_create_array(&ptcl_type_character, false, (int)count);
         expression->return_type = array_type;
         expression->array = (ptcl_expression_array){
             .type = ptcl_type_character,
@@ -1280,7 +1299,7 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
 
 static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 {
-    if (expected.is_static && !target.is_static)
+    if ((expected.is_static && !target.is_static) || (!expected.is_const && target.is_const))
     {
         return false;
     }

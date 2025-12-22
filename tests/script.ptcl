@@ -151,13 +151,13 @@ static function fibonnaci(number: integer): integer {
 	}
 }
 
-type disposable: (pointer): void {
-	function dispose(entity: pointer): void {
+type disposable: (const pointer): void {
+	function dispose(entity: const pointer): void {
 		self(entity)
 	}
 }
 
-prototype function file_destroy(file: pointer): void
+prototype function file_destroy(file: const pointer): void
 
 type file: pointer {
 	static function disposable(): disposable {
@@ -173,7 +173,7 @@ type file: pointer {
 	}
 }
 
-function file_destroy(file: pointer): void {
+function file_destroy(file: const pointer): void {
 	target := *(file :: file*)
 	target.destroy()	
 }
@@ -183,7 +183,7 @@ static function create_file(): file {
 	return null :: file
 }
 
-syntax using([name: static word]=[value: pointer], [target: disposable]) [body: static (): void] {
+syntax using([name: static word]=[value: const pointer], [target: disposable]) [body: static (): void] {
 	@[inline]
 	function ~unique(): void {
 		!name := value
@@ -195,9 +195,12 @@ syntax using([name: static word]=[value: pointer], [target: disposable]) [body: 
 }
 
 function main(): integer {
-	file := create_file()
-	#using (text = &file, file.disposable()) {
+	file: const file = create_file()
+	#
+	using (text = &file, file.disposable()) 
+	{
 		content := file.read()
+		printf("File: %s", content)
 	}
 
 	return 0

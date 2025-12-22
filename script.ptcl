@@ -153,13 +153,11 @@ static function fibonnaci(number: integer): integer {
 
 type disposable: (pointer): void {
 	function dispose(entity: pointer): void {
-		-- Пока что синтаксиса нету для вызов, потом
+		self(entity)
 	}
 }
 
-function file_destroy(file: pointer): void {
-
-}
+prototype function file_destroy(file: pointer): void
 
 type file: pointer {
 	static function disposable(): disposable {
@@ -169,6 +167,15 @@ type file: pointer {
 	function read(): character* {
 		return null
 	}
+
+	function destroy(): void {
+
+	}
+}
+
+function file_destroy(file: pointer): void {
+	target := *(file :: file*)
+	target.destroy()	
 }
 
 -- static значит, что стоит попробовать во время компиляции вычислить
@@ -191,6 +198,7 @@ function main(): integer {
 	file := create_file()
 	#using (text = &file, file.disposable()) {
 		content := file.read()
+		printf(content)
 	}
 
 	return 0
