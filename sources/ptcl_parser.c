@@ -134,6 +134,8 @@ typedef struct ptcl_parse_arguments_result
     ptcl_argument *arguments;
     size_t count;
     bool has_variadic;
+    bool with_self;
+    bool is_const;
 } ptcl_parse_arguments_result;
 
 static ptcl_token *ptcl_parser_tokens_from_array(ptcl_expression *expression)
@@ -208,7 +210,8 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
     ptcl_parse_arguments_result result = {
         .arguments = NULL,
         .count = 0,
-        .has_variadic = false};
+        .has_variadic = false,
+        .is_const = false};
     bool is_tokens = false;
     size_t start = ptcl_parser_insert_states_count(parser);
     ptcl_parser_insert_state *start_state = ptcl_parser_insert_state_at(parser, start);
@@ -277,8 +280,9 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
             break;
         }
 
+        const bool is_const = ptcl_parser_match(parser, ptcl_token_const_type);
         result.arguments = buffer;
-        if (ptcl_parser_match(parser, ptcl_token_elipsis_type))
+        if (!with_self && ptcl_parser_match(parser, ptcl_token_elipsis_type))
         {
             if (result.count == 0)
             {
@@ -313,9 +317,19 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
                     goto leave;
                 }
 
+                // We need manually parse "self" argument. This can have the type or not and also it can be constant or not
+                if (result.count == 0 && !result.with_self && with_self)
+                {
+                    result.is_const = is_const;
+                    result.with_self = true;
+                    ptcl_parser_match(parser, ptcl_token_comma_type);
+                    continue;
+                }
+
                 ptcl_parser_except(parser, ptcl_token_colon_type);
                 if (ptcl_parser_critical(parser))
                 {
+                    ptcl_name_destroy(argument_name);
                     goto leave;
                 }
             }
@@ -323,9 +337,15 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
             ptcl_type type = ptcl_parser_type(parser, false, false);
             if (ptcl_parser_critical(parser))
             {
+                ptcl_name_destroy(argument_name);
                 goto leave;
             }
 
+            if (!type.is_const)
+            {
+                type.is_const = is_const;
+            }
+            
             result.arguments = buffer;
             result.arguments[result.count++] = ptcl_argument_create(type, argument_name);
         }
@@ -2455,6 +2475,9 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     func_decl.count = arguments.count;
     func_decl.is_variadic = arguments.has_variadic;
     func_decl.is_static = is_static || func_decl.return_type.is_static;
+    func_decl.with_self = arguments.with_self;
+    func_decl.is_self_const = arguments.is_const;
+    func_decl.with_self = arguments.with_self;
     ptcl_parser_function function = ptcl_parser_function_create(is_global ? NULL : ptcl_parser_root(parser), func_decl);
     ptcl_type *variable_return_type = NULL;
     size_t function_identifier = parser->functions_count;
@@ -3906,12 +3929,13 @@ ptcl_expression *ptcl_parser_unary(ptcl_parser *parser, ptcl_type *expected, ptc
 
         if (type == ptcl_binary_operator_reference_type || type == ptcl_binary_operator_dereference_type)
         {
+            // TODO: we can get address from cast with rvalue
             bool is_not_variable = value->type != ptcl_expression_variable_type &&
                                    value->type != ptcl_expression_cast_type &&
                                    (value->type != ptcl_expression_unary_type &&
                                     value->unary.type != ptcl_binary_operator_reference_type &&
                                     value->unary.type != ptcl_binary_operator_dereference_type);
-            if (is_not_variable)
+            if (is_not_variable || (value->type == ptcl_expression_variable_type && value->variable.is_syntax_variable))
             {
                 ptcl_parser_throw_must_be_variable(parser, value->location);
             }
@@ -4453,7 +4477,7 @@ static ptcl_expression *ptcl_parser_func_call_or_var(ptcl_parser *parser, ptcl_n
         }
         else
         {
-            result = ptcl_expression_create_variable(name, variable->type, current.location);
+            result = ptcl_expression_create_variable(name, variable->type, variable->is_syntax_variable, current.location);
             if (result == NULL)
             {
                 ptcl_name_destroy(name);

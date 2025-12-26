@@ -4,6 +4,8 @@
 #include <ptcl_lexer.h>
 #include <windows.h>
 
+// TODO: arrange structure members for greater speed
+
 int main()
 {
     char *source;

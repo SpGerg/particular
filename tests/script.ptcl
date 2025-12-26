@@ -152,7 +152,7 @@ static function fibonnaci(number: integer): integer {
 }
 
 type disposable: (const pointer): void {
-	function dispose(entity: const pointer): void {
+	function dispose(const self, entity: const pointer): void {
 		self(entity)
 	}
 }
@@ -160,15 +160,15 @@ type disposable: (const pointer): void {
 prototype function file_destroy(file: const pointer): void
 
 type file: pointer {
-	static function disposable(): disposable {
+	static function disposable(const self): disposable {
 		return file_destroy :: disposable
 	}
 
-	function read(): character* {
+	function read(const self): character* {
 		return null
 	}
 
-	function destroy(): void {
+	function destroy(const self): void {
 
 	}
 }

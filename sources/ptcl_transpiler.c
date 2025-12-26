@@ -658,6 +658,7 @@ static void ptcl_transpiler_add_func_signature(ptcl_transpiler *transpiler, ptcl
     if (self != NULL)
     {
         ptcl_type pointer = self->is_static ? *self : ptcl_type_create_pointer(self, false);
+        pointer.is_const = func_decl.is_self_const;
         ptcl_argument argument = ptcl_argument_create(pointer, ptcl_name_create_fast_w("self", false));
         ptcl_transpiler_add_argument(transpiler, argument);
         if (func_decl.count > 0)

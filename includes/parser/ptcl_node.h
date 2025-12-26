@@ -260,6 +260,7 @@ static ptcl_type ptcl_type_null = {
 typedef struct ptcl_expression_variable
 {
     ptcl_name name;
+    bool is_syntax_variable;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -351,6 +352,8 @@ typedef struct ptcl_statement_func_decl
     bool is_prototype;
     bool is_variadic;
     bool is_static;
+    bool is_self_const;
+    bool with_self;
 } ptcl_statement_func_decl;
 
 typedef struct ptcl_statement_func_call
@@ -701,7 +704,8 @@ static ptcl_statement_func_decl ptcl_statement_func_decl_create(
         .func_body = func_body,
         .return_type = return_type,
         .is_prototype = is_prototype,
-        .is_variadic = is_variadic};
+        .is_variadic = is_variadic,
+        .with_self = false};
 }
 
 static ptcl_expression *ptcl_expression_array_create(ptcl_type type, ptcl_expression **expressions, size_t count, ptcl_location location)
@@ -768,13 +772,14 @@ static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expres
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, bool is_syntax_variable, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_variable_type, type, location);
     if (expression != NULL)
     {
         expression->variable = (ptcl_expression_variable){
-            .name = name};
+            .name = name,
+            .is_syntax_variable = is_syntax_variable};
     }
 
     return expression;
