@@ -479,17 +479,12 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     case ptcl_statement_type_decl_type:
     {
         ptcl_type base_type = statement->type_decl.types[0].type;
-        if (base_type.is_static)
-        {
-            break;
-        }
-
         if (statement->type_decl.functions != NULL)
         {
             for (size_t i = 0; i < statement->type_decl.functions->count; i++)
             {
                 ptcl_statement_func_decl function = statement->type_decl.functions->statements[i]->func_decl;
-                char *name = ptcl_transpiler_get_func_name_in_type(statement->type_decl.name.value, function.name.value);
+                char *name = ptcl_transpiler_get_func_name_in_type(statement->type_decl.name.value, function.name.value, base_type.is_static);
                 ptcl_transpiler_add_func_decl(transpiler, function, ptcl_name_create_fast_w(name, false), &base_type);
                 free(name);
             }
@@ -823,7 +818,7 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
         ptcl_statement_func_call func_call = expression->dot.right->func_call;
         char *name = ptcl_transpiler_get_func_name_in_type(
             expression->dot.left->return_type.comp_type->identifier.value,
-            func_call.identifier.name.value);
+            func_call.identifier.name.value, expression->dot.left->return_type.is_static);
 
         ptcl_transpiler_append_word_s(transpiler, name);
         ptcl_transpiler_append_character(transpiler, '(');
@@ -1352,9 +1347,9 @@ char *ptcl_transpiler_generate_temp_and_add(ptcl_transpiler *transpiler)
     return temp_name;
 }
 
-char *ptcl_transpiler_get_func_name_in_type(char *type, char *function)
+char *ptcl_transpiler_get_func_name_in_type(char *type, char *function, bool is_static)
 {
-    return ptcl_string("ptcl_t_", type, "_", function, NULL);
+    return ptcl_string("ptcl_t_", is_static ? "st_" : "", type, "_", function, NULL);
 }
 
 void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler)

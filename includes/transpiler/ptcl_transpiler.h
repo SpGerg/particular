@@ -110,7 +110,7 @@ char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler);
 
 char* ptcl_transpiler_generate_temp_and_add(ptcl_transpiler* transpiler);
 
-char *ptcl_transpiler_get_func_name_in_type(char *type, char *function);
+char *ptcl_transpiler_get_func_name_in_type(char *type, char *function, bool is_static);
 
 void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler);
 

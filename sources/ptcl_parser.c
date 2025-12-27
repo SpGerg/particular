@@ -345,7 +345,7 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
             {
                 type.is_const = is_const;
             }
-            
+
             result.arguments = buffer;
             result.arguments[result.count++] = ptcl_argument_create(type, argument_name);
         }
@@ -2266,7 +2266,7 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
             return (ptcl_type){0};
         }
 
-        *return_type = ptcl_parser_type(parser, false, false);
+        *return_type = ptcl_parser_type(parser, is_static, false);
         if (ptcl_parser_critical(parser))
         {
             ptcl_parse_arguments_result_destroy(arguments);
@@ -2445,7 +2445,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     }
 
     *func_decl.func_body = ptcl_statement_func_body_create(NULL, 0, ptcl_parser_root(parser));
-    ptcl_parse_arguments_result arguments = ptcl_parser_parse_arguments(parser, location, parser->is_type_body, true, true);
+    ptcl_parse_arguments_result arguments = ptcl_parser_parse_arguments(parser, location, !is_global && parser->is_type_body, true, true);
     if (ptcl_parser_critical(parser))
     {
         ptcl_name_destroy(name);
@@ -2477,7 +2477,6 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     func_decl.is_static = is_static || func_decl.return_type.is_static;
     func_decl.with_self = arguments.with_self;
     func_decl.is_self_const = arguments.is_const;
-    func_decl.with_self = arguments.with_self;
     ptcl_parser_function function = ptcl_parser_function_create(is_global ? NULL : ptcl_parser_root(parser), func_decl);
     ptcl_type *variable_return_type = NULL;
     size_t function_identifier = parser->functions_count;
@@ -2886,9 +2885,19 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
             type.pointer.is_any = true;
             type.pointer.is_null = false;
         }
-        else if (define && ptcl_type_is_castable_to_unstatic(type))
+        else if (define)
         {
-            type.is_static = false;
+            if (type.type == ptcl_value_type_type)
+            {
+                if (type.comp_type->has_invariant)
+                {
+                    type.is_static = false;
+                }
+            }
+            else
+            {
+                type.is_static = !ptcl_type_is_castable_to_unstatic(type);
+            }
         }
     }
     else
@@ -3974,11 +3983,15 @@ static ptcl_expression *ptcl_parser_type_dot(ptcl_parser *parser, ptcl_expressio
         for (size_t i = 0; i < comp_type->functions->count; i++)
         {
             function = &comp_type->functions->statements[i]->func_decl;
-            if (ptcl_name_compare(function->name, name))
+            const bool is_compatible = function->is_self_const ||
+                                       (!function->is_self_const && !left->return_type.is_const);
+            if (!is_compatible || !ptcl_name_compare(function->name, name))
             {
-                function_found = true;
-                break;
+                continue;
             }
+
+            function_found = true;
+            break;
         }
     }
 
@@ -4378,7 +4391,7 @@ static ptcl_expression *ptcl_parser_func_call_or_var(ptcl_parser *parser, ptcl_n
         {
             result = ptcl_parser_try_ctor(parser, name, typedata, location);
         }
-        else if (ptcl_parser_try_get_variable(parser, name, &variable) && variable->type.type == ptcl_value_function_pointer_type)
+        else if (ptcl_parser_try_get_variable(parser, name, &variable) && (variable->type.type == ptcl_value_function_pointer_type && !variable->type.is_static))
         {
             const bool is_expression = ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_require_expression_flag);
             ptcl_type_functon_pointer_type function = variable->type.function_pointer;

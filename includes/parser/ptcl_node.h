@@ -1269,6 +1269,11 @@ static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
     switch (left.type)
     {
     case ptcl_value_pointer_type:
+        if (left.pointer.is_any || right.pointer.is_any)
+        {
+            return true;
+        }
+
         return ptcl_type_equals(*left.pointer.target, *right.pointer.target);
     case ptcl_value_array_type:
         return ptcl_type_equals(*left.array.target, *right.array.target);
@@ -1285,6 +1290,10 @@ static bool ptcl_type_equals(ptcl_type left, ptcl_type right)
 
 static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
 {
+    if (!type.is_static)
+    {
+    }
+
     if (type.type == ptcl_value_array_type)
     {
         return ptcl_type_is_castable_to_unstatic(*type.array.target);
@@ -1346,18 +1355,7 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 
     if (expected.type != target.type)
     {
-        if (expected.type == ptcl_value_float_type &&
-            target.type == ptcl_value_integer_type)
-        {
-            return true;
-        }
-        else if (expected.type == ptcl_value_double_type &&
-                 (target.type == ptcl_value_float_type ||
-                  target.type == ptcl_value_integer_type))
-        {
-            return true;
-        }
-        else if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
+        if (expected.type == ptcl_value_pointer_type && target.type == ptcl_value_array_type)
         {
             return ptcl_type_is_castable(*expected.pointer.target, *target.array.target);
         }
@@ -1394,7 +1392,38 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
     case ptcl_value_float_type:
     case ptcl_value_integer_type:
     case ptcl_value_void_type:
+        return true;
     case ptcl_value_function_pointer_type:
+        if (expected.function_pointer.count != target.function_pointer.count)
+        {
+            return false;
+        }
+
+        const bool is_castable_return = ptcl_type_is_castable(*expected.function_pointer.return_type, *target.function_pointer.return_type);
+        if (!is_castable_return)
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < expected.function_pointer.count; i++)
+        {
+            ptcl_argument *left = &expected.function_pointer.arguments[i];
+            ptcl_argument *right = &target.function_pointer.arguments[i];
+            // Compiler will optimize it
+            if (expected.is_static)
+            {
+                if (!ptcl_name_compare(left->name, right->name))
+                {
+                    return false;
+                }
+            }
+
+            if (!ptcl_type_equals(left->type, right->type))
+            {
+                return false;
+            }
+        }
+
         return true;
     default:
         return true;

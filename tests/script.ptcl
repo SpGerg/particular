@@ -194,6 +194,12 @@ syntax using([name: static word]=[value: const pointer], [target: disposable]) [
 	~unique()
 }
 
+type test: static integer {
+	static function print(): integer {
+		return self > 3
+	}
+}
+
 function main(): integer {
 	file: const file = create_file()
 	#
@@ -202,6 +208,9 @@ function main(): integer {
 		content := file.read()
 		printf("File: %s", content)
 	}
+
+	val := 4 :: static test
+	g := val.print()
 
 	return 0
 }
