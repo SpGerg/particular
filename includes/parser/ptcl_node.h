@@ -1292,6 +1292,7 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
 {
     if (!type.is_static)
     {
+        return true;
     }
 
     if (type.type == ptcl_value_array_type)
