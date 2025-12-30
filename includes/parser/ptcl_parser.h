@@ -103,8 +103,10 @@ typedef struct ptcl_parser_variable
     ptcl_statement_func_body *root;
     ptcl_type type;
     ptcl_expression *built_in;
+    // TODO: use flags instead of it...
     bool is_built_in;
     bool is_syntax_word;
+    bool is_not_fully_static;
     bool is_function_pointer;
     bool is_syntax_variable;
     bool is_syntax_anonymous;
@@ -302,7 +304,25 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_syntax_word = false,
         .is_function_pointer = false,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false};
+        .is_syntax_anonymous = false,
+        .is_not_fully_static = false};
+}
+
+// TODO: more cool name
+static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
+{
+    return (ptcl_parser_variable){
+        .name = name,
+        .root = root,
+        .is_out_of_scope = false,
+        .type = type,
+        .built_in = built_in,
+        .is_built_in = is_built_in,
+        .is_syntax_word = false,
+        .is_function_pointer = false,
+        .is_syntax_variable = false,
+        .is_syntax_anonymous = false,
+        .is_not_fully_static = true};
 }
 
 static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_statement_func_body *root)
@@ -515,7 +535,7 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_b
 
 void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax);
 
-ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any);
+ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, bool with_static);
 
 ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *except, ptcl_parser_expression_flags flags);
 

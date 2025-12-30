@@ -157,6 +157,7 @@ typedef struct ptcl_type
     ptcl_value_type type;
     bool is_primitive;
     bool is_static;
+    bool is_prototype_static;
     bool is_const;
 
     union
@@ -594,7 +595,8 @@ static ptcl_type ptcl_type_create_base(ptcl_value_type type, bool is_primitive, 
         .type = type,
         .is_primitive = is_primitive,
         .is_const = is_const,
-        .is_static = is_static};
+        .is_static = is_static,
+        .is_prototype_static = false};
 }
 
 static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_const, bool is_anonymous)
@@ -622,12 +624,13 @@ static ptcl_type ptcl_type_create_object_type(ptcl_type *type, bool is_const)
 
 static ptcl_type ptcl_type_create_pointer(ptcl_type *type, bool is_const)
 {
-    ptcl_type base = ptcl_type_create_base(ptcl_value_pointer_type, true, is_const, false);
+    ptcl_type base = ptcl_type_create_base(ptcl_value_pointer_type, true, is_const, type->is_static);
     base.pointer = (ptcl_type_pointer){
         .target = type,
         .is_any = false,
         .is_null = false,
         .is_const = is_const};
+    base.pointer.target->is_static = false;
     return base;
 }
 
@@ -1301,7 +1304,7 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
     }
     else if (type.type == ptcl_value_type_type)
     {
-        if (type.comp_type->count == 0 || (type.comp_type->is_static && type.comp_type->has_invariant))
+        if (type.comp_type->count == 0 || (type.comp_type->is_static && !type.comp_type->has_invariant))
         {
             return false;
         }
@@ -1312,29 +1315,34 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
     return true;
 }
 
+static inline bool ptcl_type_is_static(ptcl_type type)
+{
+    return type.is_static || type.is_prototype_static;
+}
+
 static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
 {
-    if ((expected.is_static && !target.is_static) || (!expected.is_const && target.is_const))
+    if ((ptcl_type_is_static(expected) && !ptcl_type_is_static(target)) || (!expected.is_const && target.is_const))
     {
         return false;
     }
 
-    if (!expected.is_static && target.is_static && !ptcl_type_is_castable_to_unstatic(target))
+    if (!ptcl_type_is_static(expected) && ptcl_type_is_static(target) && !ptcl_type_is_castable_to_unstatic(target))
     {
         return false;
     }
 
     if (expected.type == ptcl_value_any_type)
     {
-        if (expected.is_static)
+        if (ptcl_type_is_static(expected))
         {
-            return target.is_static;
+            return ptcl_type_is_static(target);
         }
 
         return true;
     }
 
-    if (target.type == ptcl_value_function_pointer_type && !expected.is_static && (target.is_static && !target.function_pointer.is_static_by_declaration))
+    if (target.type == ptcl_value_function_pointer_type && !ptcl_type_is_static(expected) && (ptcl_type_is_static(target) && !target.function_pointer.is_static_by_declaration))
     {
         return false;
     }
@@ -1411,7 +1419,7 @@ static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target)
             ptcl_argument *left = &expected.function_pointer.arguments[i];
             ptcl_argument *right = &target.function_pointer.arguments[i];
             // Compiler will optimize it
-            if (expected.is_static)
+            if (ptcl_type_is_static(expected))
             {
                 if (!ptcl_name_compare(left->name, right->name))
                 {
@@ -1502,7 +1510,7 @@ static ptcl_expression *ptcl_expression_unary_static_evaluate(ptcl_binary_operat
 {
     ptcl_type return_type = value->return_type;
     ptcl_location location = value->location;
-    if (!return_type.is_static || type == ptcl_binary_operator_reference_type)
+    if ((!return_type.is_static || return_type.is_prototype_static) || type == ptcl_binary_operator_reference_type)
     {
         ptcl_expression *unary = ptcl_expression_unary_create(type, value, value->location);
         if (unary == NULL)
@@ -1919,7 +1927,7 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
     ptcl_location location = left->location;
     ptcl_type left_type = left->return_type;
     ptcl_type right_type = right->return_type;
-    if (!left_type.is_static || !right_type.is_static)
+    if ((!left_type.is_static || (left_type.is_prototype_static || right_type.is_prototype_static)) || !right_type.is_static)
     {
         ptcl_expression *binary = ptcl_expression_binary_create(type, left, right, location);
         if (binary == NULL)

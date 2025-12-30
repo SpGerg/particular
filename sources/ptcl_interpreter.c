@@ -21,7 +21,7 @@ typedef struct ptcl_interpreter
     ptcl_interpreter_variable *variables;
     size_t variables_count;
     size_t variables_capacity;
-    bool is_busy;
+    ptcl_statement_func_decl *func_decl;
 } ptcl_interpreter;
 
 ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
@@ -42,7 +42,7 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
     }
 
     interpreter->stack_trace_count = 0;
-    interpreter->is_busy = false;
+    interpreter->func_decl = NULL;
     return interpreter;
 }
 
@@ -287,6 +287,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         }
 
         result = ptcl_interpreter_evaluate_expression(interpreter, result, location);
+        result->return_type = interpreter->func_decl->return_type;
+        result->with_type = false;
         break;
     case ptcl_expression_character_type:
         if (!expression->return_type.is_static)
@@ -343,10 +345,10 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         return NULL;
     }
 
-    const bool is_root = !interpreter->is_busy;
+    const bool is_root = interpreter->func_decl == NULL;
     if (is_root)
     {
-        interpreter->is_busy = true;
+        interpreter->func_decl = func_call.func_decl;
         size_t count = ptcl_parser_variables_count(interpreter->parser);
         ptcl_parser_variable *variables = ptcl_parser_variables(interpreter->parser);
         for (size_t i = 0; i < count; i++)
@@ -432,7 +434,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
 
         if (is_root)
         {
-            interpreter->is_busy = false;
+            interpreter->func_decl = NULL;
             interpreter->stack_trace_count = 0;
         }
 
@@ -486,7 +488,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     interpreter->variables_count = variables_count;
     if (is_root)
     {
-        interpreter->is_busy = false;
+        interpreter->func_decl = NULL;
         interpreter->stack_trace_count = 0;
     }
 

@@ -334,7 +334,7 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
                 }
             }
 
-            ptcl_type type = ptcl_parser_type(parser, false, false);
+            ptcl_type type = ptcl_parser_type(parser, false, false, false);
             if (ptcl_parser_critical(parser))
             {
                 ptcl_name_destroy(argument_name);
@@ -353,6 +353,11 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
         ptcl_parser_match(parser, ptcl_token_comma_type);
     }
 
+    if (result.count == 0 && !result.with_self && with_self)
+    {
+        ptcl_parser_throw_except_type_specifier(parser, location);
+    }
+
     return result;
 }
 
@@ -365,15 +370,6 @@ static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
 
     if (ptcl_parser_match(parser, ptcl_token_asterisk_type))
     {
-        if (type.is_static)
-        {
-            ptcl_type excepted = type;
-            excepted.is_static = false;
-            ptcl_parser_throw_fast_incorrect_type(parser, excepted, type, ptcl_parser_current(parser).location);
-            ptcl_type_destroy(type);
-            return type;
-        }
-
         ptcl_type *target = malloc(sizeof(ptcl_type));
         if (target == NULL)
         {
@@ -384,7 +380,6 @@ static ptcl_type ptcl_parser_pointers(ptcl_parser *parser, ptcl_type type)
 
         *target = type;
         target->is_primitive = false;
-        target->is_static = false;
         type = ptcl_type_create_pointer(target, false);
         return ptcl_parser_pointers(parser, type);
     }
@@ -532,6 +527,16 @@ static ptcl_expression *ptcl_error_realization(ptcl_parser *parser, ptcl_express
         return NULL;
     }
 
+    ptcl_expression *content = arguments[0];
+    if (content->return_type.is_prototype_static)
+    {
+        ptcl_type any_type = ptcl_type_any_type;
+        any_type.is_static = true;
+        ptcl_parser_throw_fast_incorrect_type(parser, any_type, content->return_type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
+
     char *message = ptcl_string_from_array(arguments[0]->array);
     PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
     if (message == NULL)
@@ -548,6 +553,15 @@ static ptcl_expression *ptcl_error_realization(ptcl_parser *parser, ptcl_express
 static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *name_argument = arguments[0];
+    if (name_argument->return_type.is_prototype_static)
+    {
+        ptcl_type any_type = ptcl_type_any_type;
+        any_type.is_static = true;
+        ptcl_parser_throw_fast_incorrect_type(parser, any_type, name_argument->return_type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
+
     ptcl_name name;
     if (name_argument->return_type.type == ptcl_value_array_type && name_argument->return_type.array.target->type == ptcl_value_character_type)
     {
@@ -580,6 +594,15 @@ static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expre
 static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *argument = arguments[0];
+    if (argument->return_type.is_prototype_static)
+    {
+        ptcl_type any_type = ptcl_type_any_type;
+        any_type.is_static = true;
+        ptcl_parser_throw_fast_incorrect_type(parser, any_type, argument->return_type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
+
     ptcl_type type = argument->return_type;
     ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, true, 0);
     switch (type.type)
@@ -730,6 +753,15 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
 {
     ptcl_expression *argument = arguments[0];
     ptcl_type type = argument->return_type;
+    if (type.is_prototype_static)
+    {
+        ptcl_type any_type = ptcl_type_any_type;
+        any_type.is_static = true;
+        ptcl_parser_throw_fast_incorrect_type(parser, any_type, type, location);
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        return NULL;
+    }
+
     ptcl_type array_type = ptcl_type_create_array(&ptcl_statement_t_type, true, 0);
     if (is_expression)
     {
@@ -1796,7 +1828,7 @@ static inline ptcl_statement_func_call ptcl_handle_builtin_execution(ptcl_parser
         return (ptcl_statement_func_call){0};
     }
 
-    func_call->is_built_in = true;
+    func_call->is_built_in = result != NULL;
     func_call->built_in = result;
     return *func_call;
 }
@@ -2180,7 +2212,7 @@ void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_parser_extra_body(parser, is_syntax);
 }
 
-ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
+ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, bool with_static)
 {
     bool with_syntax = false;
     if (parser->is_syntax_body)
@@ -2207,6 +2239,20 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
 
     bool is_const = ptcl_parser_match(parser, ptcl_token_const_type);
     bool is_static = ptcl_parser_match(parser, ptcl_token_static_type);
+    if (is_static && !with_static)
+    {
+        ptcl_parser_throw_not_allowed_token(
+            parser,
+            ptcl_lexer_configuration_get_value(parser->configuration, ptcl_token_const_type),
+            ptcl_parser_current(parser).location);
+        if (with_syntax && parser->syntax_depth == depth)
+        {
+            ptcl_parser_leave_from_syntax(parser);
+        }
+
+        return (ptcl_type){0};
+    }
+
     ptcl_token current = ptcl_parser_current(parser);
     ptcl_parser_skip(parser);
 
@@ -2266,7 +2312,7 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
             return (ptcl_type){0};
         }
 
-        *return_type = ptcl_parser_type(parser, is_static, false);
+        *return_type = ptcl_parser_type(parser, is_static, false, false);
         if (ptcl_parser_critical(parser))
         {
             ptcl_parse_arguments_result_destroy(arguments);
@@ -2321,7 +2367,8 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
         else if (ptcl_parser_try_get_comp_type(parser, name, is_static, &comp_type))
         {
             ptcl_name_destroy(name);
-            if (is_static || comp_type->is_auto_static)
+            // TODO: add context
+            if (with_static && (is_static || comp_type->is_auto_static))
             {
                 if (comp_type->static_type == NULL)
                 {
@@ -2331,6 +2378,7 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any)
                 }
 
                 target = ptcl_type_create_comp_type_t(comp_type->static_type, is_const);
+                is_static = true;
                 break;
             }
             else
@@ -2456,13 +2504,15 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     ptcl_parser_except(parser, ptcl_token_colon_type);
     if (ptcl_parser_critical(parser))
     {
-        ptcl_statement_func_decl_destroy(func_decl);
+        ptcl_parse_arguments_result_destroy(arguments);
+        free(func_decl.func_body);
         return (ptcl_statement_func_decl){0};
     }
 
-    ptcl_type return_type = ptcl_parser_type(parser, false, false);
+    ptcl_type return_type = ptcl_parser_type(parser, false, false, true);
     if (ptcl_parser_critical(parser))
     {
+        ptcl_parse_arguments_result_destroy(arguments);
         ptcl_statement_func_decl_destroy(func_decl);
         return (ptcl_statement_func_decl){0};
     }
@@ -2481,7 +2531,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
     ptcl_type *variable_return_type = NULL;
     size_t function_identifier = parser->functions_count;
     size_t variable_identifier = parser->variables_count;
-    if (!parser->is_type_body)
+    if (!parser->is_type_body && !func_decl.return_type.is_static)
     {
         if (prototype_function != NULL)
         {
@@ -2514,7 +2564,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
         }
     }
 
-    if (!is_prototype)
+    if (!is_prototype && !func_decl.return_type.is_static)
     {
         ptcl_type *previous_type = parser->return_type;
         parser->return_type = &return_type;
@@ -2522,6 +2572,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
         {
             ptcl_argument argument = func_decl.arguments[i];
             ptcl_parser_variable variable = ptcl_parser_variable_create(argument.name, argument.type, NULL, false, func_decl.func_body);
+            variable.type.is_prototype_static = variable.type.is_static;
             if (!ptcl_parser_add_instance_variable(parser, variable))
             {
                 ptcl_statement_func_decl_destroy(func_decl);
@@ -2645,7 +2696,7 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_auto
 
         decl.types = buffer;
         bool is_up = ptcl_parser_match(parser, ptcl_token_up_type);
-        ptcl_type type = ptcl_parser_type(parser, false, false);
+        ptcl_type type = ptcl_parser_type(parser, false, false, true);
         if (ptcl_parser_critical(parser))
         {
             if (decl.types_count == 0)
@@ -2715,14 +2766,15 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_auto
 
         *body = ptcl_statement_func_body_create(NULL, 0, ptcl_parser_root(parser));
         comp_type->functions = body;
-        ptcl_parser_variable this_var = ptcl_parser_variable_create(
+        ptcl_parser_variable this_var = ptcl_parser_variable_not_static_create(
             ptcl_name_create_fast_w("this", false),
             ptcl_type_create_comp_type_t(comp_type, false), NULL, false, body);
+        this_var.type.is_prototype_static = this_var.type.is_static;
         this_var.type.is_static = false;
-        ptcl_parser_variable self_var = ptcl_parser_variable_create(
+        ptcl_parser_variable self_var = ptcl_parser_variable_not_static_create(
             ptcl_name_create_fast_w("self", false),
             decl.types[0].type, NULL, false, body);
-        self_var.type.is_static = false;
+        self_var.type.is_prototype_static = self_var.type.is_static;
         if (!ptcl_parser_add_instance_variable(parser, this_var) || !ptcl_parser_add_instance_variable(parser, self_var))
         {
             ptcl_parser_throw_out_of_memory(parser, location);
@@ -2812,7 +2864,7 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
         }
         else
         {
-            type = ptcl_parser_type(parser, true, false);
+            type = ptcl_parser_type(parser, true, false, true);
             if (ptcl_parser_critical(parser))
             {
                 ptcl_identifier_destroy(identifier);
@@ -2887,14 +2939,7 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global)
         }
         else if (define)
         {
-            if (type.type == ptcl_value_type_type)
-            {
-                if (type.comp_type->has_invariant)
-                {
-                    type.is_static = false;
-                }
-            }
-            else
+            if (type.type != ptcl_value_type_type)
             {
                 type.is_static = !ptcl_type_is_castable_to_unstatic(type);
             }
@@ -3283,7 +3328,7 @@ void ptcl_parser_syntax_decl(ptcl_parser *parser)
                     }
                     else
                     {
-                        ptcl_type type = ptcl_parser_type(parser, true, true);
+                        ptcl_type type = ptcl_parser_type(parser, true, true, true);
                         if (ptcl_parser_critical(parser))
                         {
                             ptcl_parser_syntax_destroy(syntax);
@@ -3673,7 +3718,7 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, ptcl
         ptcl_parser_skip(parser);
         ptcl_parser_skip(parser);
 
-        ptcl_type type = ptcl_parser_type(parser, true, false);
+        ptcl_type type = ptcl_parser_type(parser, true, false, true);
         if (ptcl_parser_critical(parser))
         {
             ptcl_expression_destroy(left);
@@ -4198,6 +4243,7 @@ ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *expec
             target = *left->return_type.array.target;
         }
 
+        target.is_static = left->return_type.is_static;
         return ptcl_expression_array_element_create(left, target, index, index->location);
     }
 
@@ -4631,7 +4677,7 @@ static ptcl_expression *ptcl_parser_number(ptcl_parser *parser, ptcl_token curre
 
 static ptcl_expression *ptcl_parser_type_object(ptcl_parser *parser, ptcl_location location)
 {
-    ptcl_type object_type = ptcl_parser_type(parser, false, false);
+    ptcl_type object_type = ptcl_parser_type(parser, false, false, true);
     if (ptcl_parser_critical(parser))
     {
         return NULL;
@@ -4667,7 +4713,7 @@ static ptcl_expression *ptcl_parse_none(ptcl_parser *parser, ptcl_type *expected
         ptcl_expression *default_value;
         if (ptcl_parser_match(parser, ptcl_token_greater_than_type))
         {
-            ptcl_type type = ptcl_parser_type(parser, false, false);
+            ptcl_type type = ptcl_parser_type(parser, false, false, true);
             if (ptcl_parser_critical(parser))
             {
                 return NULL;
@@ -5608,6 +5654,7 @@ bool ptcl_parser_add_instance_comp_type(ptcl_parser *parser, ptcl_parser_comp_ty
     }
 
     ptcl_parser_comp_type *target;
+    // TODO: optimize in type_decl
     if (ptcl_parser_try_get_any_comp_type(parser, instance.identifier, &target))
     {
         if (instance.comp_type == NULL)
