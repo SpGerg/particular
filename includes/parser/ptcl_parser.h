@@ -106,7 +106,6 @@ typedef struct ptcl_parser_variable
     // TODO: use flags instead of it...
     bool is_built_in;
     bool is_syntax_word;
-    bool is_not_fully_static;
     bool is_function_pointer;
     bool is_syntax_variable;
     bool is_syntax_anonymous;
@@ -304,8 +303,7 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_syntax_word = false,
         .is_function_pointer = false,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false,
-        .is_not_fully_static = false};
+        .is_syntax_anonymous = false};
 }
 
 // TODO: more cool name
@@ -321,8 +319,7 @@ static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name nam
         .is_syntax_word = false,
         .is_function_pointer = false,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false,
-        .is_not_fully_static = true};
+        .is_syntax_anonymous = false};
 }
 
 static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_statement_func_body *root)

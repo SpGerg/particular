@@ -8,7 +8,13 @@ unsyntax {
 
 auto type string: static character* {
 	function content(self): static character* {
+		val := self
 		return self
+	}
+
+	function calculate(self): static void {
+		content := "Hello, world"
+		printf(content)
 	}
 }
 
@@ -21,7 +27,8 @@ function foo(value: string): void {
 }
 
 function main(): integer {
-	value := "Hello, world" :: string
+	value := "Hello, world!" :: string
+	value.calculate()
 	printf(value.content())
 	return 0
 }

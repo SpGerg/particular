@@ -14,6 +14,8 @@ typedef struct ptcl_transpiler
     ptcl_statement_func_body *main_root;
     ptcl_transpiler_anonymous *anonymouses;
     int anonymous_count;
+    ptcl_transpiler_replaced *replaced;
+    int replaced_count;
     int temp_count;
     bool from_position;
     bool in_inner;
@@ -21,6 +23,7 @@ typedef struct ptcl_transpiler
     int start;
     size_t length;
     size_t last_stat_position;
+    bool is_inserted_body;
 } ptcl_transpiler;
 
 static bool ptcl_transpiler_add_closure_arguments(ptcl_transpiler *transpiler, ptcl_identifier identifier)
@@ -195,6 +198,9 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
     transpiler->add_stdlib = false;
     transpiler->from_position = false;
     transpiler->last_stat_position = 0;
+    transpiler->is_inserted_body = false;
+    transpiler->replaced = NULL;
+    transpiler->replaced_count = 0;
     return transpiler;
 }
 
@@ -363,6 +369,19 @@ bool ptcl_transpiler_add_anonymous(ptcl_transpiler *transpiler, char *original_n
     return true;
 }
 
+bool ptcl_transpiler_add_replaced(ptcl_transpiler *transpiler, ptcl_transpiler_replaced replaced)
+{
+    ptcl_transpiler_replaced *buffer = realloc(transpiler->replaced, (transpiler->replaced_count + 1) * sizeof(ptcl_transpiler_replaced));
+    if (buffer == NULL)
+    {
+        return false;
+    }
+
+    transpiler->replaced = buffer;
+    transpiler->replaced[transpiler->replaced_count++] = replaced;
+    return true;
+}
+
 void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body)
 {
     ptcl_statement_func_body *previous = transpiler->root;
@@ -378,9 +397,38 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
         ptcl_transpiler_append_character(transpiler, '{');
     }
 
+    // Inserted. TODO: isolated will conflict
+    const bool is_inserted = func_body.arguments != NULL;
+    bool last_count = transpiler->replaced_count;
+    bool last_state = transpiler->is_inserted_body;
+    if (is_inserted)
+    {
+        transpiler->is_inserted_body = true;
+        // TODO: if it is not static, it will be not null
+        if (func_body.self != NULL)
+        {
+            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, func_body.self);
+            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(ptcl_self_name, temp);
+            ptcl_transpiler_add_replaced(transpiler, replaced);
+        }
+
+        for (size_t i = 0; i < func_body.arguments_count; i++)
+        {
+            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, func_body.func_call.arguments[i]);
+            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(func_body.arguments[i].name, temp);
+            ptcl_transpiler_add_replaced(transpiler, replaced);
+        }
+    }
+
     for (size_t i = 0; i < func_body.count; i++)
     {
         ptcl_transpiler_add_statement(transpiler, func_body.statements[i], is_func_body);
+    }
+
+    if (is_inserted)
+    {
+        transpiler->is_inserted_body = last_state;
+        transpiler->replaced_count = last_count;
     }
 
     if (with_brackets)
@@ -444,11 +492,23 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
 
         if (statement->assign.is_define)
         {
-            char *name = ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, statement->assign.identifier.name, NULL, false, true);
-            ptcl_name generated_name = name == NULL ? statement->assign.identifier.name : ptcl_name_create_l(name, true, false, statement->assign.identifier.name.location);
-            // ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type);
-            ptcl_transpiler_add_variable_f(
-                transpiler, generated_name, statement->assign.type, false, transpiler->root);
+            if (transpiler->is_inserted_body)
+            {
+                ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location){0});
+                if (anonymous.value != NULL)
+                {
+                    ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, anonymous, NULL, false, true);
+                    ptcl_transpiler_add_replaced(transpiler, ptcl_transpiler_replaced_name_create(statement->assign.identifier.name, anonymous));
+                }
+            }
+            else
+            {
+                char *name = ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, statement->assign.identifier.name, NULL, false, true);
+                ptcl_name generated_name = name == NULL ? statement->assign.identifier.name : ptcl_name_create_l(name, true, false, statement->assign.identifier.name.location);
+                // ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type);
+                ptcl_transpiler_add_variable_f(
+                    transpiler, generated_name, statement->assign.type, false, transpiler->root);
+            }
         }
         else
         {
@@ -838,37 +898,7 @@ static void ptcl_transpiler_add_dot_expression(ptcl_transpiler *transpiler, ptcl
         }
         else
         {
-            const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
-            int previous_start = -1;
-            if (transpiler->start != -1)
-            {
-                previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
-                ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
-            }
-
-            const bool last_state = transpiler->from_position;
-            transpiler->from_position = true;
-
-            ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->last_stat_position);
-            ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location){0});
-            if (anonymous.value != NULL)
-            {
-                ptcl_transpiler_add_type_and_name(transpiler, expression->dot.left->return_type, anonymous, NULL, false, true);
-            }
-
-            ptcl_transpiler_append_character(transpiler, '=');
-            ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
-            ptcl_transpiler_append_character(transpiler, ';');
-            if (previous_start != -1)
-            {
-                const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
-                const size_t length_before_body = length;
-                const size_t offset = current_length - length_before_body;
-                ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + offset);
-                transpiler->start += offset;
-            }
-
-            transpiler->from_position = last_state;
+            ptcl_name anonymous = ptcl_transpiler_add_temp_variable(transpiler, expression->dot.left);
             if (anonymous.value != NULL)
             {
                 ptcl_transpiler_add_name(transpiler, anonymous, false);
@@ -948,7 +978,17 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_add_expression(transpiler, expression->if_expr.else_body, false);
         break;
     case ptcl_expression_variable_type:
-        ptcl_transpiler_add_variable_name(transpiler, expression->variable.name);
+        ptcl_name name = expression->variable.name;
+        ptcl_transpiler_replaced replaced = {0};
+        if (!expression->variable.is_syntax_variable && ptcl_transpiler_try_get_replaced(transpiler, name, &replaced))
+        {
+            ptcl_transpiler_add_variable_name(transpiler, replaced.replaced_name);
+        }
+        else
+        {
+            ptcl_transpiler_add_variable_name(transpiler, name);
+        }
+
         break;
     case ptcl_expression_word_type:
         ptcl_transpiler_append_character(transpiler, '\"');
@@ -1220,7 +1260,7 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
         {
             ptcl_transpiler_append_word_s(transpiler, "const");
         }
-        
+
         if (name.value != NULL)
         {
             ptcl_transpiler_append_word_s(transpiler, name.value);
@@ -1321,6 +1361,42 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
     ptcl_transpiler_append_word_s(transpiler, value);
 }
 
+ptcl_name ptcl_transpiler_add_temp_variable(ptcl_transpiler *transpiler, ptcl_expression *expression)
+{
+    const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
+    int previous_start = -1;
+    if (transpiler->start != -1)
+    {
+        previous_start = (int)ptcl_string_buffer_get_position(transpiler->string_buffer);
+        ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->start);
+    }
+
+    const bool last_state = transpiler->from_position;
+    transpiler->from_position = true;
+
+    ptcl_string_buffer_set_position(transpiler->string_buffer, transpiler->last_stat_position);
+    ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location){0});
+    if (anonymous.value != NULL)
+    {
+        ptcl_transpiler_add_type_and_name(transpiler, expression->dot.left->return_type, anonymous, NULL, false, true);
+    }
+
+    ptcl_transpiler_append_character(transpiler, '=');
+    ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
+    ptcl_transpiler_append_character(transpiler, ';');
+    if (previous_start != -1)
+    {
+        const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
+        const size_t length_before_body = length;
+        const size_t offset = current_length - length_before_body;
+        ptcl_string_buffer_set_position(transpiler->string_buffer, previous_start + offset);
+        transpiler->start += offset;
+    }
+
+    transpiler->from_position = last_state;
+    return anonymous;
+}
+
 char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler)
 {
     const int max_digits = 22; // Cant be more than int
@@ -1352,6 +1428,22 @@ char *ptcl_transpiler_get_func_name_in_type(char *type, char *function, bool is_
     return ptcl_string("ptcl_t_", is_static ? "st_" : "", type, "_", function, NULL);
 }
 
+bool ptcl_transpiler_try_get_replaced(ptcl_transpiler *transpiler, ptcl_name name, ptcl_transpiler_replaced *replaced)
+{
+    for (int i = transpiler->replaced_count - 1; i >= 0; i--)
+    {
+        *replaced = transpiler->replaced[i];
+        if (!ptcl_name_compare(replaced->name, name))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 void ptcl_transpiler_clear_scope(ptcl_transpiler *transpiler)
 {
     for (int i = transpiler->variables_count - 1; i >= 0; i--)
@@ -1381,5 +1473,11 @@ void ptcl_transpiler_destroy(ptcl_transpiler *transpiler)
     free(transpiler->anonymouses);
     free(transpiler->variables);
     free(transpiler->inner_functions);
+    for (int i = 0; i < transpiler->replaced_count; i++)
+    {
+        ptcl_name_destroy(transpiler->replaced[i].replaced_name);
+    }
+
+    free(transpiler->replaced);
     free(transpiler);
 }

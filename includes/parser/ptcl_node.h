@@ -11,6 +11,7 @@ typedef struct ptcl_type ptcl_type;
 typedef struct ptcl_type_member ptcl_type_member;
 typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
 typedef struct ptcl_argument ptcl_argument;
+typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
 
 typedef enum ptcl_statement_type
 {
@@ -260,6 +261,7 @@ static ptcl_type ptcl_type_null = {
 
 typedef struct ptcl_expression_variable
 {
+    ptcl_statement_func_body *root;
     ptcl_name name;
     bool is_syntax_variable;
 } ptcl_expression_variable;
@@ -331,11 +333,27 @@ typedef struct ptcl_expression_cast
     bool is_free;
 } ptcl_expression_cast;
 
+typedef struct ptcl_statement_func_call
+{
+    ptcl_statement_func_decl *func_decl;
+    ptcl_identifier identifier;
+    ptcl_expression **arguments;
+    size_t count;
+    ptcl_type return_type;
+    ptcl_expression *built_in;
+    bool is_built_in;
+} ptcl_statement_func_call;
+
 typedef struct ptcl_statement_func_body
 {
     ptcl_statement **statements;
     size_t count;
     ptcl_statement_func_body *root;
+    // TODO: fix it somehow
+    ptcl_argument *arguments;
+    size_t arguments_count;
+    ptcl_expression *self;
+    ptcl_statement_func_call func_call;
 } ptcl_statement_func_body;
 
 typedef struct ptcl_expression_lated_func_body
@@ -349,6 +367,7 @@ typedef struct ptcl_statement_func_decl
     ptcl_argument *arguments;
     size_t count;
     ptcl_statement_func_body *func_body;
+    int index;
     ptcl_type return_type;
     bool is_prototype;
     bool is_variadic;
@@ -356,17 +375,6 @@ typedef struct ptcl_statement_func_decl
     bool is_self_const;
     bool with_self;
 } ptcl_statement_func_decl;
-
-typedef struct ptcl_statement_func_call
-{
-    ptcl_statement_func_decl *func_decl;
-    ptcl_identifier identifier;
-    ptcl_expression **arguments;
-    size_t count;
-    ptcl_type return_type;
-    ptcl_expression *built_in;
-    bool is_built_in;
-} ptcl_statement_func_call;
 
 typedef struct ptcl_expression
 {
@@ -664,17 +672,34 @@ static ptcl_type ptcl_type_create_comp_type_t(ptcl_type_comp_type *type, bool is
     return base;
 }
 
-static ptcl_statement_func_body ptcl_statement_func_body_create(ptcl_statement **statements, size_t count, ptcl_statement_func_body *root)
+static ptcl_statement_func_body ptcl_statement_func_body_inserted_create(
+    ptcl_statement **statements, size_t count,
+    ptcl_statement_func_body *root,
+    ptcl_argument *arguments,
+    size_t arguments_count,
+    ptcl_expression *self,
+    ptcl_statement_func_call func_call)
 {
     return (ptcl_statement_func_body){
         .statements = statements,
         .count = count,
-        .root = root};
+        .root = root,
+        .arguments = arguments,
+        .arguments_count = arguments_count,
+        .self = self,
+        .func_call = func_call};
 }
 
-static ptcl_statement *ptcl_statement_func_body_create_stat(ptcl_statement_func_body body, ptcl_location location)
+static ptcl_statement_func_body ptcl_statement_func_body_create(
+    ptcl_statement **statements, size_t count,
+    ptcl_statement_func_body *root)
 {
-    ptcl_statement *statement = ptcl_statement_create(ptcl_statement_func_body_type, body.root, ptcl_attributes_create(NULL, 0), location);
+    return ptcl_statement_func_body_inserted_create(statements, count, root, NULL, 0, false, (ptcl_statement_func_call){0});
+}
+
+static ptcl_statement *ptcl_statement_func_body_create_stat(ptcl_statement_func_body body, ptcl_statement_func_body *root, ptcl_location location)
+{
+    ptcl_statement *statement = ptcl_statement_create(ptcl_statement_func_body_type, root, ptcl_attributes_create(NULL, 0), location);
     if (statement != NULL)
     {
         statement->body = body;
@@ -705,6 +730,7 @@ static ptcl_statement_func_decl ptcl_statement_func_decl_create(
         .arguments = arguments,
         .count = count,
         .func_body = func_body,
+        .index = -1,
         .return_type = return_type,
         .is_prototype = is_prototype,
         .is_variadic = is_variadic,
@@ -775,14 +801,15 @@ static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expres
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, bool is_syntax_variable, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, bool is_syntax_variable, ptcl_statement_func_body *root, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_variable_type, type, location);
     if (expression != NULL)
     {
         expression->variable = (ptcl_expression_variable){
             .name = name,
-            .is_syntax_variable = is_syntax_variable};
+            .is_syntax_variable = is_syntax_variable,
+            .root = root};
     }
 
     return expression;
@@ -2614,7 +2641,7 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
 {
     ptcl_name_destroy(func_decl.name);
     ptcl_type_destroy(func_decl.return_type);
-    if (!func_decl.is_prototype)
+    if (!func_decl.is_prototype && func_decl.func_body != NULL)
     {
         ptcl_statement_func_body_destroy(*func_decl.func_body);
     }
