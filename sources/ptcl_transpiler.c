@@ -13,10 +13,10 @@ typedef struct ptcl_transpiler
     ptcl_statement_func_body *root;
     ptcl_statement_func_body *main_root;
     ptcl_transpiler_anonymous *anonymouses;
-    int anonymous_count;
+    size_t anonymous_count;
     ptcl_transpiler_replaced *replaced;
-    int replaced_count;
-    int temp_count;
+    size_t replaced_count;
+    size_t temp_count;
     bool from_position;
     bool in_inner;
     bool add_stdlib;
@@ -217,7 +217,7 @@ char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
     }
 
     char *result = ptcl_string_buffer_copy_and_clear(transpiler->string_buffer);
-    for (int i = 0; i < transpiler->anonymous_count; i++)
+    for (size_t i = 0; i < transpiler->anonymous_count; i++)
     {
         free(transpiler->anonymouses[i].alias);
     }
@@ -399,7 +399,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
 
     // Inserted. TODO: isolated will conflict
     const bool is_inserted = func_body.arguments != NULL;
-    bool last_count = transpiler->replaced_count;
+    size_t last_count = transpiler->replaced_count;
     bool last_state = transpiler->is_inserted_body;
     if (is_inserted)
     {
@@ -428,7 +428,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     if (is_inserted)
     {
         transpiler->is_inserted_body = last_state;
-        for (int i = last_count; i < transpiler->replaced_count; i++)
+        for (size_t i = last_count; i < transpiler->replaced_count; i++)
         {
             ptcl_name_destroy(transpiler->replaced[i].replaced_name);
         }
@@ -1407,27 +1407,29 @@ ptcl_name ptcl_transpiler_add_temp_variable(ptcl_transpiler *transpiler, ptcl_ex
 
 char *ptcl_transpiler_generate_anonymous(ptcl_transpiler *transpiler)
 {
-    const int max_digits = 22; // Cant be more than int
-    char *anonymous_name = malloc(max_digits * sizeof(char));
+    const int prefix_length = strlen(PTCL_TRANSPILER_ANONYMOUS_PREFIX); // Length of "__ptcl_t_anonymous_"
+    const size_t length = prefix_length + PTCL_TRANSPILER_SIZE_T_MAX_DIGITS;
+    char *anonymous_name = malloc(length + 1);
     if (anonymous_name == NULL)
     {
         return NULL;
     }
 
-    snprintf(anonymous_name, max_digits, "__ptcl_t_anonymous_%d", transpiler->anonymous_count);
+    snprintf(anonymous_name, sizeof(char) * (length + 1), PTCL_TRANSPILER_ANONYMOUS_PREFIX "%zu", transpiler->anonymous_count);
     return anonymous_name;
 }
 
 char *ptcl_transpiler_generate_temp_and_add(ptcl_transpiler *transpiler)
 {
-    const int max_digits = 17; // Cant be more than int
-    char *temp_name = malloc(max_digits * sizeof(char));
+    const int prefix_length = strlen(PTCL_TRANSPILER_TEMP_PREFIX); // Length of "__ptcl_t_temp_"
+    const size_t length = prefix_length + PTCL_TRANSPILER_SIZE_T_MAX_DIGITS;
+    char *temp_name = malloc(length + 1);
     if (temp_name == NULL)
     {
         return NULL;
     }
 
-    snprintf(temp_name, max_digits, "__ptcl_t_temp_%d", transpiler->temp_count++);
+    snprintf(temp_name, sizeof(char) * (length + 1), PTCL_TRANSPILER_TEMP_PREFIX "%zu", transpiler->temp_count++);
     return temp_name;
 }
 

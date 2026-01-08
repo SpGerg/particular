@@ -3,6 +3,10 @@
 
 #include <ptcl_parser.h>
 
+#define PTCL_TRANSPILER_SIZE_T_MAX_DIGITS (sizeof(size_t) * CHAR_BIT * 302 / 1000 + 1)
+#define PTCL_TRANSPILER_ANONYMOUS_PREFIX "__ptcl_t_anonymous_"
+#define PTCL_TRANSPILER_TEMP_PREFIX "__ptcl_t_temp_"
+
 typedef struct ptcl_transpiler ptcl_transpiler;
 
 typedef struct ptcl_transpiler_variable
