@@ -207,6 +207,7 @@ static void ptcl_parse_arguments_result_destroy(ptcl_parse_arguments_result resu
     free(result.arguments);
 }
 
+// TODO: refactor args
 static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *parser, ptcl_location location, bool with_self, bool with_names, bool with_variadic)
 {
     ptcl_parse_arguments_result result = {
@@ -336,7 +337,7 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
                 }
             }
 
-            ptcl_type type = ptcl_parser_type(parser, false, false, false);
+            ptcl_type type = ptcl_parser_type(parser, false, false, true);
             if (ptcl_parser_critical(parser))
             {
                 ptcl_name_destroy(argument_name);
@@ -1885,7 +1886,8 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
         return (ptcl_statement_func_call){0};
     }
 
-    *placeholder = ptcl_statement_func_body_inserted_create(NULL, 0, parser->root, target->func.arguments, target->func.count, self->return_type.is_static ? NULL : self, *func_call);
+    const bool is_self = self != NULL && self->return_type.is_static;
+    *placeholder = ptcl_statement_func_body_inserted_create(NULL, 0, parser->root, target->func.arguments, target->func.count, is_self ? NULL : self, *func_call);
     statement->root = placeholder;
     int variable_identifier = -1;
     if (self != NULL)
@@ -1912,10 +1914,15 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
     for (size_t i = 0; i < func_call->count; i++)
     {
         ptcl_expression *argument = func_call->arguments[i];
-        ptcl_parser_variable variable = ptcl_parser_variable_create(target->func.name, argument->return_type, argument, argument->return_type.is_static, placeholder);
+        ptcl_parser_variable variable = ptcl_parser_variable_create(target->func.arguments[i].name, argument->return_type, argument, argument->return_type.is_static, placeholder);
         if (!ptcl_parser_add_instance_variable(parser, variable))
         {
-            ptcl_statement_func_call_destroy(*func_call);
+            for (size_t j = i; j < func_call->count; j++)
+            {
+                ptcl_expression_destroy(func_call->arguments[j]);
+            }
+
+            free(func_call->arguments);
             free(placeholder);
             free(statement);
             ptcl_parser_throw_out_of_memory(parser, location);
@@ -1946,16 +1953,15 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
     {
         parser->variables[variable_identifier].is_built_in = false;
     }
-    
+
     parser->return_type = last_return_type;
     parser->is_except_return = last_state;
     parser->root = previous;
     if (ptcl_parser_critical(parser))
     {
-        ptcl_statement_func_call_destroy(*func_call);
+        free(func_call->arguments);
         free(placeholder);
         free(statement);
-        ptcl_parser_throw_out_of_memory(parser, location);
         return (ptcl_statement_func_call){0};
     }
 
@@ -1968,9 +1974,7 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
                                               sizeof(ptcl_statement *) * new_count);
     if (new_statements == NULL)
     {
-        ptcl_statement_func_call_destroy(*func_call);
         ptcl_statement_destroy(statement);
-        ptcl_parser_throw_out_of_memory(parser, location);
         parser->root = previous;
         return (ptcl_statement_func_call){0};
     }
@@ -2412,9 +2416,6 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, b
     case ptcl_token_character_word_type:
         target = ptcl_type_character;
         break;
-    case ptcl_token_type_type:
-        target = ptcl_type_any_type;
-        break;
     case ptcl_token_double_type:
         target = ptcl_type_double;
         break;
@@ -2470,7 +2471,7 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, b
         break;
     }
     case ptcl_token_any_type:
-        if (with_any)
+        if (is_static || with_any)
         {
             target = ptcl_type_any;
             break;
@@ -2788,6 +2789,11 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prot
             }
 
             func_decl.index = index;
+            if (!parser->is_type_body)
+            {
+                ptcl_parser_function *original = &parser->functions[function_identifier];
+                original->func = func_decl;
+            }
         }
     }
 

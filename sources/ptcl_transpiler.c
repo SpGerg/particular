@@ -428,6 +428,11 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     if (is_inserted)
     {
         transpiler->is_inserted_body = last_state;
+        for (int i = last_count; i < transpiler->replaced_count; i++)
+        {
+            ptcl_name_destroy(transpiler->replaced[i].replaced_name);
+        }
+
         transpiler->replaced_count = last_count;
     }
 
@@ -1267,6 +1272,9 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
         }
 
         return pointer;
+    case ptcl_value_any_type:
+        ptcl_transpiler_append_word_s(transpiler, "void*");
+        break;
     case ptcl_value_word_type:
         ptcl_transpiler_append_word_s(transpiler, "char*");
         break;
@@ -1287,13 +1295,13 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
         break;
     case ptcl_value_function_pointer_type:
     case ptcl_value_object_type_type:
-    case ptcl_value_any_type:
         break;
     }
 
     if (name.value != NULL &&
         (type.type == ptcl_value_typedata_type ||
          type.type == ptcl_value_pointer_type ||
+         type.type == ptcl_value_any_type ||
          (ptcl_type_is_primitive(type.type))))
     {
         return ptcl_transpiler_add_name(transpiler, name, is_define);
@@ -1378,11 +1386,11 @@ ptcl_name ptcl_transpiler_add_temp_variable(ptcl_transpiler *transpiler, ptcl_ex
     ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location){0});
     if (anonymous.value != NULL)
     {
-        ptcl_transpiler_add_type_and_name(transpiler, expression->dot.left->return_type, anonymous, NULL, false, true);
+        ptcl_transpiler_add_type_and_name(transpiler, expression->return_type, anonymous, NULL, false, true);
     }
 
     ptcl_transpiler_append_character(transpiler, '=');
-    ptcl_transpiler_add_dot_expression(transpiler, expression->dot.left);
+    ptcl_transpiler_add_expression(transpiler, expression, false);
     ptcl_transpiler_append_character(transpiler, ';');
     if (previous_start != -1)
     {
@@ -1473,11 +1481,6 @@ void ptcl_transpiler_destroy(ptcl_transpiler *transpiler)
     free(transpiler->anonymouses);
     free(transpiler->variables);
     free(transpiler->inner_functions);
-    for (int i = 0; i < transpiler->replaced_count; i++)
-    {
-        ptcl_name_destroy(transpiler->replaced[i].replaced_name);
-    }
-
     free(transpiler->replaced);
     free(transpiler);
 }

@@ -6,200 +6,45 @@ unsyntax {
 	prototype function malloc(size: integer): pointer
 }
 
-syntax list_name([T: static type]) {
-	!<__list_ word(T)>
-}
-
-syntax list_object_name([T: static type]) {
-	!<__list_object_ word(T)>
-}
-
-syntax list([T: static type]) {
-	@{
-		~type_name: static word = #list_name(T)
-		static if not ptcl_defined(~type_name)
-		{
-			~type_object_name: static word = #list_object_name(T)
-			global typedata !~type_object_name(entities: !T*, length: integer, capacity: integer)
-			global type !~type_name: !~type_object_name {
-				function add(entity: !T): void {
-					self.entities[self.length] = entity
-					self.length = self.length + 1
-				}
-
-				function at(index: integer): !T {
-					return self.entities[index]
-				}
-			}
-
-			syntax [left: !~type_name][[index: integer]] {
-				left.at(index)
-			}
-		}
+auto type string: static character* {
+	function content(self): static character* {
+		val := self
+		return self
 	}
 
-	!~type_name
-}
-
-syntax list([T: static type])([capacity: integer]) {
-	#list_object_name(T)(null, 0, capacity) :: #list_name(T)
-}
-
-syntax list([T: static type])() {
-	#list(T)(0)
-}
-
-syntax using([name: static word]=[value: any]) [body: static (): void] {
-	!name := value
-}
-
-syntax object_name [name: static word] {
-	!<__object_ !name>
-}
-
-syntax object [name: static word] [{] [variables: ...] [}] with [body: static (): void] {
-	~typedata_name: static word = #object_name(name)
-	typedata !~typedata_name(ptcl_insert(variables))
-	type !name: !~typedata_name {
-		ptcl_insert(ptcl_get_statements(body))
+	function calculate(self): static void {
+		content := "Hello, world"
+		printf(content)
 	}
 }
 
-syntax create [name: static word]([arguments: ...]) {
-	@{
-		~instance := #object_name(name)(!none) :: !name
-		~instance.constructor(ptcl_insert(arguments))
-	}
-
-	~instance
+type string: character* {
+	
 }
 
-syntax delete [name: any] {
-	name.destructor()
+function foo(value: string): void {
+
 }
 
-syntax exceptional function [name: static word]([arguments: ...]) [body: static (): void] {
-	function !name(ptcl_insert(arguments)): integer {
-		~new_body: static (): void = {
-			syntax deref [T: static type] [value: pointer] {
-				@{
-					if value == null {
-						return 0
-					}
-				}
-
-				*(value :: !T*)
-			}
-
-			ptcl_insert(ptcl_get_statements(body))
-		}
-
-		ptcl_insert(ptcl_get_statements(~new_body))
-	}
-}
-
-syntax dogs [value: static integer] {
-	static if value > 1 {
-		~fact := value * value
-		#object !<dog word(value)> {
-			name: character*,
-			list: #list(>(): void),
-			list2: #list(integer),
-			list3: #list(character),
-			list4: #list(float),
-			list5: #list(>(): void),
-			list6: #list(>(): void),
-			list7: #list(>(): void),
-			list8: #list(>(): void),
-			list9: #list(>(): void),
-			list10: #list(>(): void),
-			list11: #list(>(): void),
-			list12: #list(>(): void),
-			list13: #list(>(): void),
-		} with {
-			function constructor(name: character*): void {
-				self.name = name
-			}
-
-			#exceptional function speak() {
-				value2: character* = "Hello, world"
-				foo := #deref(character)(value2)
-				printf(self.name)
-				self.list.add(null)
-			}
-
-			function destructor(): void {
-
-			}
-		}
-
-		#dogs value - 1
-	}
-}
-
-static function fibonnaci(number: integer): integer {
-	if number == 0 {
-		return 0
+function print(content: static any): static void {
+	if content is integer {
+		printn(content :: integer)
 	}
 	else {
-		if number == 1 {
-			return 1
+		if content is character* {
+			printf(content :: character*)
 		}
 		else {
-			return fibonnaci(number - 2) + fibonnaci(number - 1)
+			if content is character {
+				printc(content :: character)
+			}
 		}
 	}
-}
-
-type disposable: (pointer): void {
-	function dispose(entity: pointer): void {
-		self(entity)
-	}
-}
-
-prototype function file_destroy(file: pointer): void
-
-type file: pointer {
-	static function disposable(): disposable {
-		return file_destroy :: disposable
-	}
-
-	function read(): character* {
-		return null
-	}
-
-	function destroy(): void {
-
-	}
-}
-
-function file_destroy(file: pointer): void {
-	target := *(file :: file*)
-	target.destroy()	
-}
-
--- static значит, что стоит попробовать во время компиляции вычислить
-static function create_file(): file {
-	return null :: file
-}
-
-syntax using([name: static word]=[value: pointer], [target: disposable]) [body: static (): void] {
-	@[inline]
-	function ~unique(): void {
-		!name := value
-		ptcl_insert(ptcl_get_statements(body))
-		target.dispose(value)
-	}
-
-	~unique()
 }
 
 function main(): integer {
-	file := create_file()
-	#using (text = &file, file.disposable()) {
-		content := file.read()
-		printf(content)
-	}
-
+	print(2)
+	print("Hello, world")
+	print('A')
 	return 0
 }

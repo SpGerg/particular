@@ -26,9 +26,25 @@ function foo(value: string): void {
 
 }
 
+function print(content: static any): static void {
+	if content is integer {
+		printn(content :: integer)
+	}
+	else {
+		if content is character* {
+			printf(content :: character*)
+		}
+		else {
+			if content is character {
+				printc(content :: character)
+			}
+		}
+	}
+}
+
 function main(): integer {
-	value := "Hello, world!" :: string
-	value.calculate()
-	printf(value.content())
+	print(2)
+	print("Hello, world")
+	print('A')
 	return 0
 }

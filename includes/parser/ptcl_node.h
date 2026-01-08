@@ -482,6 +482,7 @@ static void ptcl_expression_destroy(ptcl_expression *expression);
 static bool ptcl_type_is_castable(ptcl_type expected, ptcl_type target);
 static bool ptcl_type_equals(ptcl_type left, ptcl_type right);
 static ptcl_name ptcl_name_create_fast_w(char *value, bool is_anonymous);
+static void ptcl_type_destroy(ptcl_type type);
 
 static ptcl_expression *ptcl_expression_create(ptcl_expression_type type, ptcl_type return_type, ptcl_location location)
 {
@@ -1988,6 +1989,7 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
     if (finded)
     {
         result->type = ptcl_expression_integer_type;
+        ptcl_type_destroy(result->return_type);
         result->return_type = ptcl_type_integer;
         result->return_type.is_static = true;
         ptcl_expression_destroy(right);
@@ -2209,6 +2211,7 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
     }
 
     left->type = ptcl_expression_type_from_value(common_type.type);
+    ptcl_type_destroy(left->return_type);
     left->return_type = common_type;
     left->return_type.is_static = true;
     ptcl_expression_destroy(right);
@@ -2468,15 +2471,12 @@ static void ptcl_attribute_destroy(ptcl_attribute attribute)
 
 static void ptcl_attributes_destroy(ptcl_attributes attributes)
 {
-    if (attributes.count > 0)
+    for (size_t i = 0; i < attributes.count; i++)
     {
-        for (size_t i = 0; i < attributes.count; i++)
-        {
-            ptcl_attribute_destroy(attributes.attributes[i]);
-        }
-
-        free(attributes.attributes);
+        ptcl_attribute_destroy(attributes.attributes[i]);
     }
+
+    free(attributes.attributes);
 }
 
 static void ptcl_statement_func_body_destroy(ptcl_statement_func_body func_body)
@@ -2651,29 +2651,23 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
         free(func_decl.func_body);
     }
 
-    if (func_decl.count > 0)
+    for (size_t i = 0; i < func_decl.count; i++)
     {
-        for (size_t i = 0; i < func_decl.count; i++)
-        {
-            ptcl_argument_destroy(func_decl.arguments[i]);
-        }
-
-        free(func_decl.arguments);
+        ptcl_argument_destroy(func_decl.arguments[i]);
     }
+
+    free(func_decl.arguments);
 }
 
 static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 {
     ptcl_name_destroy(type_decl.name);
-    if (type_decl.types_count > 0)
+    for (size_t i = 0; i < type_decl.types_count; i++)
     {
-        for (size_t i = 0; i < type_decl.types_count; i++)
-        {
-            ptcl_type_destroy(type_decl.types[i].type);
-        }
-
-        free(type_decl.types);
+        ptcl_type_destroy(type_decl.types[i].type);
     }
+
+    free(type_decl.types);
 
     if (type_decl.body != NULL)
     {
@@ -2750,6 +2744,11 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         ptcl_statement_if_destroy(statement->if_stat);
         break;
     case ptcl_statement_func_body_type:
+        if (statement->body.arguments != NULL) 
+        {
+            free(statement->body.func_call.arguments);
+        }
+
         ptcl_statement_func_body_destroy(statement->body);
         break;
     case ptcl_statement_each_type:
