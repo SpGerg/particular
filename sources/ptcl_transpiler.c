@@ -1313,8 +1313,7 @@ char *ptcl_transpiler_add_type_and_name(ptcl_transpiler *transpiler, ptcl_type t
 
 void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_operator_type type)
 {
-    char *value;
-
+    char *value = "";
     switch (type)
     {
     case ptcl_binary_operator_plus_type:

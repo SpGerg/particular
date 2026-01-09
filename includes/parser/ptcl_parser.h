@@ -19,7 +19,7 @@ static ptcl_name const ptcl_statement_t_name = {
     .is_free = false,
     .is_anonymous = false};
 
-static ptcl_type_comp_type const ptcl_statement_comp_type = {
+static ptcl_type_comp_type ptcl_statement_comp_type = {
     .identifier = {
         .value = PTCL_PARSER_STATEMENT_TYPE_NAME,
         .location = {0},
@@ -43,7 +43,7 @@ static ptcl_name const ptcl_token_t_name = {
     .is_free = false,
     .is_anonymous = false};
 
-static ptcl_type_comp_type const ptcl_token_comp_type = {
+static ptcl_type_comp_type ptcl_token_comp_type = {
     .identifier = {
         .value = PTCL_PARSER_TOKEN_TYPE_NAME,
         .location = {0},

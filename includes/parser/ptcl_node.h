@@ -1471,17 +1471,17 @@ static ptcl_expression *ptcl_expression_cast_to_double(ptcl_expression *expressi
 {
     switch (expression->type)
     {
-    case ptcl_value_float_type:
+    case ptcl_expression_float_type:
         expression->type = ptcl_expression_double_type;
         expression->return_type = ptcl_type_double;
         expression->return_type.is_static = true;
-        expression->double_n = (int)expression->float_n;
+        expression->double_n = (double)expression->float_n;
         break;
-    case ptcl_value_integer_type:
+    case ptcl_expression_integer_type:
         expression->type = ptcl_expression_double_type;
         expression->return_type = ptcl_type_double;
         expression->return_type.is_static = true;
-        expression->double_n = (int)expression->integer_n;
+        expression->double_n = (double)expression->integer_n;
         break;
     default:
         break;
@@ -1494,17 +1494,17 @@ static ptcl_expression *ptcl_expression_cast_to_float(ptcl_expression *expressio
 {
     switch (expression->type)
     {
-    case ptcl_value_double_type:
+    case ptcl_expression_double_type:
         expression->type = ptcl_expression_float_type;
         expression->return_type = ptcl_type_float;
         expression->return_type.is_static = true;
-        expression->float_n = (int)expression->double_n;
+        expression->float_n = (float)expression->double_n;
         break;
-    case ptcl_value_integer_type:
+    case ptcl_expression_integer_type:
         expression->type = ptcl_expression_float_type;
         expression->return_type = ptcl_type_float;
         expression->return_type.is_static = true;
-        expression->float_n = (int)expression->integer_n;
+        expression->float_n = (float)expression->integer_n;
         break;
     default:
         break;
@@ -1517,13 +1517,13 @@ static void ptcl_expression_cast_to_integer(ptcl_expression *expression)
 {
     switch (expression->type)
     {
-    case ptcl_value_double_type:
+    case ptcl_expression_double_type:
         expression->type = ptcl_expression_integer_type;
         expression->return_type = ptcl_type_integer;
         expression->return_type.is_static = true;
         expression->integer_n = (int)expression->double_n;
         break;
-    case ptcl_value_float_type:
+    case ptcl_expression_float_type:
         expression->type = ptcl_expression_integer_type;
         expression->return_type = ptcl_type_float;
         expression->return_type.is_static = true;
@@ -1621,7 +1621,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
             if (!*is_out_of_memory)
             {
                 *copy.object_type.target = ptcl_type_copy(*type.object_type.target, is_out_of_memory);
-                if (*is_out_of_memory) 
+                if (*is_out_of_memory)
                 {
                     free(copy.object_type.target);
                     break;
@@ -1656,7 +1656,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
     {
         ptcl_type *return_type = malloc(sizeof(ptcl_type));
         *is_out_of_memory = return_type == NULL;
-        if (!*is_out_of_memory) 
+        if (!*is_out_of_memory)
         {
             *return_type = ptcl_type_copy(*type.function_pointer.return_type, is_out_of_memory);
             if (*is_out_of_memory)
@@ -1666,8 +1666,8 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
             }
 
             return_type->is_primitive = false;
-            ptcl_argument* arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
-            if (arguments == NULL) 
+            ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
+            if (arguments == NULL)
             {
                 *is_out_of_memory = true;
                 free(return_type);
@@ -1684,7 +1684,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
                 else
                 {
                     arguments[i] = ptcl_argument_create(ptcl_type_copy(type.function_pointer.arguments[i].type, is_out_of_memory), ptcl_name_create_fast_w(NULL, false));
-                    if (*is_out_of_memory) 
+                    if (*is_out_of_memory)
                     {
                         for (size_t j = 0; j < i; j++)
                         {
@@ -1699,10 +1699,15 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
                 }
             }
 
+#pragma warning(push)
+#pragma warning(disable : 6001)
+
             copy.function_pointer.return_type = return_type;
             copy.function_pointer.arguments = arguments;
+
+#pragma warning(pop)
         }
-        
+
         break;
     }
     case ptcl_value_array_type:
@@ -1781,7 +1786,7 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
 
         bool is_out_of_memory = false;
         expression->return_type = ptcl_type_copy(target->return_type, &is_out_of_memory);
-        if (is_out_of_memory) 
+        if (is_out_of_memory)
         {
             free(expression);
             return NULL;
@@ -2154,13 +2159,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n > right->integer_n;
+            left->integer_n = (int)(result->integer_n > right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n > right->float_n;
+            left->float_n = (float)(result->float_n > right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n > right->double_n;
+            left->double_n = (double)(result->double_n > right->double_n);
             break;
         default:
             break;
@@ -2171,13 +2176,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n < right->integer_n;
+            left->integer_n = (int)(result->integer_n < right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n < right->float_n;
+            left->float_n = (float)(result->float_n < right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n < right->double_n;
+            left->double_n = (double)(result->double_n < right->double_n);
             break;
         default:
             break;
@@ -2188,13 +2193,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n >= right->integer_n;
+            left->integer_n = (int)(result->integer_n >= right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n >= right->float_n;
+            left->float_n = (float)(result->float_n >= right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n >= right->double_n;
+            left->double_n = (double)(result->double_n >= right->double_n);
             break;
         default:
             break;
@@ -2205,13 +2210,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n <= right->integer_n;
+            left->integer_n = (int)(result->integer_n <= right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n <= right->float_n;
+            left->float_n = (float)(result->float_n <= right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n <= right->double_n;
+            left->double_n = (double)(result->double_n <= right->double_n);
             break;
         default:
             break;
@@ -2222,13 +2227,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n && right->integer_n;
+            left->integer_n = (int)(result->integer_n && right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n && right->float_n;
+            left->float_n = (float)(result->float_n && right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n && right->double_n;
+            left->double_n = (double)(result->double_n && right->double_n);
             break;
         default:
             break;
@@ -2239,13 +2244,13 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
         switch (common_type.type)
         {
         case ptcl_value_integer_type:
-            left->integer_n = result->integer_n || right->integer_n;
+            left->integer_n = (int)(result->integer_n || right->integer_n);
             break;
         case ptcl_value_float_type:
-            left->float_n = result->float_n || right->float_n;
+            left->float_n = (float)(result->float_n || right->float_n);
             break;
         case ptcl_value_double_type:
-            left->double_n = result->double_n || right->double_n;
+            left->double_n = (double)(result->double_n || right->double_n);
             break;
         default:
             break;
@@ -2304,7 +2309,7 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
     switch (type.type)
     {
     case ptcl_value_type_type:
-        name = type.comp_type->identifier.value;
+        name = ptcl_string(type.comp_type->identifier.value, NULL);
         break;
     case ptcl_value_typedata_type:
         name = ptcl_string("struct_", type.typedata.value, NULL);
@@ -2332,16 +2337,19 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
             ptcl_argument argument = type.function_pointer.arguments[i];
             if (argument.is_variadic)
             {
+                char *old_name = name;
                 name = ptcl_string_append(name, "_va", NULL);
+                free(old_name);
             }
             else
             {
                 char *value = ptcl_type_to_word_copy(argument.type);
+                char *old_name = name;
                 name = ptcl_string_append(name, "_", value, NULL);
+                free(old_name);
                 free(value);
             }
         }
-
         free(return_type);
         break;
     }
@@ -2353,38 +2361,29 @@ static char *ptcl_type_to_word_copy(ptcl_type type)
         break;
     }
     case ptcl_value_word_type:
-        name = "word";
+        name = ptcl_string("word", NULL);
         break;
     case ptcl_value_character_type:
-        name = "char";
+        name = ptcl_string("char", NULL);
         break;
     case ptcl_value_double_type:
-        name = "double";
+        name = ptcl_string("double", NULL);
         break;
     case ptcl_value_float_type:
-        name = "float";
+        name = ptcl_string("float", NULL);
         break;
     case ptcl_value_integer_type:
-        name = "int";
+        name = ptcl_string("int", NULL);
         break;
     case ptcl_value_any_type:
-        name = "any";
+        name = ptcl_string("any", NULL);
         break;
     case ptcl_value_void_type:
-        name = "void";
+        name = ptcl_string("void", NULL);
         break;
     default:
-        name = "unknown";
+        name = ptcl_string("unknown", NULL);
         break;
-    }
-
-    if (type.type != ptcl_value_array_type &&
-        type.type != ptcl_value_pointer_type &&
-        type.type != ptcl_value_typedata_type &&
-        type.type != ptcl_value_object_type_type &&
-        type.type != ptcl_value_function_pointer_type)
-    {
-        name = ptcl_string(name, NULL);
     }
 
     return name;
@@ -2417,16 +2416,23 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
         for (size_t i = 0; i < type.function_pointer.count; i++)
         {
             char *argument = ptcl_type_to_present_string_copy(type.function_pointer.arguments[i].type);
+            char *old_name = name;
             name = ptcl_string_append(name, argument, NULL);
+            free(old_name);
+
             if (i != type.function_pointer.count - 1)
             {
+                char *old_name = name;
                 name = ptcl_string_append(name, ", ", NULL);
+                free(old_name);
             }
 
             free(argument);
         }
 
+        char *old_name = name;
         name = ptcl_string_append(name, "): ", return_type, NULL);
+        free(old_name);
         free(return_type);
         break;
     }
@@ -2441,42 +2447,38 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
             name = ptcl_string(is_static, "pointer (", pointer_name, ")", NULL);
             free(pointer_name);
         }
-
         break;
     case ptcl_value_word_type:
-        name = "word";
+        name = ptcl_string(is_static, "word", NULL);
         break;
     case ptcl_value_object_type_type:
-        name = ptcl_string(is_static, "object type (", ptcl_type_to_present_string_copy(*type.object_type.target), ")", NULL);
-        break;
-    case ptcl_value_character_type:
-        name = "character";
-        break;
-    case ptcl_value_double_type:
-        name = "double";
-        break;
-    case ptcl_value_float_type:
-        name = "float";
-        break;
-    case ptcl_value_integer_type:
-        name = "integer";
-        break;
-    case ptcl_value_any_type:
-        name = "any";
-        break;
-    case ptcl_value_void_type:
-        name = "void";
+    {
+        char *target_present = ptcl_type_to_present_string_copy(*type.object_type.target);
+        name = ptcl_string(is_static, "object type (", target_present, ")", NULL);
+        free(target_present);
         break;
     }
-
-    if (type.type != ptcl_value_array_type &&
-        type.type != ptcl_value_pointer_type &&
-        type.type != ptcl_value_typedata_type &&
-        type.type != ptcl_value_object_type_type &&
-        type.type != ptcl_value_function_pointer_type &&
-        type.type != ptcl_value_type_type)
-    {
-        name = ptcl_string(is_static, name, NULL);
+    case ptcl_value_character_type:
+        name = ptcl_string(is_static, "character", NULL);
+        break;
+    case ptcl_value_double_type:
+        name = ptcl_string(is_static, "double", NULL);
+        break;
+    case ptcl_value_float_type:
+        name = ptcl_string(is_static, "float", NULL);
+        break;
+    case ptcl_value_integer_type:
+        name = ptcl_string(is_static, "integer", NULL);
+        break;
+    case ptcl_value_any_type:
+        name = ptcl_string(is_static, "any", NULL);
+        break;
+    case ptcl_value_void_type:
+        name = ptcl_string(is_static, "void", NULL);
+        break;
+    default:
+        name = ptcl_string(is_static, "unknown", NULL);
+        break;
     }
 
     return name;
@@ -2795,7 +2797,7 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         ptcl_statement_if_destroy(statement->if_stat);
         break;
     case ptcl_statement_func_body_type:
-        if (statement->body.arguments != NULL) 
+        if (statement->body.arguments != NULL)
         {
             free(statement->body.func_call.arguments);
         }
