@@ -1607,8 +1607,9 @@ static bool ptcl_statement_is_skip(ptcl_statement_type type)
     return false;
 }
 
-static ptcl_type ptcl_type_copy(ptcl_type type)
+static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
 {
+    *is_out_of_memory = false;
     ptcl_type copy = type;
     switch (type.type)
     {
@@ -1616,14 +1617,17 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
         if (type.object_type.target != NULL)
         {
             copy.object_type.target = malloc(sizeof(ptcl_type));
-            if (copy.object_type.target != NULL)
+            *is_out_of_memory = copy.object_type.target == NULL;
+            if (!*is_out_of_memory)
             {
-                *copy.object_type.target = ptcl_type_copy(*type.object_type.target);
+                *copy.object_type.target = ptcl_type_copy(*type.object_type.target, is_out_of_memory);
+                if (*is_out_of_memory) 
+                {
+                    free(copy.object_type.target);
+                    break;
+                }
+
                 copy.object_type.target->is_primitive = false;
-            }
-            else
-            {
-                copy.object_type.target = NULL;
             }
         }
 
@@ -1632,14 +1636,17 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
         if (type.pointer.target != NULL)
         {
             copy.pointer.target = malloc(sizeof(ptcl_type));
-            if (copy.pointer.target != NULL)
+            *is_out_of_memory = copy.pointer.target == NULL;
+            if (!*is_out_of_memory)
             {
-                *copy.pointer.target = ptcl_type_copy(*type.pointer.target);
+                *copy.pointer.target = ptcl_type_copy(*type.pointer.target, is_out_of_memory);
+                if (*is_out_of_memory)
+                {
+                    free(copy.pointer.target);
+                    break;
+                }
+
                 copy.pointer.target->is_primitive = false;
-            }
-            else
-            {
-                copy.pointer.target = NULL;
             }
         }
 
@@ -1648,40 +1655,71 @@ static ptcl_type ptcl_type_copy(ptcl_type type)
     case ptcl_value_function_pointer_type:
     {
         ptcl_type *return_type = malloc(sizeof(ptcl_type));
-        *return_type = ptcl_type_copy(*type.function_pointer.return_type);
-        return_type->is_primitive = false;
-        ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
-        for (size_t i = 0; i < type.function_pointer.count; i++)
+        *is_out_of_memory = return_type == NULL;
+        if (!*is_out_of_memory) 
         {
-            ptcl_argument target_argument = type.function_pointer.arguments[i];
-            if (target_argument.is_variadic)
+            *return_type = ptcl_type_copy(*type.function_pointer.return_type, is_out_of_memory);
+            if (*is_out_of_memory)
             {
-                arguments[i] = ptcl_argument_create_variadic();
+                free(return_type);
+                break;
             }
-            else
-            {
-                arguments[i] = ptcl_argument_create(
-                    ptcl_type_copy(type.function_pointer.arguments[i].type),
-                    ptcl_name_create_fast_w(NULL, false));
-            }
-        }
 
-        copy.function_pointer.return_type = return_type;
-        copy.function_pointer.arguments = arguments;
+            return_type->is_primitive = false;
+            ptcl_argument* arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
+            if (arguments == NULL) 
+            {
+                *is_out_of_memory = true;
+                free(return_type);
+                break;
+            }
+
+            for (size_t i = 0; i < type.function_pointer.count; i++)
+            {
+                ptcl_argument target_argument = type.function_pointer.arguments[i];
+                if (target_argument.is_variadic)
+                {
+                    arguments[i] = ptcl_argument_create_variadic();
+                }
+                else
+                {
+                    arguments[i] = ptcl_argument_create(ptcl_type_copy(type.function_pointer.arguments[i].type, is_out_of_memory), ptcl_name_create_fast_w(NULL, false));
+                    if (*is_out_of_memory) 
+                    {
+                        for (size_t j = 0; j < i; j++)
+                        {
+                            ptcl_type_destroy(arguments[j].type);
+                        }
+
+                        ptcl_type_destroy(*return_type);
+                        free(return_type);
+                        free(arguments);
+                        break;
+                    }
+                }
+            }
+
+            copy.function_pointer.return_type = return_type;
+            copy.function_pointer.arguments = arguments;
+        }
+        
         break;
     }
     case ptcl_value_array_type:
         if (type.array.target != NULL)
         {
             copy.array.target = malloc(sizeof(ptcl_type));
-            if (copy.array.target != NULL)
+            *is_out_of_memory = copy.array.target == NULL;
+            if (!*is_out_of_memory)
             {
-                *copy.array.target = ptcl_type_copy(*type.array.target);
+                *copy.array.target = ptcl_type_copy(*type.array.target, is_out_of_memory);
+                if (*is_out_of_memory)
+                {
+                    free(copy.array.target);
+                    break;
+                }
+
                 copy.array.target->is_primitive = false;
-            }
-            else
-            {
-                copy.array.target = NULL;
             }
         }
 
@@ -1740,7 +1778,15 @@ static ptcl_expression *ptcl_expression_copy(ptcl_expression *target, ptcl_locat
     {
         *expression = *target;
         expression->is_original = false;
-        expression->return_type = ptcl_type_copy(target->return_type);
+
+        bool is_out_of_memory = false;
+        expression->return_type = ptcl_type_copy(target->return_type, &is_out_of_memory);
+        if (is_out_of_memory) 
+        {
+            free(expression);
+            return NULL;
+        }
+
         expression->location = location;
     }
 
@@ -2547,6 +2593,11 @@ static bool ptcl_type_is_function(ptcl_type type, ptcl_type_functon_pointer_type
 
 static void ptcl_type_destroy(ptcl_type type)
 {
+    if (type.is_primitive)
+    {
+        return;
+    }
+
     switch (type.type)
     {
     case ptcl_value_pointer_type:

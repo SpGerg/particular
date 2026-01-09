@@ -982,9 +982,9 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         ptcl_transpiler_append_character(transpiler, ':');
         ptcl_transpiler_add_expression(transpiler, expression->if_expr.else_body, false);
         break;
-    case ptcl_expression_variable_type:
+    case ptcl_expression_variable_type: {
         ptcl_name name = expression->variable.name;
-        ptcl_transpiler_replaced replaced = {0};
+        ptcl_transpiler_replaced replaced = { 0 };
         if (!expression->variable.is_syntax_variable && ptcl_transpiler_try_get_replaced(transpiler, name, &replaced))
         {
             ptcl_transpiler_add_variable_name(transpiler, replaced.replaced_name);
@@ -995,6 +995,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         }
 
         break;
+    }
     case ptcl_expression_word_type:
         ptcl_transpiler_append_character(transpiler, '\"');
         ptcl_transpiler_append_word(transpiler, expression->word.value);

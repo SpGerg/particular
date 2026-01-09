@@ -2544,7 +2544,14 @@ ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, b
                 if (variable->type.type == ptcl_value_object_type_type)
                 {
                     ptcl_name_destroy(name);
-                    target = ptcl_type_copy(variable->built_in->object_type.type);
+                    bool is_out_of_memory = false;
+                    target = ptcl_type_copy(variable->built_in->object_type.type, &is_out_of_memory);
+                    if (is_out_of_memory)
+                    {
+                        ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
+                        parse_success = false;
+                    }
+
                     break;
                 }
             }
