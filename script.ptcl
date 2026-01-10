@@ -42,6 +42,10 @@ function print(content: static any): static void {
 	}
 }
 
+function word((character*, integer): character)(): void {
+	word((character*, integer): character)()
+}
+
 function main(): integer {
 	print(2)
 	print("Hello, world")

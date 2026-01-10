@@ -340,7 +340,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         return NULL;
     }
 
-    if (func_call.func_decl->is_prototype || func_call.func_decl->func_body == NULL)
+    if (ptcl_statement_modifiers_flags_prototype(func_call.func_decl->modifiers) || func_call.func_decl->func_body == NULL)
     {
         return NULL;
     }

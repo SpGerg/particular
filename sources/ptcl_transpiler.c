@@ -771,7 +771,7 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
         transpiler->length = length;
     }
 
-    if (func_decl.is_prototype)
+    if (ptcl_statement_modifiers_flags_prototype(func_decl.modifiers))
     {
         ptcl_transpiler_append_character(transpiler, ';');
     }

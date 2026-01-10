@@ -254,7 +254,7 @@ static bool ptcl_parser_expression_flags_has(int flags, ptcl_parser_expression_f
     return (flags & flag) == flag;
 }
 
-static bool ptcl_parser_expression_flags_default(bool is_expression)
+static ptcl_parser_expression_flags ptcl_parser_expression_flags_default(bool is_expression)
 {
     if (is_expression)
     {
@@ -487,7 +487,7 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser);
 
-ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded);
+ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded, ptcl_name *name, ptcl_statement_modifiers *modifiers);
 
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 
@@ -504,13 +504,13 @@ void ptcl_parser_leave_from_insert_state(ptcl_parser *parser);
 
 ptcl_statement_func_call ptcl_parser_func_call(ptcl_parser *parser, ptcl_parser_function *function, ptcl_expression *self, bool is_expression);
 
-ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, bool is_prototype, bool is_global, bool is_static);
+ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, ptcl_statement_modifiers modifiers);
 
-ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, bool is_prototype, bool is_global);
+ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, ptcl_statement_modifiers modifiers);
 
-ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, bool is_auto, bool is_prototype, bool is_global);
+ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, ptcl_statement_modifiers modifiers);
 
-ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, bool is_global);
+ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, ptcl_name name, ptcl_statement_modifiers modifiers);
 
 ptcl_statement_return ptcl_parser_return(ptcl_parser *parser);
 

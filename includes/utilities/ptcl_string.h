@@ -103,7 +103,6 @@ static char *ptcl_string_append(char *original, const char *first, ...)
     }
 
     size_t additional_length = strlen(first);
-
     va_list args;
     va_start(args, first);
     const char *next;
@@ -113,8 +112,8 @@ static char *ptcl_string_append(char *original, const char *first, ...)
     }
 
     va_end(args);
-    size_t original_length = original ? strlen(original) : 0;
 
+    size_t original_length = original ? strlen(original) : 0;
     char *new_str = realloc(original, original_length + additional_length + 1);
     if (!new_str)
     {
@@ -132,8 +131,8 @@ static char *ptcl_string_append(char *original, const char *first, ...)
         strcpy(current_pos, next);
         current_pos += strlen(next);
     }
-    va_end(args);
 
+    va_end(args);
     return new_str;
 }
 
