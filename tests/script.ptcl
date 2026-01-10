@@ -19,7 +19,7 @@ auto type string: static character* {
 }
 
 type string: character* {
-	
+
 }
 
 function foo(value: string): void {
@@ -47,8 +47,6 @@ function word((character*, integer): character)(): void {
 }
 
 function main(): integer {
-	print(2)
-	print("Hello, world")
-	print('A')
+	
 	return 0
 }

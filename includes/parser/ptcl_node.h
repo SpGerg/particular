@@ -117,6 +117,11 @@ static bool ptcl_statement_modifiers_flags_global(int flags)
     return (flags & ptcl_statement_modifiers_global_flag) == ptcl_statement_modifiers_global_flag;
 }
 
+static bool ptcl_statement_modifiers_flags_const(int flags)
+{
+    return (flags & ptcl_statement_modifiers_const_flag) == ptcl_statement_modifiers_const_flag;
+}
+
 static bool ptcl_statement_modifiers_flags_auto(int flags)
 {
     return (flags & ptcl_statement_modifiers_auto_flag) == ptcl_statement_modifiers_auto_flag;

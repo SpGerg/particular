@@ -1068,26 +1068,29 @@ ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *i
     bool reparsing = false;
     if (current.type == ptcl_token_prototype_type)
     {
+        ptcl_statement_modifiers_flags_set(modifiers, ptcl_statement_modifiers_prototype_flag);
+        comeback:
         ptcl_parser_skip(parser);
         current = ptcl_parser_current(parser);
-        ptcl_statement_modifiers_flags_set(modifiers, ptcl_statement_modifiers_prototype_flag);
         reparsing = true;
+    }
+
+    if (current.type == ptcl_token_const_type)
+    {
+        ptcl_statement_modifiers_flags_set(modifiers, ptcl_statement_modifiers_const_flag);
+        goto comeback;
     }
 
     if (current.type == ptcl_token_global_type)
     {
-        ptcl_parser_skip(parser);
-        current = ptcl_parser_current(parser);
         ptcl_statement_modifiers_flags_set(modifiers, ptcl_statement_modifiers_global_flag);
-        reparsing = true;
+        goto comeback;
     }
 
     if (current.type == ptcl_token_auto_type)
     {
-        ptcl_parser_skip(parser);
-        current = ptcl_parser_current(parser);
         ptcl_statement_modifiers_flags_set(modifiers, ptcl_statement_modifiers_auto_flag);
-        reparsing = true;
+        goto comeback;
     }
 
     if (reparsing)
@@ -3080,6 +3083,8 @@ ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, ptcl_name name, pt
                 ptcl_identifier_destroy(identifier);
                 return (ptcl_statement_assign){0};
             }
+
+            type.is_const = ptcl_statement_modifiers_flags_const(modifiers);
         }
     }
     else

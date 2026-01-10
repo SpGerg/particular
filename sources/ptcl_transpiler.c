@@ -586,7 +586,6 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '}');
         ptcl_transpiler_add_name(transpiler, statement->typedata_decl.name, false);
         ptcl_transpiler_append_character(transpiler, ';');
-
         if (previous_start != -1)
         {
             const size_t current_length = ptcl_string_buffer_length(transpiler->string_buffer);
