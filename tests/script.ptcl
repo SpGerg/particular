@@ -12,14 +12,20 @@ auto type string: static character* {
 		return self
 	}
 
-	function calculate(self): static void {
+	function calculate(self): void {
 		content := "Hello, world"
 		printf(content)
 	}
 }
 
 type string: character* {
+	function content(self): character* {
+		return self
+	}
 
+	function length(self): integer {
+		return strlen(self)
+	}
 }
 
 function foo(value: string): void {
@@ -42,11 +48,8 @@ function print(content: static any): static void {
 	}
 }
 
-function word((character*, integer): character)(): void {
-	word((character*, integer): character)()
-}
-
 function main(): integer {
-	
+	value := "Hello, world" :: string
+	value.calculate()
 	return 0
 }

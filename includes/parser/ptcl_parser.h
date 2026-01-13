@@ -254,6 +254,11 @@ static bool ptcl_parser_expression_flags_has(int flags, ptcl_parser_expression_f
     return (flags & flag) == flag;
 }
 
+static bool ptcl_parser_expression_flags_require_expr(int flags)
+{
+    return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_require_expression_flag);
+}
+
 static ptcl_parser_expression_flags ptcl_parser_expression_flags_default(bool is_expression)
 {
     if (is_expression)
@@ -487,7 +492,7 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser);
 
-ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded, ptcl_name *name, ptcl_statement_modifiers *modifiers);
+ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded, ptcl_name *name, ptcl_expression **expression, ptcl_statement_modifiers *modifiers);
 
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 

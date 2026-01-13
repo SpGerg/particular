@@ -15,6 +15,7 @@ typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
 
 typedef enum ptcl_statement_type
 {
+    ptcl_statement_none_type,
     ptcl_statement_func_body_type,
     ptcl_statement_func_call_type,
     ptcl_statement_func_decl_type,
@@ -102,32 +103,32 @@ static void ptcl_statement_modifiers_flags_remove(int *flags, ptcl_statement_mod
     *flags &= ~flag;
 }
 
-static bool ptcl_statement_modifiers_flags_prototype(int flags)
+static bool ptcl_statement_modifiers_flags_prototype(const int flags)
 {
     return (flags & ptcl_statement_modifiers_prototype_flag) == ptcl_statement_modifiers_prototype_flag;
 }
 
-static bool ptcl_statement_modifiers_flags_static(int flags)
+static bool ptcl_statement_modifiers_flags_static(const int flags)
 {
     return (flags & ptcl_statement_modifiers_static_flag) == ptcl_statement_modifiers_static_flag;
 }
 
-static bool ptcl_statement_modifiers_flags_global(int flags)
+static bool ptcl_statement_modifiers_flags_global(const int flags)
 {
     return (flags & ptcl_statement_modifiers_global_flag) == ptcl_statement_modifiers_global_flag;
 }
 
-static bool ptcl_statement_modifiers_flags_const(int flags)
+static bool ptcl_statement_modifiers_flags_const(const int flags)
 {
     return (flags & ptcl_statement_modifiers_const_flag) == ptcl_statement_modifiers_const_flag;
 }
 
-static bool ptcl_statement_modifiers_flags_auto(int flags)
+static bool ptcl_statement_modifiers_flags_auto(const int flags)
 {
     return (flags & ptcl_statement_modifiers_auto_flag) == ptcl_statement_modifiers_auto_flag;
 }
 
-static bool ptcl_statement_modifiers_flags_optional(int flags)
+static bool ptcl_statement_modifiers_flags_optional(const int flags)
 {
     return (flags & ptcl_statement_modifiers_optional_flag) == ptcl_statement_modifiers_optional_flag;
 }
@@ -954,6 +955,19 @@ static ptcl_type *ptcl_type_get_target(ptcl_type type)
     default:
         return NULL;
     }
+}
+
+static ptcl_type ptcl_type_create_func_from_decl(ptcl_statement_func_decl func_decl, ptcl_type *return_type, bool is_static_by_declaration)
+{
+    return (ptcl_type){
+        .type = ptcl_value_function_pointer_type,
+        .is_primitive = true,
+        .is_static = false,
+        .function_pointer.return_type = return_type,
+        .function_pointer.arguments = func_decl.arguments,
+        .function_pointer.count = func_decl.count,
+        .function_pointer.is_static_by_declaration = is_static_by_declaration,
+        .function_pointer.is_variadic = func_decl.is_variadic};
 }
 
 static ptcl_type ptcl_type_create_func(ptcl_type *return_type, ptcl_argument *arguments, size_t count, bool is_static_by_declaration,
@@ -2084,20 +2098,18 @@ static inline ptcl_expression *ptcl_expression_binary_static_evaluate(ptcl_binar
     int condition = -1;
     ptcl_expression *result = left;
     result->location = location;
-    bool finded = true;
     switch (type)
     {
     case ptcl_binary_operator_type_equals_type:
-        condition = (int) ptcl_expression_binary_static_type_equals(left, right);
+        condition = (int)ptcl_expression_binary_static_type_equals(left, right);
         break;
     case ptcl_binary_operator_equals_type:
-        condition = (int) ptcl_expression_binary_static_equals(left, right);
+        condition = (int)ptcl_expression_binary_static_equals(left, right);
         break;
     case ptcl_binary_operator_not_equals_type:
-        condition = (int) !ptcl_expression_binary_static_equals(left, right);
+        condition = (int)!ptcl_expression_binary_static_equals(left, right);
         break;
     default:
-        finded = false;
         break;
     }
 
@@ -2750,10 +2762,6 @@ static void ptcl_statement_func_decl_destroy(ptcl_statement_func_decl func_decl)
     if (!ptcl_statement_modifiers_flags_prototype(func_decl.modifiers) && func_decl.func_body != NULL)
     {
         ptcl_statement_func_body_destroy(*func_decl.func_body);
-    }
-
-    if (func_decl.func_body != NULL)
-    {
         free(func_decl.func_body);
     }
 
@@ -2862,6 +2870,7 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
     case ptcl_statement_unsyntax_type:
     case ptcl_statement_undefine_type:
     case ptcl_statement_import_type:
+    case ptcl_statement_none_type:
         break;
     }
 
@@ -2889,7 +2898,7 @@ static void ptcl_expression_array_destroy(ptcl_expression_array array)
     ptcl_type_destroy(array.type);
 }
 
-static void ptcl_expression_inside_destroy(ptcl_expression* expression)
+static void ptcl_expression_inside_destroy(ptcl_expression *expression)
 {
     if (!expression->is_original)
     {
@@ -2977,7 +2986,6 @@ static void ptcl_expression_inside_destroy(ptcl_expression* expression)
     case ptcl_expression_null_type:
         break;
     }
-
 }
 
 static void ptcl_expression_destroy(ptcl_expression *expression)

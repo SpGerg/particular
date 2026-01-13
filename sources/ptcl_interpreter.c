@@ -146,6 +146,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     case ptcl_statement_func_decl_type:
     case ptcl_statement_type_decl_type:
     case ptcl_statement_typedata_decl_type:
+    case ptcl_statement_none_type:
         break;
     }
 
