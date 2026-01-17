@@ -32,7 +32,7 @@ function foo(value: string): void {
 
 }
 
-function print(content: static any): static void {
+function print(content: any): static void {
 	if content is integer {
 		printn(content :: integer)
 	}
@@ -48,8 +48,23 @@ function print(content: static any): static void {
 	}
 }
 
+syntax each [name: static word], [time: static integer] [body: static (): void] {
+	static if not (time == 0) {
+		~func_name: static word = !<loop_ word(time)>
+		function !~func_name(): void {
+			!name := time
+			ptcl_insert(ptcl_get_statements(body))
+		}
+
+		!~func_name()
+		#each name, time - 1 body
+	}
+}
+
 function main(): integer {
-	value := "Hello, world" :: string
-	value.calculate()
+	#each index, 254 {
+		print(index)
+	}
+
 	return 0
 }

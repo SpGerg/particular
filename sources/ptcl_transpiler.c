@@ -398,7 +398,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     }
 
     // Inserted. TODO: isolated will conflict
-    const bool is_inserted = func_body.arguments != NULL;
+    const bool is_inserted = func_body.func_call.func_decl != NULL;
     size_t last_count = transpiler->replaced_count;
     bool last_state = transpiler->is_inserted_body;
     if (is_inserted)

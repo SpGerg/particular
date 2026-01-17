@@ -535,6 +535,8 @@ ptcl_statement_func_body ptcl_parser_func_body(ptcl_parser *parser, bool with_br
 
 void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root, bool is_static);
 
+ptcl_statement_func_body *ptcl_parser_current_body(ptcl_parser *parser);
+
 void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax);
 
 ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, bool with_static);
