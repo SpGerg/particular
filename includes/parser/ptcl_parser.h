@@ -567,11 +567,15 @@ ptcl_name ptcl_parser_name(ptcl_parser *parser, bool with_type);
 
 ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, ptcl_location location);
 
-ptcl_token ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
+ptcl_token *ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
+
+bool *ptcl_parser_not(ptcl_parser *parser, ptcl_token_type token_type);
 
 bool ptcl_parser_match(ptcl_parser *parser, ptcl_token_type token_type);
 
 ptcl_token ptcl_parser_peek(ptcl_parser *parser, size_t offset);
+
+ptcl_token *ptcl_parser_current_ptr(ptcl_parser *parser);
 
 ptcl_token ptcl_parser_current(ptcl_parser *parser);
 
