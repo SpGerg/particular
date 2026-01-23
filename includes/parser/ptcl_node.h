@@ -85,7 +85,8 @@ typedef enum ptcl_statement_modifiers
     ptcl_statement_modifiers_global_flag = 3 << 0,
     ptcl_statement_modifiers_prototype_flag = 4 << 0,
     ptcl_statement_modifiers_auto_flag = 5 << 0,
-    ptcl_statement_modifiers_optional_flag = 6 << 0
+    ptcl_statement_modifiers_optional_flag = 6 << 0,
+    ptcl_statement_modifiers_injection_flag = 7 << 0,
 } ptcl_statement_modifiers;
 
 static bool ptcl_statement_modifiers_flags_has(int flags, ptcl_statement_modifiers flag)
@@ -105,32 +106,37 @@ static void ptcl_statement_modifiers_flags_remove(int *flags, ptcl_statement_mod
 
 static bool ptcl_statement_modifiers_flags_prototype(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_prototype_flag) == ptcl_statement_modifiers_prototype_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_prototype_flag);
 }
 
 static bool ptcl_statement_modifiers_flags_static(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_static_flag) == ptcl_statement_modifiers_static_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_static_flag);
 }
 
 static bool ptcl_statement_modifiers_flags_global(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_global_flag) == ptcl_statement_modifiers_global_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_global_flag);
 }
 
 static bool ptcl_statement_modifiers_flags_const(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_const_flag) == ptcl_statement_modifiers_const_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_const_flag);
 }
 
 static bool ptcl_statement_modifiers_flags_auto(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_auto_flag) == ptcl_statement_modifiers_auto_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_auto_flag);
 }
 
 static bool ptcl_statement_modifiers_flags_optional(const int flags)
 {
-    return (flags & ptcl_statement_modifiers_optional_flag) == ptcl_statement_modifiers_optional_flag;
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_optional_flag);
+}
+
+static bool ptcl_statement_modifiers_flags_injection(const int flags)
+{
+    return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_injection_flag);
 }
 
 static ptcl_statement_modifiers ptcl_statement_modifiers_none()
@@ -252,8 +258,14 @@ typedef struct ptcl_argument
     bool is_variadic;
 } ptcl_argument;
 
-static ptcl_name ptcl_self_name = {
+static ptcl_name ptcl_name_self = {
     .value = "self",
+    .location = {0},
+    .is_anonymous = false,
+    .is_free = false};
+
+static ptcl_name ptcl_name_null = {
+    .value = "",
     .location = {0},
     .is_anonymous = false,
     .is_free = false};
@@ -1823,6 +1835,21 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
     }
 
     return copy;
+}
+
+static inline bool ptcl_statement_with_own_statement(ptcl_statement_type type)
+{
+    switch (type)
+    {
+    case ptcl_statement_each_type:
+    case ptcl_statement_syntax_type:
+    case ptcl_statement_undefine_type:
+    case ptcl_statement_func_body_type:
+    case ptcl_statement_none_type:
+        return false;
+    default:
+        return true;
+    }
 }
 
 static inline bool ptcl_expression_with_own_type(ptcl_expression_type type)

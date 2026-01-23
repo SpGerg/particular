@@ -61,10 +61,13 @@ syntax each [name: static word], [time: static integer] [body: static (): void] 
 	}
 }
 
-function main(): integer {
-	#each index, 254 {
-		print(index)
+function fock(): void {
+	syntax [this] {
+		print("Fock was called")
 	}
+}
 
+function main(): integer {
+	^fock()
 	return 0
 }

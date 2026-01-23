@@ -408,7 +408,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
         if (func_body.self != NULL)
         {
             ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, func_body.self);
-            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(ptcl_self_name, temp);
+            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(ptcl_name_self, temp);
             ptcl_transpiler_add_replaced(transpiler, replaced);
         }
 
@@ -466,7 +466,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
 
         break;
     case ptcl_statement_assign_type:
-        if (statement->assign.is_define && statement->assign.type.is_static)
+        if (statement->assign.type.is_static)
         {
             break;
         }
@@ -1023,7 +1023,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         break;
     case ptcl_expression_cast_type:
         ptcl_transpiler_append_character(transpiler, '(');
-        ptcl_transpiler_add_type_and_name(transpiler, expression->cast.type, ptcl_name_create_fast_w("", false), NULL, false, false);
+        ptcl_transpiler_add_type_and_name(transpiler, expression->cast.type, ptcl_name_null, NULL, false, false);
         ptcl_transpiler_append_character(transpiler, ')');
         ptcl_transpiler_add_expression(transpiler, expression->cast.value, false);
         break;

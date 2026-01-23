@@ -107,7 +107,7 @@ static bool ptcl_func_built_in_builder_add_argument(ptcl_func_built_in_builder *
     }
 
     builder->arguments = buffer;
-    builder->arguments[builder->count++] = ptcl_argument_create(type, ptcl_name_create_fast_w("", false));
+    builder->arguments[builder->count++] = ptcl_argument_create(type, ptcl_name_null);
     return true;
 }
 

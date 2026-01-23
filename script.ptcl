@@ -12,21 +12,27 @@ auto type string: static character* {
 		return self
 	}
 
-	function calculate(self): static void {
+	function calculate(self): void {
 		content := "Hello, world"
 		printf(content)
 	}
 }
 
 type string: character* {
-	
+	function content(self): character* {
+		return self
+	}
+
+	function length(self): integer {
+		return strlen(self)
+	}
 }
 
 function foo(value: string): void {
 
 }
 
-function print(content: static any): static void {
+function print(content: any): static void {
 	if content is integer {
 		printn(content :: integer)
 	}
@@ -42,13 +48,26 @@ function print(content: static any): static void {
 	}
 }
 
-function word((character*, integer): character)(): void {
-	word((character*, integer): character)()
+syntax each [name: static word], [time: static integer] [body: static (): void] {
+	static if not (time == 0) {
+		~func_name: static word = !<loop_ word(time)>
+		function !~func_name(): void {
+			!name := time
+			ptcl_insert(ptcl_get_statements(body))
+		}
+
+		!~func_name()
+		#each name, time - 1 body
+	}
+}
+
+function fock(): void {
+	syntax [this] {
+		print("Fock was called") g
+	}
 }
 
 function main(): integer {
-	print(2)
-	print("Hello, world")
-	print('A')
+	^fock()
 	return 0
 }

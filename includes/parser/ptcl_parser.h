@@ -6,6 +6,7 @@
 #include <ptcl_lexer_configuration.h>
 
 #define PTCL_PARSER_MAX_DEPTH 256
+#define PTCL_PARSER_MAX_MODIFIERS_RECURSION 16
 #define PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY 16
 #define PTCL_PARSER_DECL_INSERT_DEPTH 16
 #define PTCL_PARSER_STATEMENT_TYPE_NAME "ptcl_statement_t"
@@ -92,7 +93,7 @@ typedef struct ptcl_parser_insert_state
 typedef struct ptcl_parser_this_s_pair
 {
     ptcl_statement_func_body *body;
-    ptcl_parser_tokens_state state;
+    size_t index;
 } ptcl_parser_this_s_pair;
 
 typedef struct ptcl_parser_function ptcl_parser_function;
@@ -249,6 +250,14 @@ typedef struct ptcl_parser_result
     bool is_critical;
 } ptcl_parser_result;
 
+typedef struct ptcl_parser_statement_info
+{
+    ptcl_statement_type type;
+    ptcl_name name;
+    ptcl_expression *expression;
+    ptcl_statement_modifiers modifiers;
+} ptcl_parser_statement_info;
+
 static bool ptcl_parser_expression_flags_has(int flags, ptcl_parser_expression_flags flag)
 {
     return (flags & flag) == flag;
@@ -269,6 +278,16 @@ static ptcl_parser_expression_flags ptcl_parser_expression_flags_default(bool is
     return ptcl_parser_expression_with_word_flag;
 }
 
+static ptcl_parser_statement_info ptcl_parser_statement_info_default()
+{
+    return (ptcl_parser_statement_info) {
+        .type = 0,
+        .modifiers = ptcl_statement_modifiers_none_flag,
+        .expression = NULL,
+        .name = ptcl_name_null
+    };
+}
+
 static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state, ptcl_statement_func_body *body, ptcl_statement_func_body *previos_body)
 {
     return (ptcl_parser_syntax_pair){
@@ -278,11 +297,11 @@ static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax
         .previous_body = previos_body};
 }
 
-static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, ptcl_parser_tokens_state state)
+static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, size_t index)
 {
     return (ptcl_parser_this_s_pair){
         .body = body,
-        .state = state};
+        .index = index};
 }
 
 static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_name identifier, ptcl_type_comp_type *type, bool is_static, bool is_auto_static)
@@ -492,7 +511,7 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
 
 ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser);
 
-ptcl_statement_type ptcl_parser_parse_get_statement(ptcl_parser *parser, bool *is_finded, ptcl_name *name, ptcl_expression **expression, ptcl_statement_modifiers *modifiers);
+bool ptcl_parser_parse_get_statement(ptcl_parser *parser, ptcl_parser_statement_info *info);
 
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser);
 
@@ -569,7 +588,7 @@ ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, pt
 
 ptcl_token *ptcl_parser_except(ptcl_parser *parser, ptcl_token_type token_type);
 
-bool *ptcl_parser_not(ptcl_parser *parser, ptcl_token_type token_type);
+bool ptcl_parser_not(ptcl_parser *parser, ptcl_token_type token_type);
 
 bool ptcl_parser_match(ptcl_parser *parser, ptcl_token_type token_type);
 

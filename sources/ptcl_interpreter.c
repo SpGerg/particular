@@ -390,7 +390,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             for (int j = interpreter->variables_count - 1; j >= 0; j--)
             {
                 ptcl_interpreter_variable *variable = &interpreter->variables[i];
-                if (self != NULL && ptcl_name_compare(variable->name, ptcl_self_name))
+                if (self != NULL && ptcl_name_compare(variable->name, ptcl_name_self))
                 {
                     last_self.index = j;
                     last_self.variable = *variable;
@@ -451,7 +451,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     size_t variables_count = interpreter->variables_count;
     if (self != NULL)
     {
-        if (!ptcl_interpreter_add_variable(interpreter, ptcl_self_name, self, evaluate_arguments))
+        if (!ptcl_interpreter_add_variable(interpreter, ptcl_name_self, self, evaluate_arguments))
         {
             ptcl_parser_throw_out_of_memory(interpreter->parser, location);
             return NULL;
