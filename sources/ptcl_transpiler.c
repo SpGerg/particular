@@ -10,8 +10,8 @@ typedef struct ptcl_transpiler
     size_t variables_count;
     ptcl_transpiler_function *inner_functions;
     size_t inner_functions_count;
-    ptcl_statement_func_body *root;
-    ptcl_statement_func_body *main_root;
+    ptcl_func_body *root;
+    ptcl_func_body *main_root;
     ptcl_transpiler_anonymous *anonymouses;
     size_t anonymous_count;
     ptcl_transpiler_replaced *replaced;
@@ -207,7 +207,7 @@ ptcl_transpiler *ptcl_transpiler_create(ptcl_parser_result result)
 char *ptcl_transpiler_transpile(ptcl_transpiler *transpiler)
 {
     transpiler->main_root = &transpiler->result.body;
-    ptcl_transpiler_add_func_body(transpiler, transpiler->result.body, false, false);
+    ptcl_transpiler_add_func_body(transpiler, NULL, transpiler->result.body, false, false);
 
     if (transpiler->add_stdlib)
     {
@@ -330,7 +330,7 @@ bool ptcl_transpiler_add_variable(ptcl_transpiler *transpiler, ptcl_transpiler_v
     return true;
 }
 
-bool ptcl_transpiler_add_variable_f(ptcl_transpiler *transpiler, ptcl_name name, ptcl_type type, bool is_inner, ptcl_statement_func_body *root)
+bool ptcl_transpiler_add_variable_f(ptcl_transpiler *transpiler, ptcl_name name, ptcl_type type, bool is_inner, ptcl_func_body *root)
 {
     ptcl_transpiler_variable *buffer = realloc(transpiler->variables, (transpiler->variables_count + 1) * sizeof(ptcl_transpiler_variable));
     if (buffer == NULL)
@@ -343,7 +343,7 @@ bool ptcl_transpiler_add_variable_f(ptcl_transpiler *transpiler, ptcl_name name,
     return true;
 }
 
-bool ptcl_transpiler_add_inner_func(ptcl_transpiler *transpiler, ptcl_name name, ptcl_statement_func_body *root)
+bool ptcl_transpiler_add_inner_func(ptcl_transpiler *transpiler, ptcl_name name, ptcl_func_body *root)
 {
     ptcl_transpiler_function *buffer = realloc(transpiler->inner_functions, (transpiler->inner_functions_count + 1) * sizeof(ptcl_transpiler_function));
     if (buffer == NULL)
@@ -356,7 +356,7 @@ bool ptcl_transpiler_add_inner_func(ptcl_transpiler *transpiler, ptcl_name name,
     return true;
 }
 
-bool ptcl_transpiler_add_anonymous(ptcl_transpiler *transpiler, char *original_name, char *alias, ptcl_statement_func_body *root)
+bool ptcl_transpiler_add_anonymous(ptcl_transpiler *transpiler, char *original_name, char *alias, ptcl_func_body *root)
 {
     ptcl_transpiler_anonymous *buffer = realloc(transpiler->anonymouses, (transpiler->anonymous_count + 1) * sizeof(ptcl_transpiler_anonymous));
     if (buffer == NULL)
@@ -382,9 +382,9 @@ bool ptcl_transpiler_add_replaced(ptcl_transpiler *transpiler, ptcl_transpiler_r
     return true;
 }
 
-void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body func_body, bool with_brackets, bool is_func_body)
+void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_func_body *statement, ptcl_func_body func_body, bool with_brackets, bool is_func_body)
 {
-    ptcl_statement_func_body *previous = transpiler->root;
+    ptcl_func_body *previous = transpiler->root;
     if (with_brackets)
     {
         func_body.root = transpiler->root;
@@ -398,24 +398,24 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     }
 
     // Inserted. TODO: isolated will conflict
-    const bool is_inserted = func_body.func_call.func_decl != NULL;
+    const bool is_inserted = statement != NULL && statement->func_call.func_decl != NULL;
     size_t last_count = transpiler->replaced_count;
     bool last_state = transpiler->is_inserted_body;
     if (is_inserted)
     {
         transpiler->is_inserted_body = true;
         // TODO: if it is not static, it will be not null
-        if (func_body.self != NULL)
+        if (statement->self != NULL)
         {
-            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, func_body.self);
+            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, statement->self);
             ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(ptcl_name_self, temp);
             ptcl_transpiler_add_replaced(transpiler, replaced);
         }
 
-        for (size_t i = 0; i < func_body.arguments_count; i++)
+        for (size_t i = 0; i < statement->arguments_count; i++)
         {
-            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, func_body.func_call.arguments[i]);
-            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(func_body.arguments[i].name, temp);
+            ptcl_name temp = ptcl_transpiler_add_temp_variable(transpiler, statement->func_call.arguments[i]);
+            ptcl_transpiler_replaced replaced = ptcl_transpiler_replaced_name_create(statement->arguments[i].name, temp);
             ptcl_transpiler_add_replaced(transpiler, replaced);
         }
     }
@@ -456,7 +456,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
     switch (statement->type)
     {
     case ptcl_statement_func_body_type:
-        ptcl_transpiler_add_func_body(transpiler, statement->body, false, false);
+        ptcl_transpiler_add_func_body(transpiler, &statement->body, statement->body.body, false, false);
         break;
     case ptcl_statement_func_call_type:
         if (ptcl_transpiler_add_func_call(transpiler, statement->func_call))
@@ -617,11 +617,11 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_append_character(transpiler, '(');
         ptcl_transpiler_add_expression(transpiler, statement->if_stat.condition, false);
         ptcl_transpiler_append_character(transpiler, ')');
-        ptcl_transpiler_add_func_body(transpiler, statement->if_stat.body, true, is_func_body);
+        ptcl_transpiler_add_func_body(transpiler, NULL, statement->if_stat.body, true, is_func_body);
         if (statement->if_stat.with_else)
         {
             ptcl_transpiler_append_word_s(transpiler, "else");
-            ptcl_transpiler_add_func_body(transpiler, statement->if_stat.else_body, true, is_func_body);
+            ptcl_transpiler_add_func_body(transpiler, NULL, statement->if_stat.else_body, true, is_func_body);
         }
 
         break;
@@ -777,7 +777,7 @@ static void ptcl_transpiler_add_func_decl_body(ptcl_transpiler *transpiler, ptcl
     }
     else
     {
-        ptcl_transpiler_add_func_body(transpiler, *func_decl.func_body, true, !is_root);
+        ptcl_transpiler_add_func_body(transpiler, NULL, *func_decl.func_body, true, !is_root);
     }
 
     if (!is_root)

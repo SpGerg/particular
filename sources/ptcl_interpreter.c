@@ -46,7 +46,7 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
     return interpreter;
 }
 
-ptcl_expression *ptcl_interpreter_evaluate_func_body(ptcl_interpreter *interpreter, ptcl_statement_func_body func_body, ptcl_location location)
+ptcl_expression *ptcl_interpreter_evaluate_func_body(ptcl_interpreter *interpreter, ptcl_func_body func_body, ptcl_location location)
 {
     ptcl_expression *result = NULL;
     for (size_t i = 0; i < func_body.count; i++)
@@ -71,7 +71,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     switch (statement->type)
     {
     case ptcl_statement_func_body_type:
-        return ptcl_interpreter_evaluate_func_body(interpreter, statement->body, location);
+        return ptcl_interpreter_evaluate_func_body(interpreter, statement->body.body, location);
     case ptcl_statement_func_call_type:
         return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
     case ptcl_statement_assign_type: {

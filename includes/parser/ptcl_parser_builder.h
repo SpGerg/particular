@@ -7,7 +7,7 @@
 typedef struct ptcl_typedata_builder
 {
     char *name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_argument *members;
     size_t count;
 } ptcl_typedata_builder;
@@ -15,7 +15,7 @@ typedef struct ptcl_typedata_builder
 typedef struct ptcl_func_built_in_builder
 {
     char *name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_built_in_function_t bind;
     ptcl_type return_type;
     ptcl_argument *arguments;
@@ -25,10 +25,10 @@ typedef struct ptcl_func_built_in_builder
 typedef struct ptcl_comp_type_builder
 {
     char *name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_type *types;
     size_t count;
-    ptcl_statement_func_body *functions;
+    ptcl_func_body *functions;
 } ptcl_comp_type_builder;
 
 static ptcl_comp_type_builder ptcl_comp_type_builder_create(char *name)

@@ -92,7 +92,7 @@ typedef struct ptcl_parser_insert_state
 
 typedef struct ptcl_parser_this_s_pair
 {
-    ptcl_statement_func_body *body;
+    ptcl_func_body *body;
     size_t index;
 } ptcl_parser_this_s_pair;
 
@@ -101,7 +101,7 @@ typedef struct ptcl_parser_function ptcl_parser_function;
 typedef struct ptcl_parser_variable
 {
     ptcl_name name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_type type;
     ptcl_expression *built_in;
     // TODO: use flags instead of it...
@@ -115,7 +115,7 @@ typedef struct ptcl_parser_variable
 
 typedef struct ptcl_parser_typedata
 {
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_name name;
     ptcl_argument *members;
     size_t count;
@@ -125,7 +125,7 @@ typedef struct ptcl_parser_typedata
 typedef struct ptcl_parser_comp_type
 {
     ptcl_name identifier;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_type_comp_type *comp_type;
     ptcl_type_comp_type *static_type;
     bool is_auto_static;
@@ -175,7 +175,7 @@ typedef struct ptcl_parser_syntax_node
 typedef struct ptcl_parser_syntax
 {
     ptcl_name name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     ptcl_parser_syntax_node *nodes;
     size_t count;
     size_t index;
@@ -184,8 +184,8 @@ typedef struct ptcl_parser_syntax
 
 typedef struct ptcl_parser_syntax_pair
 {
-    ptcl_statement_func_body *body;
-    ptcl_statement_func_body *previous_body;
+    ptcl_func_body *body;
+    ptcl_func_body *previous_body;
     ptcl_parser_syntax syntax;
     ptcl_parser_tokens_state state;
 } ptcl_parser_syntax_pair;
@@ -201,7 +201,7 @@ typedef ptcl_expression *(*ptcl_built_in_function_t)(
 typedef struct ptcl_parser_function
 {
     ptcl_name name;
-    ptcl_statement_func_body *root;
+    ptcl_func_body *root;
     bool is_built_in;
     ptcl_built_in_function_t bind;
     ptcl_statement_func_decl func;
@@ -230,7 +230,7 @@ typedef enum ptcl_parser_expression_flags
 typedef struct ptcl_parser_result
 {
     ptcl_lexer_configuration *configuration;
-    ptcl_statement_func_body body;
+    ptcl_func_body body;
     ptcl_parser_error *errors;
     size_t errors_count;
     ptcl_parser_syntax *syntaxes;
@@ -288,7 +288,7 @@ static ptcl_parser_statement_info ptcl_parser_statement_info_default()
     };
 }
 
-static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state, ptcl_statement_func_body *body, ptcl_statement_func_body *previos_body)
+static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax syntax, ptcl_parser_tokens_state state, ptcl_func_body *body, ptcl_func_body *previos_body)
 {
     return (ptcl_parser_syntax_pair){
         .syntax = syntax,
@@ -297,14 +297,14 @@ static ptcl_parser_syntax_pair ptcl_parser_syntax_pair_create(ptcl_parser_syntax
         .previous_body = previos_body};
 }
 
-static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_statement_func_body *body, size_t index)
+static ptcl_parser_this_s_pair ptcl_parser_this_s_pair_create(ptcl_func_body *body, size_t index)
 {
     return (ptcl_parser_this_s_pair){
         .body = body,
         .index = index};
 }
 
-static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_body *root, ptcl_name identifier, ptcl_type_comp_type *type, bool is_static, bool is_auto_static)
+static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_func_body *root, ptcl_name identifier, ptcl_type_comp_type *type, bool is_static, bool is_auto_static)
 {
     return (ptcl_parser_comp_type){
         .root = root,
@@ -315,7 +315,7 @@ static ptcl_parser_comp_type ptcl_parser_comp_type_create(ptcl_statement_func_bo
         .is_out_of_scope = false};
 }
 
-static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
+static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_func_body *root)
 {
     return (ptcl_parser_variable){
         .name = name,
@@ -331,7 +331,7 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
 }
 
 // TODO: more cool name
-static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_statement_func_body *root)
+static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name name, ptcl_type type, ptcl_expression *built_in, bool is_built_in, ptcl_func_body *root)
 {
     return (ptcl_parser_variable){
         .name = name,
@@ -346,7 +346,7 @@ static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name nam
         .is_syntax_anonymous = false};
 }
 
-static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_statement_func_body *root)
+static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_func_body *root)
 {
     return (ptcl_parser_variable){
         .name = name,
@@ -360,7 +360,7 @@ static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptc
         .is_syntax_anonymous = false};
 }
 
-static ptcl_parser_function ptcl_parser_function_create(ptcl_statement_func_body *root, ptcl_statement_func_decl func)
+static ptcl_parser_function ptcl_parser_function_create(ptcl_func_body *root, ptcl_statement_func_decl func)
 {
     return (ptcl_parser_function){
         .name = func.name,
@@ -370,7 +370,7 @@ static ptcl_parser_function ptcl_parser_function_create(ptcl_statement_func_body
         .func = func};
 };
 
-static ptcl_parser_function ptcl_parser_built_in_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
+static ptcl_parser_function ptcl_parser_built_in_create(ptcl_func_body *root, ptcl_name name, ptcl_built_in_function_t bind, ptcl_argument *arguments, size_t count, ptcl_type return_type)
 {
     return (ptcl_parser_function){
         .name = name,
@@ -385,7 +385,7 @@ static ptcl_parser_function ptcl_parser_built_in_create(ptcl_statement_func_body
             .return_type = return_type}};
 }
 
-static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body *root, ptcl_name name, ptcl_argument *members, size_t count)
+static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_func_body *root, ptcl_name name, ptcl_argument *members, size_t count)
 {
     return (ptcl_parser_typedata){
         .root = root,
@@ -395,7 +395,7 @@ static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_statement_func_body
         .count = count};
 }
 
-static ptcl_parser_syntax ptcl_parser_syntax_create(ptcl_name name, ptcl_statement_func_body *root, ptcl_parser_syntax_node *nodes, size_t count, size_t index)
+static ptcl_parser_syntax ptcl_parser_syntax_create(ptcl_name name, ptcl_func_body *root, ptcl_parser_syntax_node *nodes, size_t count, size_t index)
 {
     return (ptcl_parser_syntax){
         .root = root,
@@ -550,11 +550,11 @@ void ptcl_parser_each(ptcl_parser *parser);
 
 void ptcl_parser_undefine(ptcl_parser *parser);
 
-ptcl_statement_func_body ptcl_parser_func_body(ptcl_parser *parser, bool with_brackets, bool change_root, bool is_ignore_error);
+ptcl_func_body ptcl_parser_func_body(ptcl_parser *parser, bool with_brackets, bool change_root, bool is_ignore_error);
 
-void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_statement_func_body *func_body_pointer, bool with_brackets, bool change_root, bool is_static);
+void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_func_body *func_body_pointer, bool with_brackets, bool change_root, bool is_static);
 
-ptcl_statement_func_body *ptcl_parser_current_body(ptcl_parser *parser);
+ptcl_func_body *ptcl_parser_current_body(ptcl_parser *parser);
 
 void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax);
 
@@ -626,7 +626,7 @@ size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 
 ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index);
 
-ptcl_statement_func_body *ptcl_parser_root(ptcl_parser *parser);
+ptcl_func_body *ptcl_parser_root(ptcl_parser *parser);
 
 size_t ptcl_parser_variables_count(ptcl_parser *parser);
 
@@ -634,7 +634,7 @@ ptcl_parser_variable *ptcl_parser_variables(ptcl_parser *parser);
 
 bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance);
 
-ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *statement, ptcl_statement_func_body *body);
+ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *statement, ptcl_func_body *body);
 
 bool ptcl_parser_add_instance_syntax(ptcl_parser *parser, ptcl_parser_syntax instance);
 

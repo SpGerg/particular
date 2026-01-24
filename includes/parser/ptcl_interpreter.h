@@ -12,7 +12,7 @@ typedef struct ptcl_interpreter ptcl_interpreter;
 
 ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser);
 
-ptcl_expression *ptcl_interpreter_evaluate_func_body(ptcl_interpreter *interpreter, ptcl_statement_func_body func_body, ptcl_location location);
+ptcl_expression *ptcl_interpreter_evaluate_func_body(ptcl_interpreter *interpreter, ptcl_func_body func_body, ptcl_location location);
 
 ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpreter, ptcl_statement *statement, ptcl_location location);
 
