@@ -396,7 +396,7 @@ void ptcl_transpiler_add_func_body(ptcl_transpiler *transpiler, ptcl_statement_f
     {
         ptcl_transpiler_append_character(transpiler, '{');
     }
-
+    
     // Inserted. TODO: isolated will conflict
     const bool is_inserted = statement != NULL && statement->func_call.func_decl != NULL;
     size_t last_count = transpiler->replaced_count;
@@ -1372,6 +1372,7 @@ void ptcl_transpiler_add_binary_type(ptcl_transpiler *transpiler, ptcl_binary_op
 
 ptcl_name ptcl_transpiler_add_temp_variable(ptcl_transpiler *transpiler, ptcl_expression *expression)
 {
+    // TODO: sometimes doesn't work
     const size_t length = ptcl_string_buffer_length(transpiler->string_buffer);
     int previous_start = -1;
     if (transpiler->start != -1)

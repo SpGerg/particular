@@ -3572,6 +3572,62 @@ ptcl_statement_return ptcl_parser_return(ptcl_parser *parser)
     return ptcl_statement_return_create(value);
 }
 
+static ptcl_statement *ptcl_parser_static_if_body(ptcl_parser *parser, ptcl_expression *condition)
+{
+    ptcl_func_body result;
+    const bool condition_value = condition->integer_n;
+    ptcl_location location = condition->location;
+    ptcl_expression_destroy(condition);
+    if (condition_value)
+    {
+        result = ptcl_parser_func_body(parser, true, false, parser->is_ignore_error);
+        if (ptcl_parser_critical(parser))
+        {
+            return NULL;
+        }
+
+        if (ptcl_parser_match(parser, ptcl_token_else_type))
+        {
+            if (ptcl_parser_not(parser, ptcl_token_left_curly_type))
+            {
+                ptcl_func_body_destroy(result);
+                return NULL;
+            }
+
+            ptcl_parser_skip_block_or_expression(parser);
+            if (ptcl_parser_critical(parser))
+            {
+                ptcl_func_body_destroy(result);
+                return NULL;
+            }
+        }
+    }
+    else
+    {
+        ptcl_parser_skip(parser);
+        ptcl_parser_skip_block_or_expression(parser);
+        if (ptcl_parser_critical(parser))
+        {
+            return NULL;
+        }
+
+        if (ptcl_parser_match(parser, ptcl_token_else_type))
+        {
+            result = ptcl_parser_func_body(parser, true, false, parser->is_ignore_error);
+            if (ptcl_parser_critical(parser))
+            {
+                return NULL;
+            }
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
+    return ptcl_func_body_create_stat(ptcl_statement_func_body_create_by_body(result), result.root, location);
+}
+
 ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
 {
     ptcl_parser_match(parser, ptcl_token_if_type);
@@ -3586,58 +3642,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
 
     if (condition->return_type.is_static || is_static)
     {
-        ptcl_func_body result;
-        const bool condition_value = condition->integer_n;
-        ptcl_location location = condition->location;
-        ptcl_expression_destroy(condition);
-        if (condition_value)
-        {
-            result = ptcl_parser_func_body(parser, true, false, parser->is_ignore_error);
-            if (ptcl_parser_critical(parser))
-            {
-                return NULL;
-            }
-
-            if (ptcl_parser_match(parser, ptcl_token_else_type))
-            {
-                if (ptcl_parser_not(parser, ptcl_token_left_curly_type))
-                {
-                    ptcl_func_body_destroy(result);
-                    return NULL;
-                }
-
-                ptcl_parser_skip_block_or_expression(parser);
-                if (ptcl_parser_critical(parser))
-                {
-                    ptcl_func_body_destroy(result);
-                    return NULL;
-                }
-            }
-        }
-        else
-        {
-            ptcl_parser_skip(parser);
-            ptcl_parser_skip_block_or_expression(parser);
-            if (ptcl_parser_critical(parser))
-            {
-                return NULL;
-            }
-
-            if (ptcl_parser_match(parser, ptcl_token_else_type))
-            {
-                result = ptcl_parser_func_body(parser, true, false, parser->is_ignore_error);
-                if (ptcl_parser_critical(parser))
-                {
-                    return NULL;
-                }
-            }
-            else
-            {
-                return NULL;
-            }
-        }
-
-        return ptcl_func_body_create_stat(ptcl_statement_func_body_create_by_body(result), result.root, location);
+        return ptcl_parser_static_if_body(parser, condition);
     }
 
     ptcl_func_body body = ptcl_parser_func_body(parser, true, true, parser->is_ignore_error);
@@ -3671,6 +3676,64 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
     return statement;
 }
 
+static ptcl_expression *ptcl_parser_static_if_expr_body(ptcl_parser *parser, ptcl_expression *condition)
+{
+    ptcl_expression *result;
+
+    int condition_value = condition->integer_n;
+    ptcl_expression_destroy(condition);
+    if (condition_value)
+    {
+        result = ptcl_parser_cast(parser, NULL, false);
+        if (ptcl_parser_critical(parser))
+        {
+            return NULL;
+        }
+
+        if (ptcl_parser_not(parser, ptcl_token_right_curly_type) ||
+            ptcl_parser_not(parser, ptcl_token_else_type) ||
+            ptcl_parser_not(parser, ptcl_token_left_curly_type))
+        {
+            ptcl_expression_destroy(result);
+            return NULL;
+        }
+
+        ptcl_parser_skip_block_or_expression(parser);
+        if (ptcl_parser_critical(parser))
+        {
+            ptcl_expression_destroy(result);
+            return NULL;
+        }
+    }
+    else
+    {
+        ptcl_parser_skip_block_or_expression(parser);
+        if (ptcl_parser_critical(parser))
+        {
+            return NULL;
+        }
+
+        if (ptcl_parser_not(parser, ptcl_token_else_type) || ptcl_parser_not(parser, ptcl_token_left_curly_type))
+        {
+            return NULL;
+        }
+
+        result = ptcl_parser_cast(parser, NULL, false);
+        if (ptcl_parser_critical(parser))
+        {
+            return NULL;
+        }
+
+        if (ptcl_parser_not(parser, ptcl_token_right_curly_type))
+        {
+            ptcl_expression_destroy(result);
+            return NULL;
+        }
+    }
+
+    return result;
+}
+
 ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
 {
     ptcl_parser_match(parser, ptcl_token_if_type);
@@ -3689,60 +3752,7 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
 
     if (condition->return_type.is_static || is_static)
     {
-        ptcl_expression *result;
-
-        int condition_value = condition->integer_n;
-        ptcl_expression_destroy(condition);
-        if (condition_value)
-        {
-            result = ptcl_parser_cast(parser, NULL, false);
-            if (ptcl_parser_critical(parser))
-            {
-                return NULL;
-            }
-
-            if (ptcl_parser_not(parser, ptcl_token_right_curly_type) ||
-                ptcl_parser_not(parser, ptcl_token_else_type) ||
-                ptcl_parser_not(parser, ptcl_token_left_curly_type))
-            {
-                ptcl_expression_destroy(result);
-                return NULL;
-            }
-
-            ptcl_parser_skip_block_or_expression(parser);
-            if (ptcl_parser_critical(parser))
-            {
-                ptcl_expression_destroy(result);
-                return NULL;
-            }
-        }
-        else
-        {
-            ptcl_parser_skip_block_or_expression(parser);
-            if (ptcl_parser_critical(parser))
-            {
-                return NULL;
-            }
-
-            if (ptcl_parser_not(parser, ptcl_token_else_type) || ptcl_parser_not(parser, ptcl_token_left_curly_type))
-            {
-                return NULL;
-            }
-
-            result = ptcl_parser_cast(parser, NULL, false);
-            if (ptcl_parser_critical(parser))
-            {
-                return NULL;
-            }
-
-            if (ptcl_parser_not(parser, ptcl_token_right_curly_type))
-            {
-                ptcl_expression_destroy(result);
-                return NULL;
-            }
-        }
-
-        return result;
+        return ptcl_parser_static_if_expr_body(parser, condition);
     }
 
     ptcl_expression *body = ptcl_parser_cast(parser, NULL, false);
@@ -3761,7 +3771,7 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
         return NULL;
     }
 
-    ptcl_expression *else_body = ptcl_parser_cast(parser, &body->return_type, false);
+    ptcl_expression *else_expression = ptcl_parser_cast(parser, &body->return_type, false);
     if (ptcl_parser_critical(parser))
     {
         ptcl_expression_destroy(condition);
@@ -3773,11 +3783,11 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
     {
         ptcl_expression_destroy(condition);
         ptcl_expression_destroy(body);
-        ptcl_expression_destroy(else_body);
+        ptcl_expression_destroy(else_expression);
         return NULL;
     }
 
-    ptcl_expression_if if_expr = ptcl_expression_if_create(condition, body, else_body);
+    ptcl_expression_if if_expr = ptcl_expression_if_create(condition, body, else_expression);
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_if_type, if_expr.body->return_type, condition->location);
     if (expression == NULL)
     {
@@ -5926,7 +5936,7 @@ ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *st
         }
 
         ptcl_location location = ptcl_parser_current(parser).location;
-        ptcl_func_body *content = &statement->body.body; 
+        ptcl_func_body *content = &statement->body.body;
         if (statement->type != ptcl_statement_func_body_type)
         {
             ptcl_statement *statement_body = ptcl_func_body_create_stat(
