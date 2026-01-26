@@ -782,12 +782,12 @@ static ptcl_statement_func_body ptcl_statement_func_body_create(
     ptcl_statement **statements, size_t count,
     ptcl_func_body *root)
 {
-    return ptcl_statement_func_body_inserted_create(statements, count, root, NULL, 0, NULL, (ptcl_statement_func_call) {0});
+    return ptcl_statement_func_body_inserted_create(statements, count, root, NULL, 0, NULL, (ptcl_statement_func_call){0});
 }
 
 static ptcl_statement_func_body ptcl_statement_func_body_create_by_body(ptcl_func_body body)
 {
-    return ptcl_statement_func_body_inserted_create(body.statements, body.count, body.root, NULL, 0, NULL, (ptcl_statement_func_call) {0});
+    return ptcl_statement_func_body_inserted_create(body.statements, body.count, body.root, NULL, 0, NULL, (ptcl_statement_func_call){0});
 }
 
 static ptcl_statement *ptcl_func_body_create_stat(ptcl_statement_func_body body, ptcl_func_body *root, ptcl_location location)
@@ -830,15 +830,20 @@ static ptcl_statement_func_decl ptcl_statement_func_decl_create(
         .with_self = false};
 }
 
+static ptcl_expression_array ptcl_expression_array_create_member(ptcl_type type, ptcl_expression **expressions, size_t count)
+{
+    return (ptcl_expression_array){
+        .type = type,
+        .expressions = expressions,
+        .count = count};
+}
+
 static ptcl_expression *ptcl_expression_array_create(ptcl_type type, ptcl_expression **expressions, size_t count, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_array_type, type, location);
     if (expression != NULL)
     {
-        expression->array = (ptcl_expression_array){
-            .type = type,
-            .expressions = expressions,
-            .count = count};
+        expression->array = ptcl_expression_array_create_member(type, expressions, count);
     }
 
     return expression;
@@ -2596,6 +2601,11 @@ static char *ptcl_type_to_present_string_copy(ptcl_type type)
     }
 
     return name;
+}
+
+static bool ptcl_type_is_string(ptcl_type type)
+{
+    return type.type == ptcl_value_array_type && type.array.target->type == ptcl_value_character_type;
 }
 
 static bool ptcl_func_body_can_access(ptcl_func_body *target, ptcl_func_body *requester)

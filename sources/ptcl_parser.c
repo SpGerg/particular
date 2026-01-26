@@ -913,7 +913,7 @@ static ptcl_expression *ptcl_defined_realization(ptcl_parser *parser, ptcl_expre
     }
 
     ptcl_name name;
-    if (name_argument->return_type.type == ptcl_value_array_type && name_argument->return_type.array.target->type == ptcl_value_character_type)
+    if (ptcl_type_is_string(name_argument->return_type))
     {
         name = ptcl_name_create(ptcl_string_from_array(name_argument->array), true, location);
         if (name.value == NULL)
@@ -963,14 +963,17 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
         const ptcl_parser_tokens_state last_tokens_state = parser->state;
         ptcl_parser_set_state(parser, lated_body);
         ptcl_parser_set_position(parser, 0);
+
         ptcl_func_body *last_state = parser->inserted_body;
         ptcl_func_body body = ptcl_func_body_create(
             NULL, 0,
             ptcl_parser_root(parser));
         parser->inserted_body = &body;
+
         ptcl_parser_func_body_by_pointer(parser, parser->inserted_body, true, false, parser->is_ignore_error);
         ptcl_parser_set_state(parser, last_tokens_state);
         parser->inserted_body = last_state;
+
         if (ptcl_parser_critical(parser))
         {
             PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
@@ -1015,9 +1018,7 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
         }
 
         PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-        array->array.type = ptcl_statement_t_type;
-        array->array.expressions = statements;
-        array->array.count = body.count;
+        array->array = ptcl_expression_array_create_member(ptcl_statement_t_type, statements, count);
         ptcl_func_body_destroy(body);
         return array;
     }
@@ -1106,6 +1107,91 @@ static bool ptcl_check_array_statements(ptcl_parser *parser, ptcl_expression_arr
     return true;
 }
 
+static ptcl_expression *ptcl_insert_statements_array(ptcl_parser *parser, ptcl_expression *argument, ptcl_location location)
+{
+    ptcl_expression_array array = argument->array;
+    if (!ptcl_check_array_statements(parser, array))
+    {
+        ptcl_expression_destroy(argument);
+        return NULL;
+    }
+
+    ptcl_func_body *body = ptcl_parser_current_body(parser);
+    const size_t buffer_count = body->count + array.count;
+    ptcl_statement **buffer = realloc(body->statements, buffer_count * sizeof(ptcl_statement *));
+    if (buffer == NULL && buffer_count > 0)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        ptcl_expression_destroy(argument);
+        return NULL;
+    }
+
+    body->statements = buffer;
+    for (size_t i = 0; i < array.count; i++)
+    {
+        ptcl_expression *expression = array.expressions[i];
+        ptcl_statement *element = ptcl_create_statement_from_expression(ptcl_parser_root(parser), expression, location);
+        if (expression->is_original)
+        {
+            free(expression->internal_statement);
+            expression->is_original = false;
+            element->is_original = true;
+        }
+
+        if (element == NULL)
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            ptcl_expression_destroy(argument);
+            return NULL;
+        }
+
+        body->statements[body->count] = element;
+        body->count++;
+    }
+
+    return NULL;
+}
+
+static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression);
+static ptcl_expression *ptcl_insert_tokens_array(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_expression *argument, bool is_expression, ptcl_location location)
+{
+    if (is_expression)
+    {
+        ptcl_token *expression_tokens = ptcl_parser_tokens_from_array(argument);
+        if (ptcl_parser_critical(parser))
+        {
+            PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+            ptcl_parser_throw_out_of_memory(parser, location);
+            return NULL;
+        }
+
+        const ptcl_parser_tokens_state last_state = parser->state;
+        ptcl_parser_set_position(parser, 0);
+        parser->state.tokens = expression_tokens;
+        parser->state.count = argument->array.count;
+        ptcl_expression *value = ptcl_parser_cast(parser, NULL, false);
+        parser->state = last_state;
+        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
+        free(expression_tokens);
+        if (ptcl_parser_critical(parser))
+        {
+            ptcl_parser_throw_out_of_memory(parser, location);
+            return NULL;
+        }
+
+        return value;
+    }
+
+    ptcl_expression *statements = ptcl_get_statements_realization(parser, arguments, 1, location, true);
+    if (ptcl_parser_critical(parser))
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        return NULL;
+    }
+
+    return ptcl_insert_realization(parser, &statements, 1, location, false);
+}
+
 static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
     ptcl_expression *argument = arguments[0];
@@ -1148,101 +1234,26 @@ static ptcl_expression *ptcl_insert_realization(ptcl_parser *parser, ptcl_expres
             return NULL;
         }
 
-        ptcl_expression_array array = argument->array;
-        if (ptcl_name_compare(target.comp_type->identifier, ptcl_statement_t_name))
+        ptcl_name identifier = target.comp_type->identifier;
+        if (ptcl_name_compare(identifier, ptcl_statement_t_name))
         {
-            if (!ptcl_check_array_statements(parser, array))
-            {
-                PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-                return NULL;
-            }
-
-            ptcl_func_body *body = ptcl_parser_current_body(parser);
-            const size_t buffer_count = body->count + array.count;
-            ptcl_statement **buffer = realloc(body->statements, buffer_count * sizeof(ptcl_statement *));
-            if (buffer == NULL && buffer_count > 0)
-            {
-                ptcl_parser_throw_out_of_memory(parser, location);
-                PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-                return NULL;
-            }
-
-            body->statements = buffer;
-            for (size_t i = 0; i < array.count; i++)
-            {
-                ptcl_expression *expression = array.expressions[i];
-                ptcl_statement *element = ptcl_create_statement_from_expression(ptcl_parser_root(parser), expression, location);
-                if (expression->is_original)
-                {
-                    free(expression->internal_statement);
-                    expression->is_original = false;
-                    element->is_original = true;
-                }
-
-                if (element == NULL)
-                {
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-                    return NULL;
-                }
-
-                body->statements[body->count] = element;
-                body->count++;
-            }
+            free(arguments);
+            return ptcl_insert_statements_array(parser, argument, location);
         }
-        else if (ptcl_name_compare(target.comp_type->identifier, ptcl_token_t_name))
+        else if (ptcl_name_compare(identifier, ptcl_token_t_name))
         {
         tokens:
-            if (is_expression)
-            {
-                ptcl_token *expression_tokens = ptcl_parser_tokens_from_array(argument);
-                if (ptcl_parser_critical(parser))
-                {
-                    PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    return NULL;
-                }
-
-                const ptcl_parser_tokens_state last_state = parser->state;
-                ptcl_parser_set_position(parser, 0);
-                parser->state.tokens = expression_tokens;
-                parser->state.count = argument->array.count;
-                ptcl_expression *value = ptcl_parser_cast(parser, NULL, false);
-                parser->state = last_state;
-                PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-                free(expression_tokens);
-                if (ptcl_parser_critical(parser))
-                {
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    return NULL;
-                }
-
-                return value;
-            }
-            else
-            {
-                ptcl_expression *statements = ptcl_get_statements_realization(parser, arguments, 1, location, true);
-                if (ptcl_parser_critical(parser))
-                {
-                    ptcl_parser_throw_out_of_memory(parser, location);
-                    return NULL;
-                }
-
-                return ptcl_insert_realization(parser, &statements, 1, location, false);
-            }
+            return ptcl_insert_tokens_array(parser, arguments, count, argument, is_expression, location);
         }
-
-        break;
     }
     default:
-        ptcl_parser_throw_fast_incorrect_type(
-            parser,
-            array_type,
-            argument->return_type, location);
-        PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
-        return NULL;
+        break;
     }
 
+    ptcl_parser_throw_fast_incorrect_type(
+        parser,
+        array_type,
+        argument->return_type, location);
     PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
     return NULL;
 }

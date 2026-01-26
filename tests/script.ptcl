@@ -68,6 +68,10 @@ function fock(): void {
 }
 
 function main(): integer {
-	^fock()
+	new_body: static (): void = {
+		print("Hello, world!")
+	}
+
+	ptcl_insert(ptcl_get_statements(new_body))
 	return 0
 }
