@@ -6,32 +6,6 @@ unsyntax {
 	prototype function malloc(size: integer): pointer
 }
 
-auto type string: static character* {
-	function content(self): static character* {
-		val := self
-		return self
-	}
-
-	function calculate(self): void {
-		content := "Hello, world"
-		printf(content)
-	}
-}
-
-type string: character* {
-	function content(self): character* {
-		return self
-	}
-
-	function length(self): integer {
-		return strlen(self)
-	}
-}
-
-function foo(value: string): void {
-
-}
-
 function print(content: any): static void {
 	if content is integer {
 		printn(content :: integer)
@@ -61,17 +35,14 @@ syntax each [name: static word], [time: static integer] [body: static (): void] 
 	}
 }
 
-function fock(): void {
-	syntax [this] {
-		print("Fock was called")
-	}
-}
-
 function main(): integer {
-	new_body: static (): void = {
-		print("Hello, world!")
+	#each index, 254 {
+		new_body: static (): void = {
+			print("Hello, world!")
+		}
+
+		ptcl_insert(ptcl_get_statements(new_body))
 	}
 
-	ptcl_insert(ptcl_get_statements(new_body))
 	return 0
 }
