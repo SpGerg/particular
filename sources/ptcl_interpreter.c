@@ -376,7 +376,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         if (needs_free)
         {
             arguments = malloc(func_call.func_decl->count * sizeof(ptcl_interpreter_var_index));
-            if (arguments == NULL)
+            if (arguments == NULL && func_call.func_decl->count > 0)
             {
                 ptcl_parser_throw_out_of_memory(interpreter->parser, location);
                 return NULL;

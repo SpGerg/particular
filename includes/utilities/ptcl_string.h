@@ -21,7 +21,6 @@ static inline char *ptcl_string_duplicate(char *source)
 static inline char *ptcl_from_long(size_t number)
 {
     size_t length = snprintf(NULL, 0, "%zu", number) + 1;
-
     char *result = (char *)malloc(length);
     if (result == NULL)
     {
@@ -77,7 +76,6 @@ static inline char *ptcl_string(char *first, ...)
 
     va_end(arguments);
     char *result = (char *)malloc(total_length + 1);
-
     if (result == NULL)
     {
         return NULL;

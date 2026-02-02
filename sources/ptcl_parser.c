@@ -485,7 +485,7 @@ static bool ptcl_parser_func_call_stat(ptcl_parser *parser, ptcl_statement **res
 static ptcl_token *ptcl_parser_tokens_from_array(ptcl_expression *expression)
 {
     ptcl_token *expression_tokens = malloc(expression->array.count * sizeof(ptcl_token));
-    if (expression_tokens == NULL)
+    if (expression_tokens == NULL && expression->array.count > 0)
     {
         return NULL;
     }
@@ -981,7 +981,7 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
         }
 
         ptcl_expression **statements = malloc(body.count * sizeof(ptcl_expression *));
-        if (statements == NULL)
+        if (statements == NULL && body.count > 0)
         {
             ptcl_func_body_destroy(body);
             PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
@@ -1623,7 +1623,7 @@ static ptcl_statement *ptcl_parser_syntax_stat(ptcl_parser *parser)
         size_t new_count = root_body->count + body.count;
         ptcl_statement **new_statements = realloc(root_body->statements,
                                                   sizeof(ptcl_statement *) * new_count);
-        if (new_statements == NULL)
+        if (new_statements == NULL & new_count > 0)
         {
             ptcl_func_body_destroy(body);
             ptcl_parser_throw_out_of_memory(parser, location);
@@ -1863,7 +1863,7 @@ static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end
     size_t original_capacity = 8;
     size_t original_count = 0;
     ptcl_expression **buffer = malloc(original_capacity * sizeof(ptcl_expression *));
-    if (buffer == NULL)
+    if (buffer == NULL && original_capacity > 0)
     {
         ptcl_parser_throw_out_of_memory(parser, location);
         return false;
@@ -4205,7 +4205,7 @@ void ptcl_parser_each(ptcl_parser *parser)
     ptcl_func_body *body_root = ptcl_parser_root(parser);
     size_t count = body_root->count + empty.count;
     ptcl_statement **buffer = realloc(body_root->statements, count * sizeof(ptcl_statement *));
-    if (buffer == NULL)
+    if (buffer == NULL && count > 0)
     {
         ptcl_parser_throw_out_of_memory(parser, location);
         ptcl_func_body_destroy(empty);
@@ -5663,7 +5663,7 @@ ptcl_expression *ptcl_parser_get_default(ptcl_parser *parser, ptcl_type type, pt
         // If type was created, then type registered
         ptcl_parser_try_get_typedata(parser, type.typedata, &instance);
         ptcl_expression **expressions = malloc(instance->count * sizeof(ptcl_expression *));
-        if (instance->count > 0 && expressions == NULL)
+        if (expressions == NULL)
         {
             return NULL;
         }
@@ -6272,7 +6272,7 @@ int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_
     if (tokens_count > 0)
     {
         body_tokens = malloc(sizeof(ptcl_token) * tokens_count);
-        if (body_tokens == NULL)
+        if (body_tokens == NULL && tokens_count > 0)
         {
             ptcl_parser_throw_out_of_memory(parser, location);
             return -1;

@@ -1387,7 +1387,7 @@ static bool ptcl_type_function_equals(ptcl_type_functon_pointer_type left, ptcl_
 static char *ptcl_string_from_array(ptcl_expression_array expression)
 {
     char *characters = malloc(sizeof(char) * expression.count);
-    if (characters == NULL)
+    if (characters == NULL && expression.count > 0)
     {
         return NULL;
     }
@@ -1778,7 +1778,7 @@ static ptcl_type ptcl_type_copy(ptcl_type type, bool *is_out_of_memory)
 
             return_type->is_primitive = false;
             ptcl_argument *arguments = malloc(type.function_pointer.count * sizeof(ptcl_argument));
-            if (arguments == NULL)
+            if (arguments == NULL && type.function_pointer.count > 0)
             {
                 *is_out_of_memory = true;
                 free(return_type);
