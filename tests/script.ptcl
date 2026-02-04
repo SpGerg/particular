@@ -24,6 +24,6 @@ function print(content: any): static void {
 
 function main(): integer {
 	vars := printf
-	vars("Hello, world")
+	vars("Hello, world", 65)
 	return 0
 }
