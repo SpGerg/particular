@@ -264,7 +264,7 @@ static ptcl_name ptcl_name_self = {
     .is_anonymous = false,
     .is_free = false};
 
-static ptcl_name ptcl_name_null = {
+static ptcl_name ptcl_name_empty = {
     .value = "",
     .location = {0},
     .is_anonymous = false,

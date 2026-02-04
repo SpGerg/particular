@@ -1023,7 +1023,7 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
         break;
     case ptcl_expression_cast_type:
         ptcl_transpiler_append_character(transpiler, '(');
-        ptcl_transpiler_add_type_and_name(transpiler, expression->cast.type, ptcl_name_null, NULL, false, false);
+        ptcl_transpiler_add_type_and_name(transpiler, expression->cast.type, ptcl_name_empty, NULL, false, false);
         ptcl_transpiler_append_character(transpiler, ')');
         ptcl_transpiler_add_expression(transpiler, expression->cast.value, false);
         break;

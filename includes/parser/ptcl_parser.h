@@ -284,7 +284,7 @@ static ptcl_parser_statement_info ptcl_parser_statement_info_default()
         .type = 0,
         .modifiers = ptcl_statement_modifiers_none_flag,
         .expression = NULL,
-        .name = ptcl_name_null
+        .name = ptcl_name_empty
     };
 }
 

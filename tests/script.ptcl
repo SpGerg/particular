@@ -22,27 +22,8 @@ function print(content: any): static void {
 	}
 }
 
-syntax each [name: static word], [time: static integer] [body: static (): void] {
-	static if not (time == 0) {
-		~func_name: static word = !<loop_ word(time)>
-		function !~func_name(): void {
-			!name := time
-			ptcl_insert(ptcl_get_statements(body))
-		}
-
-		!~func_name()
-		#each name, time - 1 body
-	}
-}
-
 function main(): integer {
-	#each index, 254 {
-		new_body: static (): void = {
-			print("Hello, world!")
-		}
-
-		ptcl_insert(ptcl_get_statements(new_body))
-	}
-
+	vars := printf
+	vars("Hello, world")
 	return 0
 }
