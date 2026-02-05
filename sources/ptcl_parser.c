@@ -629,8 +629,9 @@ static bool ptcl_parser_variadic_arg(ptcl_parser *parser, ptcl_argument *argumen
     return true;
 }
 
-static bool ptcl_parser_name_arg(ptcl_parser *parser, ptcl_parse_arguments_result *result, ptcl_name *argument_name, bool with_self, bool is_const)
+static bool ptcl_parser_name_arg(ptcl_parser *parser, ptcl_parse_arguments_result *result, ptcl_name *argument_name, bool with_self, bool is_const, bool *is_self)
 {
+    *is_self = false;
     *argument_name = ptcl_parser_name_word(parser);
     if (ptcl_parser_critical(parser))
     {
@@ -642,6 +643,7 @@ static bool ptcl_parser_name_arg(ptcl_parser *parser, ptcl_parse_arguments_resul
     {
         result->is_const = is_const;
         result->with_self = true;
+        *is_self = true;
 
         ptcl_parser_match(parser, ptcl_token_comma_type);
         return true;
@@ -780,16 +782,23 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(ptcl_parser *pars
         }
         else
         {
+            const size_t current = result.count;
             ptcl_name argument_name = ptcl_name_empty;
             if (with_names)
             {
-                if (!ptcl_parser_name_arg(parser, &result, &argument_name, with_self, is_const))
+                bool is_self = false;
+                if (!ptcl_parser_name_arg(parser, &result, &argument_name, with_self, is_const, &is_self))
                 {
                     goto leave;
                 }
+
+                if (is_self)
+                {
+                    ptcl_parser_match(parser, ptcl_token_comma_type);
+                    continue;
+                }
             }
 
-            const size_t current = result.count;
             if (!ptcl_parser_type_arg(parser, &result.arguments[current], argument_name, is_const, with_any))
             {
                 goto leave;
@@ -3363,6 +3372,99 @@ ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, ptcl
     return decl;
 }
 
+static bool ptcl_parser_type_decl_types(ptcl_parser *parser, ptcl_statement_type_decl *decl, ptcl_location location)
+{
+    while (true)
+    {
+        ptcl_type_member *buffer = realloc(decl->types, (decl->types_count + 1) * sizeof(ptcl_type_member));
+        if (buffer == NULL)
+        {
+            ptcl_statement_type_decl_destroy(*decl);
+            ptcl_parser_throw_out_of_memory(parser, location);
+            return false;
+        }
+
+        decl->types = buffer;
+        bool is_up = ptcl_parser_match(parser, ptcl_token_up_type);
+        ptcl_type type = ptcl_parser_type(parser, false, false, true);
+        if (ptcl_parser_critical(parser))
+        {
+            if (decl->types_count == 0)
+            {
+                free(decl->types);
+            }
+
+            ptcl_statement_type_decl_destroy(*decl);
+            return false;
+        }
+
+        if (decl->types_count > 0)
+        {
+            ptcl_type_member expected = decl->types[decl->types_count - 1];
+            if (!ptcl_type_is_castable(expected.type, type))
+            {
+                ptcl_parser_throw_fast_incorrect_type(parser, expected.type, type, location);
+                ptcl_statement_type_decl_destroy(*decl);
+                return false;
+            }
+        }
+
+        decl->types[decl->types_count++] = ptcl_type_member_create(type, is_up);
+        if (!ptcl_parser_match(parser, ptcl_token_comma_type))
+        {
+            break;
+        }
+    }
+
+    return true;
+}
+
+static bool ptcl_parser_type_decl_body(ptcl_parser *parser, ptcl_statement_type_decl *decl, ptcl_type_comp_type *comp_type, ptcl_location location)
+{
+    ptcl_func_body *body = malloc(sizeof(ptcl_func_body));
+    if (body == NULL)
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        ptcl_statement_type_decl_destroy(*decl);
+        return false;
+    }
+
+    *body = ptcl_func_body_create(NULL, 0, ptcl_parser_root(parser));
+    comp_type->functions = body;
+    ptcl_parser_variable this_var = ptcl_parser_variable_not_static_create(
+        ptcl_name_create_fast_w("this", false),
+        ptcl_type_create_comp_type_t(comp_type, false), NULL, false, body);
+    this_var.type.is_prototype_static = this_var.type.is_static;
+    this_var.type.is_static = false;
+    ptcl_parser_variable self_var = ptcl_parser_variable_not_static_create(
+        ptcl_name_create_fast_w("self", false),
+        decl->types[0].type, NULL, false, body);
+    self_var.type.is_prototype_static = self_var.type.is_static;
+    if (!ptcl_parser_add_instance_variable(parser, this_var) || !ptcl_parser_add_instance_variable(parser, self_var))
+    {
+        ptcl_parser_throw_out_of_memory(parser, location);
+        ptcl_statement_type_decl_destroy(*decl);
+        ptcl_func_body_destroy(*body);
+        free(body);
+        return false;
+    }
+
+    const bool last_state = parser->is_type_body;
+    parser->is_type_body = true;
+    ptcl_parser_func_body_by_pointer(parser, body, true, true, false);
+    parser->is_type_body = last_state;
+    if (ptcl_parser_critical(parser))
+    {
+        free(body);
+        ptcl_statement_type_decl_destroy(*decl);
+        return false;
+    }
+
+    decl->body = body;
+    decl->functions = comp_type->functions;
+    return true;
+}
+
 ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, ptcl_statement_modifiers modifiers)
 {
     ptcl_parser_match(parser, ptcl_token_type_type);
@@ -3380,46 +3482,9 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, ptcl_stateme
     }
 
     ptcl_statement_type_decl decl = ptcl_statement_type_decl_create(modifiers, name, NULL, 0, NULL, 0);
-    while (true)
+    if (!ptcl_parser_type_decl_types(parser, &decl, location))
     {
-        ptcl_type_member *buffer = realloc(decl.types, (decl.types_count + 1) * sizeof(ptcl_type_member));
-        if (buffer == NULL)
-        {
-            ptcl_statement_type_decl_destroy(decl);
-            ptcl_parser_throw_out_of_memory(parser, location);
-            return (ptcl_statement_type_decl){0};
-        }
-
-        decl.types = buffer;
-        bool is_up = ptcl_parser_match(parser, ptcl_token_up_type);
-        ptcl_type type = ptcl_parser_type(parser, false, false, true);
-        if (ptcl_parser_critical(parser))
-        {
-            if (decl.types_count == 0)
-            {
-                free(decl.types);
-            }
-
-            ptcl_statement_type_decl_destroy(decl);
-            return (ptcl_statement_type_decl){0};
-        }
-
-        if (decl.types_count > 0)
-        {
-            ptcl_type_member expected = decl.types[decl.types_count - 1];
-            if (!ptcl_type_is_castable(expected.type, type))
-            {
-                ptcl_parser_throw_fast_incorrect_type(parser, expected.type, type, location);
-                ptcl_statement_type_decl_destroy(decl);
-                return (ptcl_statement_type_decl){0};
-            }
-        }
-
-        decl.types[decl.types_count++] = ptcl_type_member_create(type, is_up);
-        if (!ptcl_parser_match(parser, ptcl_token_comma_type))
-        {
-            break;
-        }
+        return (ptcl_statement_type_decl){0};
     }
 
     const bool is_static = decl.types[0].type.is_static;
@@ -3452,47 +3517,10 @@ ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, ptcl_stateme
 
     if (ptcl_parser_match(parser, ptcl_token_left_curly_type))
     {
-        ptcl_func_body *body = malloc(sizeof(ptcl_func_body));
-        if (body == NULL)
+        if (!ptcl_parser_type_decl_body(parser, &decl, comp_type, location))
         {
-            ptcl_parser_throw_out_of_memory(parser, location);
-            ptcl_statement_type_decl_destroy(decl);
             return (ptcl_statement_type_decl){0};
         }
-
-        *body = ptcl_func_body_create(NULL, 0, ptcl_parser_root(parser));
-        comp_type->functions = body;
-        ptcl_parser_variable this_var = ptcl_parser_variable_not_static_create(
-            ptcl_name_create_fast_w("this", false),
-            ptcl_type_create_comp_type_t(comp_type, false), NULL, false, body);
-        this_var.type.is_prototype_static = this_var.type.is_static;
-        this_var.type.is_static = false;
-        ptcl_parser_variable self_var = ptcl_parser_variable_not_static_create(
-            ptcl_name_create_fast_w("self", false),
-            decl.types[0].type, NULL, false, body);
-        self_var.type.is_prototype_static = self_var.type.is_static;
-        if (!ptcl_parser_add_instance_variable(parser, this_var) || !ptcl_parser_add_instance_variable(parser, self_var))
-        {
-            ptcl_parser_throw_out_of_memory(parser, location);
-            ptcl_statement_type_decl_destroy(decl);
-            ptcl_func_body_destroy(*body);
-            free(body);
-            return (ptcl_statement_type_decl){0};
-        }
-
-        const bool last_state = parser->is_type_body;
-        parser->is_type_body = true;
-        ptcl_parser_func_body_by_pointer(parser, body, true, true, false);
-        parser->is_type_body = last_state;
-        if (ptcl_parser_critical(parser))
-        {
-            free(body);
-            ptcl_statement_type_decl_destroy(decl);
-            return (ptcl_statement_type_decl){0};
-        }
-
-        decl.body = body;
-        decl.functions = comp_type->functions;
     }
 
     return decl;

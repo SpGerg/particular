@@ -22,8 +22,14 @@ function print(content: any): static void {
 	}
 }
 
+type string: character* {
+	function length(const self): integer {
+		return strlen(self)
+	}
+}
+
 function main(): integer {
-	vars := printf
-	vars("Hello, world", 65)
+	content := "Hello, world" :: string
+	printn(content.length())
 	return 0
 }
