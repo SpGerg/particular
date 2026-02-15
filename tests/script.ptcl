@@ -2,7 +2,7 @@ unsyntax {
 	prototype function printf(content: character*, ...): integer
 	prototype function printn(content: integer, ...): integer
 	prototype function printc(content: character, ...): integer
-	prototype function strlen(content: character*): integer
+	prototype function strlen(content: const character*): integer
 	prototype function malloc(size: integer): pointer
 }
 
@@ -23,13 +23,16 @@ function print(content: any): static void {
 }
 
 type string: character* {
-	function length(const self): integer {
-		return strlen(self)
+	static function length(const self): static integer {
+		test := 1 + strlen(self)
+		return test
 	}
 }
 
 function main(): integer {
+	test := 2
 	content := "Hello, world" :: string
+	printn(test)
 	printn(content.length())
 	return 0
 }

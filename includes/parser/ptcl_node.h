@@ -429,6 +429,7 @@ typedef struct ptcl_statement_func_body
 {
     ptcl_func_body body;
     ptcl_argument *arguments;
+    ptcl_expression *caller;
     size_t arguments_count;
     ptcl_expression *self;
     ptcl_statement_func_call func_call;
@@ -442,6 +443,7 @@ typedef struct ptcl_expression_lated_func_body
 typedef struct ptcl_statement_func_decl
 {
     ptcl_statement_modifiers modifiers;
+    ptcl_func_body *root;
     ptcl_name name;
     ptcl_argument *arguments;
     size_t count;
@@ -765,6 +767,7 @@ static ptcl_func_body ptcl_func_body_create(
 static ptcl_statement_func_body ptcl_statement_func_body_inserted_create(
     ptcl_statement **statements, size_t count,
     ptcl_func_body *root,
+    ptcl_expression *caller,
     ptcl_argument *arguments,
     size_t arguments_count,
     ptcl_expression *self,
@@ -772,6 +775,7 @@ static ptcl_statement_func_body ptcl_statement_func_body_inserted_create(
 {
     return (ptcl_statement_func_body){
         .body = ptcl_func_body_create(statements, count, root),
+        .caller = caller,
         .arguments = arguments,
         .arguments_count = arguments_count,
         .self = self,
@@ -782,12 +786,12 @@ static ptcl_statement_func_body ptcl_statement_func_body_create(
     ptcl_statement **statements, size_t count,
     ptcl_func_body *root)
 {
-    return ptcl_statement_func_body_inserted_create(statements, count, root, NULL, 0, NULL, (ptcl_statement_func_call){0});
+    return ptcl_statement_func_body_inserted_create(statements, count, root, NULL, NULL, 0, NULL, (ptcl_statement_func_call){0});
 }
 
 static ptcl_statement_func_body ptcl_statement_func_body_create_by_body(ptcl_func_body body)
 {
-    return ptcl_statement_func_body_inserted_create(body.statements, body.count, body.root, NULL, 0, NULL, (ptcl_statement_func_call){0});
+    return ptcl_statement_func_body_inserted_create(body.statements, body.count, body.root, NULL, NULL, 0, NULL, (ptcl_statement_func_call){0});
 }
 
 static ptcl_statement *ptcl_func_body_create_stat(ptcl_statement_func_body body, ptcl_func_body *root, ptcl_location location)
@@ -816,16 +820,17 @@ static ptcl_expression *ptcl_expression_create_null(ptcl_location location)
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
-    ptcl_statement_modifiers modifiers, ptcl_name name, ptcl_argument *arguments, size_t count, ptcl_func_body *func_body, ptcl_type return_type, bool is_variadic)
+    ptcl_statement_modifiers modifiers, ptcl_func_body *root, ptcl_name name, ptcl_argument *arguments, size_t count, ptcl_func_body *func_body, ptcl_type return_type, bool is_variadic)
 {
     return (ptcl_statement_func_decl){
+        .modifiers = modifiers,
+        .root = root,
         .name = name,
         .arguments = arguments,
         .count = count,
         .func_body = func_body,
         .index = -1,
         .return_type = return_type,
-        .modifiers = modifiers,
         .is_variadic = is_variadic,
         .with_self = false};
 }
