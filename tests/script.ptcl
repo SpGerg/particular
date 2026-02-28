@@ -22,6 +22,12 @@ function print(content: any): static void {
 	}
 }
 
+type string: static character* {
+	static function length(const self): integer {
+		return 4
+	}
+}
+
 type string: character* {
 	static function length(const self): static integer {
 		test := 1 + strlen(self)
@@ -29,10 +35,15 @@ type string: character* {
 	}
 }
 
+function foo(v: string): void {
+	length := v.length()
+}
+
 function main(): integer {
-	test := 2
-	content := "Hello, world" :: string
-	printn(test)
-	printn(content.length())
+	var := "Hello, world" :: static string
+	length := var.length()
+	length = var.length()
+	length = var.length()
+	length = var.length()
 	return 0
 }

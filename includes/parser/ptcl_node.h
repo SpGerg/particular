@@ -7,6 +7,7 @@ typedef struct ptcl_statement ptcl_statement;
 typedef struct ptcl_expression ptcl_expression;
 typedef struct ptcl_func_body ptcl_func_body;
 typedef struct ptcl_expression_dot ptcl_expression_dot;
+typedef struct ptcl_type_comp_type ptcl_type_comp_type;
 typedef struct ptcl_type ptcl_type;
 typedef struct ptcl_type_member ptcl_type_member;
 typedef struct ptcl_statement_func_decl ptcl_statement_func_decl;
@@ -86,7 +87,7 @@ typedef enum ptcl_statement_modifiers
     ptcl_statement_modifiers_prototype_flag = 4 << 0,
     ptcl_statement_modifiers_auto_flag = 5 << 0,
     ptcl_statement_modifiers_optional_flag = 6 << 0,
-    ptcl_statement_modifiers_injection_flag = 7 << 0,
+    ptcl_statement_modifiers_injection_flag = 7 << 0
 } ptcl_statement_modifiers;
 
 static bool ptcl_statement_modifiers_flags_has(int flags, ptcl_statement_modifiers flag)
@@ -202,12 +203,12 @@ typedef struct ptcl_type_object_type
 
 typedef struct ptcl_type_comp_type
 {
+    ptcl_type_comp_type *invariant;
     ptcl_name identifier;
     ptcl_type_member *types;
     size_t count;
     ptcl_func_body *functions;
     bool is_static;
-    bool has_invariant;
     bool is_optional;
     bool is_any;
 } ptcl_type_comp_type;
@@ -337,7 +338,7 @@ typedef struct ptcl_expression_variable
 {
     ptcl_func_body *root;
     ptcl_name name;
-    bool is_syntax_variable;
+    const void *variable;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -453,6 +454,7 @@ typedef struct ptcl_statement_func_decl
     bool is_variadic;
     bool is_self_const;
     bool with_self;
+    bool is_constructor;
 } ptcl_statement_func_decl;
 
 typedef struct ptcl_expression
@@ -521,6 +523,7 @@ typedef struct ptcl_statement_assign
     bool with_type;
     ptcl_expression *value;
     bool is_define;
+    void *variable;
 } ptcl_statement_assign;
 
 typedef struct ptcl_statement_return
@@ -820,7 +823,15 @@ static ptcl_expression *ptcl_expression_create_null(ptcl_location location)
 }
 
 static ptcl_statement_func_decl ptcl_statement_func_decl_create(
-    ptcl_statement_modifiers modifiers, ptcl_func_body *root, ptcl_name name, ptcl_argument *arguments, size_t count, ptcl_func_body *func_body, ptcl_type return_type, bool is_variadic)
+    ptcl_statement_modifiers modifiers,
+    ptcl_func_body *root,
+    ptcl_name name,
+    ptcl_argument *arguments,
+    size_t count,
+    ptcl_func_body *func_body,
+    ptcl_type return_type,
+    bool is_variadic,
+    bool is_constructor)
 {
     return (ptcl_statement_func_decl){
         .modifiers = modifiers,
@@ -832,7 +843,8 @@ static ptcl_statement_func_decl ptcl_statement_func_decl_create(
         .index = -1,
         .return_type = return_type,
         .is_variadic = is_variadic,
-        .with_self = false};
+        .with_self = false,
+        .is_constructor = is_constructor};
 }
 
 static ptcl_expression_array ptcl_expression_array_create_member(ptcl_type type, ptcl_expression **expressions, size_t count)
@@ -904,14 +916,14 @@ static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expres
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, bool is_syntax_variable, ptcl_func_body *root, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, void *variable, ptcl_func_body *root, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_variable_type, type, location);
     if (expression != NULL)
     {
         expression->variable = (ptcl_expression_variable){
             .name = name,
-            .is_syntax_variable = is_syntax_variable,
+            .variable = variable,
             .root = root};
     }
 
@@ -1241,7 +1253,14 @@ static ptcl_expression *ptcl_expression_create_integer(int value, ptcl_location 
     return expression;
 }
 
-static ptcl_statement_assign ptcl_statement_assign_create(ptcl_statement_modifiers modifiers, ptcl_identifier identifier, ptcl_type type, bool with_type, ptcl_expression *value, bool is_define)
+static ptcl_statement_assign ptcl_statement_assign_create(
+    ptcl_statement_modifiers modifiers,
+    ptcl_identifier identifier,
+    ptcl_type type,
+    bool with_type,
+    ptcl_expression *value,
+    bool is_define,
+    void *variable)
 {
     return (ptcl_statement_assign){
         .modifiers = modifiers,
@@ -1249,7 +1268,9 @@ static ptcl_statement_assign ptcl_statement_assign_create(ptcl_statement_modifie
         .type = type,
         .with_type = with_type,
         .value = value,
-        .is_define = is_define};
+        .is_define = is_define,
+        .variable = variable
+    };
 }
 
 static ptcl_statement_return ptcl_statement_return_create(ptcl_expression *value)
@@ -1448,7 +1469,7 @@ static bool ptcl_type_is_castable_to_unstatic(ptcl_type type)
     case ptcl_value_word_type:
         return false;
     case ptcl_value_type_type:
-        if (type.comp_type->count == 0 || (type.comp_type->is_static && !type.comp_type->has_invariant))
+        if (type.comp_type->count == 0 || (type.comp_type->is_static && type.comp_type->invariant == NULL))
         {
             return false;
         }
@@ -2852,7 +2873,7 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 static void ptcl_statement_assign_destroy(ptcl_statement_assign statement)
 {
     ptcl_identifier_destroy(statement.identifier);
-    if (statement.value != NULL)
+    if (statement.value != NULL && !statement.type.is_static)
     {
         ptcl_expression_destroy(statement.value);
     }
