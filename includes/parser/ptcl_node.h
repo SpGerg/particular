@@ -338,7 +338,7 @@ typedef struct ptcl_expression_variable
 {
     ptcl_func_body *root;
     ptcl_name name;
-    const void *variable;
+    size_t variable_id;
 } ptcl_expression_variable;
 
 typedef struct ptcl_expression_array
@@ -523,7 +523,7 @@ typedef struct ptcl_statement_assign
     bool with_type;
     ptcl_expression *value;
     bool is_define;
-    void *variable;
+    size_t variable_id;
 } ptcl_statement_assign;
 
 typedef struct ptcl_statement_return
@@ -916,14 +916,14 @@ static ptcl_expression *ptcl_expression_create_array(ptcl_type type, ptcl_expres
     return expression;
 }
 
-static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, void *variable, ptcl_func_body *root, ptcl_location location)
+static ptcl_expression *ptcl_expression_create_variable(ptcl_name name, ptcl_type type, size_t variable_id, ptcl_func_body *root, ptcl_location location)
 {
     ptcl_expression *expression = ptcl_expression_create(ptcl_expression_variable_type, type, location);
     if (expression != NULL)
     {
         expression->variable = (ptcl_expression_variable){
             .name = name,
-            .variable = variable,
+            .variable_id = variable_id,
             .root = root};
     }
 
@@ -1260,7 +1260,7 @@ static ptcl_statement_assign ptcl_statement_assign_create(
     bool with_type,
     ptcl_expression *value,
     bool is_define,
-    void *variable)
+    size_t variable_id)
 {
     return (ptcl_statement_assign){
         .modifiers = modifiers,
@@ -1269,7 +1269,7 @@ static ptcl_statement_assign ptcl_statement_assign_create(
         .with_type = with_type,
         .value = value,
         .is_define = is_define,
-        .variable = variable
+        .variable_id = variable_id
     };
 }
 

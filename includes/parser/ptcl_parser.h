@@ -105,6 +105,7 @@ typedef struct ptcl_parser_variable
     ptcl_type type;
     ptcl_expression *built_in;
     // TODO: use flags instead of it...
+    bool is_changed;
     bool is_built_in;
     bool is_syntax_word;
     bool is_function_pointer;
@@ -159,6 +160,12 @@ typedef struct ptcl_parser_tokens_node
     size_t count;
 } ptcl_parser_tokens_node;
 
+typedef struct ptcl_parser_value_node
+{
+    ptcl_expression *value;
+    ptcl_parser_tokens_state state;
+} ptcl_parser_value_node;
+
 typedef struct ptcl_parser_syntax_node
 {
     ptcl_parser_syntax_node_type type;
@@ -168,7 +175,7 @@ typedef struct ptcl_parser_syntax_node
         ptcl_parser_syntax_word_node word;
         ptcl_parser_syntax_word_variable variable;
         ptcl_type object_type;
-        ptcl_expression *value;
+        ptcl_parser_value_node value;
     };
 } ptcl_parser_syntax_node;
 
@@ -217,16 +224,6 @@ typedef enum ptcl_parser_instance_type
     ptcl_parser_instance_syntax_type
 } ptcl_parser_instance_type;
 
-// TODO: expression -> expr with all other stuff with that
-typedef enum ptcl_parser_expression_flags
-{
-    ptcl_parser_expression_none_flag = 0,
-    ptcl_parser_expression_with_word_flag = 1 << 0,
-    ptcl_parser_expression_only_value_flag = 1 << 1,
-    ptcl_parser_expression_require_expression_flag = 1 << 2,
-    ptcl_parser_expression_change_the_value_flag = 1 << 3
-} ptcl_parser_expression_flags;
-
 typedef struct ptcl_parser_result
 {
     ptcl_lexer_configuration *configuration;
@@ -258,9 +255,30 @@ typedef struct ptcl_parser_statement_info
     ptcl_statement_modifiers modifiers;
 } ptcl_parser_statement_info;
 
+// TODO: expression -> expr with all other stuff with that
+typedef enum ptcl_parser_expression_flags
+{
+    ptcl_parser_expression_none_flag = 0,
+    ptcl_parser_expression_with_word_flag = 1 << 0,
+    ptcl_parser_expression_only_value_flag = 1 << 1,
+    ptcl_parser_expression_require_expression_flag = 1 << 2,
+    ptcl_parser_expression_change_the_value_flag = 1 << 3,
+    ptcl_parser_expression_ignore_excepted_flag = 1 << 4
+} ptcl_parser_expression_flags;
+
 static bool ptcl_parser_expression_flags_has(int flags, ptcl_parser_expression_flags flag)
 {
     return (flags & flag) == flag;
+}
+
+static bool ptcl_parser_expression_flags_change_value(int flags)
+{
+    return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_change_the_value_flag);
+}
+
+static bool ptcl_parser_expression_flags_ignore_expected(int flags)
+{
+    return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_ignore_excepted_flag);
 }
 
 static bool ptcl_parser_expression_flags_require_expr(int flags)
@@ -323,6 +341,7 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_out_of_scope = false,
         .type = type,
         .built_in = built_in,
+        .is_changed = false,
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
@@ -339,6 +358,7 @@ static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name nam
         .is_out_of_scope = false,
         .type = type,
         .built_in = built_in,
+        .is_changed = false,
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
@@ -353,6 +373,7 @@ static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptc
         .root = root,
         .is_out_of_scope = false,
         .type = type,
+        .is_changed = false,
         .is_built_in = false,
         .is_syntax_word = false,
         .is_function_pointer = true,
@@ -442,11 +463,13 @@ static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_object_type(ptcl_t
         .object_type = type};
 }
 
-static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_value(ptcl_expression *value)
+static ptcl_parser_syntax_node ptcl_parser_syntax_node_create_value(ptcl_expression *value, ptcl_parser_tokens_state state)
 {
     return (ptcl_parser_syntax_node){
         .type = ptcl_parser_syntax_node_value_type,
-        .value = value};
+        .value.value = value,
+        .value.state = state
+    };
 }
 
 static void ptcl_parser_syntax_node_destroy(ptcl_parser_syntax_node node)
@@ -460,7 +483,7 @@ static void ptcl_parser_syntax_node_destroy(ptcl_parser_syntax_node node)
         ptcl_type_destroy(node.object_type);
         break;
     case ptcl_parser_syntax_node_value_type:
-        ptcl_expression_destroy(node.value);
+        ptcl_expression_destroy(node.value.value);
         break;
     case ptcl_parser_syntax_node_word_type:
         ptcl_name_destroy(node.word.name);
@@ -494,7 +517,7 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
     }
     else
     {
-        if (variable.is_built_in || variable.is_syntax_variable)
+        if (variable.is_built_in || variable.is_syntax_variable || variable.is_changed)
         {
             ptcl_expression_destroy(variable.built_in);
         }
@@ -677,6 +700,8 @@ bool ptcl_parser_check_arguments(ptcl_parser *parser, ptcl_parser_function *func
 bool ptcl_parser_syntax_try_find(ptcl_parser *parser, ptcl_parser_syntax_node *nodes, size_t count, ptcl_parser_syntax **syntax, bool *can_continue, char **end_token);
 
 bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, char *member_name, ptcl_argument **member, size_t *index);
+
+bool ptcl_parser_try_get_variable_by_id(ptcl_parser_result* result, size_t index, ptcl_parser_variable** variable);
 
 void ptcl_parser_clear_scope(ptcl_parser *parser);
 

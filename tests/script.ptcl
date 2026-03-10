@@ -43,7 +43,5 @@ function main(): integer {
 	var := "Hello, world" :: static string
 	length := var.length()
 	length = var.length()
-	length = var.length()
-	length = var.length()
 	return 0
 }

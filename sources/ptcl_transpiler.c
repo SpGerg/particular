@@ -515,14 +515,14 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         }
 
         break;
-    case ptcl_statement_assign_type:
-        const ptcl_parser_variable *variable_parser = statement->assign.variable;
-        if (variable_parser->type.is_static)
+    case ptcl_statement_assign_type: {
+        const ptcl_parser_variable* variable_parser = NULL;
+        if (ptcl_parser_try_get_variable_by_id(&transpiler->result, statement->assign.variable_id, &variable_parser) && variable_parser->type.is_static)
         {
             break;
         }
 
-        ptcl_transpiler_variable *variable = NULL;
+        ptcl_transpiler_variable* variable = NULL;
         ptcl_name name = ptcl_identifier_get_name(statement->assign.identifier);
         if (ptcl_transpiler_try_get_variable(transpiler, name, &variable))
         {
@@ -551,10 +551,10 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
             bool added = false;
             if (transpiler->inserted_bodies_depth > 0)
             {
-                ptcl_transpiler_caller *caller = NULL;
+                ptcl_transpiler_caller* caller = NULL;
                 if (!ptcl_transpiler_is_caller(transpiler, statement->assign.value, &caller))
                 {
-                    ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location){0});
+                    ptcl_name anonymous = ptcl_name_create_l(ptcl_transpiler_generate_temp_and_add(transpiler), false, true, (ptcl_location) { 0 });
                     if (anonymous.value != NULL)
                     {
                         ptcl_transpiler_add_type_and_name(transpiler, statement->assign.type, anonymous, NULL, false, true);
@@ -567,15 +567,15 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
 
             if (!added)
             {
-                char *name = ptcl_transpiler_add_type_and_name(
+                char* name = ptcl_transpiler_add_type_and_name(
                     transpiler,
                     statement->assign.type,
                     statement->assign.identifier.name,
                     NULL, false, true);
                 ptcl_name generated_name =
                     name == NULL
-                        ? statement->assign.identifier.name
-                        : ptcl_name_create_l(name, true, false, statement->assign.identifier.name.location);
+                    ? statement->assign.identifier.name
+                    : ptcl_name_create_l(name, true, false, statement->assign.identifier.name.location);
                 // ptcl_transpiler_add_array_dimensional(transpiler, statement->assign.type);
                 ptcl_transpiler_add_variable_f(
                     transpiler, generated_name, statement->assign.type, false, transpiler->root);
@@ -604,6 +604,7 @@ void ptcl_transpiler_add_statement(ptcl_transpiler *transpiler, ptcl_statement *
         ptcl_transpiler_add_expression(transpiler, statement->assign.value, false);
         ptcl_transpiler_append_character(transpiler, ';');
         break;
+    }
     case ptcl_statement_func_decl_type:
         ptcl_transpiler_add_func_decl(transpiler, statement->func_decl, statement->func_decl.name, NULL);
         break;
@@ -1052,16 +1053,17 @@ void ptcl_transpiler_add_expression(ptcl_transpiler *transpiler, ptcl_expression
     {
         ptcl_name name = expression->variable.name;
         ptcl_transpiler_replaced replaced = {0};
-        ptcl_parser_variable *variable = expression->variable.variable;
-        if (!variable->is_syntax_variable && ptcl_transpiler_try_get_replaced(transpiler, name, &replaced, transpiler->root))
+        ptcl_parser_variable* variable = NULL;
+        if (ptcl_parser_try_get_variable_by_id(&transpiler->result, expression->variable.variable_id, &variable))
         {
-            ptcl_transpiler_add_variable_name(transpiler, replaced.replaced_name);
-        }
-        else
-        {
-            ptcl_transpiler_add_variable_name(transpiler, name);
+            if (!variable->is_syntax_variable && ptcl_transpiler_try_get_replaced(transpiler, name, &replaced, transpiler->root))
+            {
+                ptcl_transpiler_add_variable_name(transpiler, replaced.replaced_name);
+                break;
+            }
         }
 
+        ptcl_transpiler_add_variable_name(transpiler, name);
         break;
     }
     case ptcl_expression_word_type:
@@ -1584,5 +1586,6 @@ void ptcl_transpiler_destroy(ptcl_transpiler *transpiler)
     free(transpiler->variables);
     free(transpiler->inner_functions);
     free(transpiler->replaced);
+    free(transpiler->callers);
     free(transpiler);
 }

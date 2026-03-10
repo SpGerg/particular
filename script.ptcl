@@ -2,34 +2,8 @@ unsyntax {
 	prototype function printf(content: character*, ...): integer
 	prototype function printn(content: integer, ...): integer
 	prototype function printc(content: character, ...): integer
-	prototype function strlen(content: character*): integer
+	prototype function strlen(content: const character*): integer
 	prototype function malloc(size: integer): pointer
-}
-
-auto type string: static character* {
-	function content(self): static character* {
-		val := self
-		return self
-	}
-
-	function calculate(self): void {
-		content := "Hello, world"
-		printf(content)
-	}
-}
-
-type string: character* {
-	function content(self): character* {
-		return self
-	}
-
-	function length(self): integer {
-		return strlen(self)
-	}
-}
-
-function foo(value: string): void {
-
 }
 
 function print(content: any): static void {
@@ -48,26 +22,27 @@ function print(content: any): static void {
 	}
 }
 
-syntax each [name: static word], [time: static integer] [body: static (): void] {
-	static if not (time == 0) {
-		~func_name: static word = !<loop_ word(time)>
-		function !~func_name(): void {
-			!name := time
-			ptcl_insert(ptcl_get_statements(body))
-		}
-
-		!~func_name()
-		#each name, time - 1 body
+type string: static character* {
+	static function length(const self): integer {
+		return 4
 	}
 }
 
-function fock(): void {
-	syntax [this] {
-		print("Fock was called") g
+type string: character* {
+	static function length(const self): static integer {
+		test := 1 + strlen(self)
+		return test
 	}
+}
+
+function foo(v: string): void {
+	length := v.length()
 }
 
 function main(): integer {
-	^fock()
+	var := "Hello, world" :: static string
+	length := var.length()
+	foo(length)
+	length = var.length()
 	return 0
 }
