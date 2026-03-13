@@ -5,6 +5,7 @@
 #include <windows.h>
 
 // TODO: arrange structure members for greater speed
+int ptcl_t_st_string_length(const char *const self) { return 4; }
 
 int main()
 {
