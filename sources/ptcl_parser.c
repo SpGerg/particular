@@ -86,79 +86,85 @@
     ptcl_comp_type_builder_destroy(&statement_builder);          \
     ptcl_comp_type_builder_destroy(&expression_builder)
 
-typedef struct {
-    ptcl_parser_syntax* items;
+typedef struct
+{
+    ptcl_parser_syntax *items;
     size_t count;
     size_t capacity;
 } ptcl_syntax_array;
 
-typedef struct {
-    ptcl_parser_typedata* items;
+typedef struct
+{
+    ptcl_parser_typedata *items;
     size_t count;
     size_t capacity;
 } ptcl_typedata_array;
 
-typedef struct {
-    ptcl_parser_comp_type* items;
+typedef struct
+{
+    ptcl_parser_comp_type *items;
     size_t count;
     size_t capacity;
 } ptcl_comptype_array;
 
-typedef struct {
-    ptcl_parser_function* items;
+typedef struct
+{
+    ptcl_parser_function *items;
     size_t count;
     size_t capacity;
 } ptcl_function_array;
 
-typedef struct {
-    ptcl_parser_variable* items;
+typedef struct
+{
+    ptcl_parser_variable *items;
     size_t count;
     size_t capacity;
 } ptcl_variable_array;
 
-typedef struct {
-    ptcl_parser_error* items;
+typedef struct
+{
+    ptcl_parser_error *items;
     size_t count;
     size_t capacity;
 } ptcl_error_array;
 
-typedef struct {
-    ptcl_parser_tokens_state* items;
+typedef struct
+{
+    ptcl_parser_tokens_state *items;
     size_t count;
     size_t capacity;
 } ptcl_lated_states_array;
 
-typedef struct {
-    ptcl_parser_this_s_pair* items;
+typedef struct
+{
+    ptcl_parser_this_s_pair *items;
     size_t count;
 } ptcl_this_pairs_array;
 
-typedef struct {
+typedef struct
+{
     ptcl_parser_tokens_state tokens;
     ptcl_parser_syntax_pair syntaxes_nodes[PTCL_PARSER_MAX_DEPTH];
     size_t syntax_depth;
-    bool is_critical;
-    bool is_syntax_body;
-    bool is_type_body;
-    bool is_ignore_error;
-    bool add_errors;
-    bool is_except_return;
+    ptcl_parser_flags states;
 } ptcl_parser_status;
 
-typedef struct {
-    ptcl_func_body* root;
-    ptcl_func_body* main_root;
-    ptcl_func_body* inserted_body;
-    ptcl_type* return_type;
-    ptcl_expression* return_value;
+typedef struct
+{
+    ptcl_func_body *root;
+    ptcl_func_body *main_root;
+    ptcl_func_body *inserted_body;
+    ptcl_type *return_type;
+    ptcl_expression *return_value;
     ptcl_parser_insert_state insert_states[PTCL_PARSER_DECL_INSERT_DEPTH];
     size_t insert_states_count;
 } ptcl_parser_temp;
 
-typedef struct ptcl_parser {
-    ptcl_interpreter* interpreter;
-    ptcl_lexer_configuration* configuration;
-    ptcl_tokens_list* input;
+typedef struct ptcl_parser
+{
+    ptcl_interpreter *interpreter;
+    ptcl_lexer_configuration *configuration;
+    ptcl_tokens_list *input;
 
     ptcl_parser_status state;
     ptcl_parser_temp temp;
@@ -236,7 +242,7 @@ static bool ptcl_parser_try_get_left_par(ptcl_parser *parser)
             ptcl_parser_insert_state *state = ptcl_parser_insert_state_at(parser, ptcl_parser_insert_states_count(parser) - 1);
             if (state->syntax_depth == parser->state.syntax_depth)
             {
-                ptcl_parser_set_state(parser, ptcl_parser_insert_state_at(parser, --parser->temp.insert_states_count)->state);
+                ptcl_parser_set_tokens_state(parser, ptcl_parser_insert_state_at(parser, --parser->temp.insert_states_count)->state);
                 bool result = ptcl_parser_try_get_left_par(parser);
                 parser->temp.insert_states_count++;
                 return result;
@@ -253,10 +259,10 @@ static bool ptcl_parser_try_get_left_par(ptcl_parser *parser)
             {
                 ptcl_parser_tokens_state current = parser->state.tokens;
                 ptcl_parser_syntax_pair syntax = parser->state.syntaxes_nodes[--parser->state.syntax_depth];
-                ptcl_parser_set_state(parser, syntax.state);
+                ptcl_parser_set_tokens_state(parser, syntax.state);
                 bool result = ptcl_parser_try_get_left_par(parser);
                 parser->state.syntax_depth++;
-                ptcl_parser_set_state(parser, current);
+                ptcl_parser_set_tokens_state(parser, current);
                 return result;
             }
         }
@@ -770,7 +776,7 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(
                 }
 
                 free(parser->state.tokens.tokens);
-                ptcl_parser_set_state(parser, ptcl_parser_insert_state_at(parser, 0)->state);
+                ptcl_parser_set_tokens_state(parser, ptcl_parser_insert_state_at(parser, 0)->state);
             }
 
             break;
@@ -791,7 +797,7 @@ static ptcl_parse_arguments_result ptcl_parser_parse_arguments(
             ptcl_parser_insert_state *state = ptcl_parser_insert_state_at(parser, ++parser->temp.insert_states_count);
             state->state = temp_state;
             state->syntax_depth = parser->state.syntax_depth;
-            ptcl_parser_set_state(parser, temp_state);
+            ptcl_parser_set_tokens_state(parser, temp_state);
 
             continue;
         }
@@ -1027,7 +1033,7 @@ static ptcl_expression *ptcl_create_expression_from_statement(ptcl_statement *st
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 static ptcl_expression *ptcl_error_realization(ptcl_parser *parser, ptcl_expression **arguments, size_t count, ptcl_location location, bool is_expression)
 {
-    if (parser->state.is_ignore_error)
+    if (ptcl_parser_ignore_error(parser))
     {
         PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
         return NULL;
@@ -1115,10 +1121,10 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
     {
     case ptcl_value_function_pointer_type:
     {
-        ptcl_parser_temp* temp = &parser->temp;
+        ptcl_parser_temp *temp = &parser->temp;
         ptcl_parser_tokens_state lated_body = parser->lated_states.items[argument->lated_body.index];
         const ptcl_parser_tokens_state last_tokens_state = parser->state.tokens;
-        ptcl_parser_set_state(parser, lated_body);
+        ptcl_parser_set_tokens_state(parser, lated_body);
         ptcl_parser_set_position(parser, 0);
 
         ptcl_func_body *last_state = temp->inserted_body;
@@ -1127,8 +1133,8 @@ static ptcl_expression *ptcl_get_statements_realization(ptcl_parser *parser, ptc
             ptcl_parser_root(parser));
         temp->inserted_body = &body;
 
-        ptcl_parser_func_body_by_pointer(parser, temp->inserted_body, true, false, parser->state.is_ignore_error);
-        ptcl_parser_set_state(parser, last_tokens_state);
+        ptcl_parser_func_body_by_pointer(parser, temp->inserted_body, true, false, ptcl_parser_ignore_error(parser));
+        ptcl_parser_set_tokens_state(parser, last_tokens_state);
         temp->inserted_body = last_state;
 
         if (ptcl_parser_critical(parser))
@@ -1329,7 +1335,7 @@ static ptcl_expression *ptcl_insert_tokens_array(ptcl_parser *parser, ptcl_expre
 
         ptcl_expression *value = ptcl_parser_cast(parser, NULL, false);
 
-        ptcl_parser_set_state(parser, last_state);
+        ptcl_parser_set_tokens_state(parser, last_state);
 
         PTCL_PARSER_DESTROY_ARGUMENTS(arguments, count);
         free(expression_tokens);
@@ -1433,16 +1439,16 @@ ptcl_parser *ptcl_parser_create(ptcl_tokens_list *input, ptcl_lexer_configuratio
 
 static void ptcl_parser_reset(ptcl_parser *parser)
 {
-    parser->state = (ptcl_parser_status){ 0 };
-    parser->temp = (ptcl_parser_temp){ 0 };
-    parser->errors = (ptcl_error_array){ 0 };
-    parser->syntaxes = (ptcl_syntax_array){ 0 };
-    parser->typedatas = (ptcl_typedata_array){ 0 };
-    parser->comp_types = (ptcl_comptype_array){ 0 };
-    parser->functions = (ptcl_function_array){ 0 };
-    parser->variables = (ptcl_variable_array){ 0 };
-    parser->lated_states = (ptcl_lated_states_array){ 0 };
-    parser->this_pairs = (ptcl_this_pairs_array){ 0 };
+    parser->state = (ptcl_parser_status){0};
+    parser->temp = (ptcl_parser_temp){0};
+    parser->errors = (ptcl_error_array){0};
+    parser->syntaxes = (ptcl_syntax_array){0};
+    parser->typedatas = (ptcl_typedata_array){0};
+    parser->comp_types = (ptcl_comptype_array){0};
+    parser->functions = (ptcl_function_array){0};
+    parser->variables = (ptcl_variable_array){0};
+    parser->lated_states = (ptcl_lated_states_array){0};
+    parser->this_pairs = (ptcl_this_pairs_array){0};
 
     parser->syntaxes.capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
     parser->comp_types.capacity = PTCL_PARSER_DEFAULT_INSTANCE_CAPACITY;
@@ -1490,9 +1496,9 @@ static void ptcl_parser_reset(ptcl_parser *parser)
         goto cleanup;
     }
 
-    parser->state.add_errors = true;
-    parser->state.is_syntax_body = true;
-    parser->state.is_ignore_error = false;
+    ptcl_parser_enable_state(parser, ptcl_parser_add_errors_flag);
+    ptcl_parser_enable_state(parser, ptcl_parser_in_syntax_flag);
+    ptcl_parser_enable_state(parser, ptcl_parser_ignore_error_flag);
     return;
 cleanup:
     ptcl_parser_throw_out_of_memory(parser, ptcl_parser_current(parser).location);
@@ -1530,7 +1536,7 @@ ptcl_parser_result ptcl_parser_parse(ptcl_parser *parser)
     ptcl_parser_set_count(parser, parser->input->count);
     ptcl_parser_result result = {
         .configuration = parser->configuration,
-        .body = ptcl_parser_func_body(parser, false, true, parser->state.is_ignore_error),
+        .body = ptcl_parser_func_body(parser, false, true, ptcl_parser_ignore_error(parser)),
         .errors = parser->errors.items,
         .errors_count = parser->errors.count,
         .syntaxes = parser->syntaxes.items,
@@ -1623,7 +1629,8 @@ bool ptcl_parser_parse_get_statement(ptcl_parser *parser, ptcl_parser_statement_
     case ptcl_token_tilde_type:
     case ptcl_token_word_word_type:
     case ptcl_token_exclamation_mark_type:
-    case ptcl_token_word_type: {
+    case ptcl_token_word_type:
+    {
         ptcl_token current = ptcl_parser_current(parser);
         info->name = ptcl_parser_name(parser, false);
         if (ptcl_parser_critical(parser))
@@ -1640,7 +1647,7 @@ bool ptcl_parser_parse_get_statement(ptcl_parser *parser, ptcl_parser_statement_
             break;
         case ptcl_token_dot_type:
         {
-            ptcl_expression* left = ptcl_parser_func_call_or_var(parser, info->name, current, ptcl_parser_expression_ignore_excepted_flag, false);
+            ptcl_expression *left = ptcl_parser_func_call_or_var(parser, info->name, current, ptcl_parser_expression_ignore_excepted_flag, false);
             if (left == NULL)
             {
                 break;
@@ -1734,7 +1741,7 @@ static ptcl_statement *ptcl_parser_syntax_stat(ptcl_parser *parser)
 
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_statement *statement = NULL;
-    if (!parser->state.is_type_body)
+    if (!ptcl_parser_in_type(parser))
     {
         statement = ptcl_statement_create(ptcl_statement_func_body_type, ptcl_parser_root(parser), attributes, location);
         if (statement == NULL)
@@ -1747,10 +1754,10 @@ static ptcl_statement *ptcl_parser_syntax_stat(ptcl_parser *parser)
 
     ptcl_func_body body = ptcl_func_body_create(
         NULL, 0,
-        parser->temp.inserted_body == NULL                      ? parser->temp.main_root
+        parser->temp.inserted_body == NULL                           ? parser->temp.main_root
         : parser->temp.inserted_body->root == parser->temp.main_root ? parser->temp.inserted_body
-                                                           : parser->temp.main_root);
-    ptcl_parser_func_body_by_pointer(parser, &body, false, false, parser->state.is_ignore_error);
+                                                                     : parser->temp.main_root);
+    ptcl_parser_func_body_by_pointer(parser, &body, false, false, ptcl_parser_ignore_error(parser));
     if (parser->state.syntax_depth == depth)
     {
         ptcl_parser_leave_from_syntax(parser);
@@ -1763,7 +1770,7 @@ static ptcl_statement *ptcl_parser_syntax_stat(ptcl_parser *parser)
         return NULL;
     }
 
-    if (parser->state.is_type_body)
+    if (ptcl_parser_in_type(parser))
     {
         ptcl_func_body *previous = ptcl_parser_root(parser);
         parser->temp.root = body.root;
@@ -1798,14 +1805,9 @@ static ptcl_statement *ptcl_parser_syntax_stat(ptcl_parser *parser)
     return statement;
 }
 
-static bool ptcl_parser_is_syntax_stat(ptcl_parser *parser)
-{
-    return parser->state.is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, true);
-}
-
 ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
 {
-    if (ptcl_parser_is_syntax_stat(parser))
+    if (ptcl_parser_parse_try_syntax_usage_here(parser, true))
     {
         return ptcl_parser_syntax_stat(parser);
     }
@@ -1890,7 +1892,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         statement->assign = ptcl_parser_assign(parser, name, modifiers);
 
         // By dot
-        if (!parser->state.is_critical && !statement->assign.identifier.is_name && statement->assign.identifier.value->return_type.is_static)
+        if (!ptcl_parser_critical(parser) && !statement->assign.identifier.is_name && statement->assign.identifier.value->return_type.is_static)
         {
             ptcl_expression_destroy(statement->assign.identifier.value);
             ptcl_attributes_destroy(attributes);
@@ -1956,7 +1958,7 @@ ptcl_statement *ptcl_parser_parse_statement(ptcl_parser *parser)
         return NULL;
     }
 
-    if (parser->state.is_type_body && type != ptcl_statement_func_decl_type)
+    if (ptcl_parser_in_type(parser) && type != ptcl_statement_func_decl_type)
     {
         ptcl_attributes_destroy(attributes);
         ptcl_parser_except(parser, ptcl_token_function_type);
@@ -2009,6 +2011,11 @@ bool ptcl_parser_parse_try_syntax_usage_here(ptcl_parser *parser, bool is_statem
 
 static ptcl_expression *ptcl_parser_syntax_tokens(ptcl_parser *parser, char *end_token, ptcl_location location)
 {
+    if (!ptcl_parser_in_syntax(parser))
+    {
+        return false;
+    }
+
     size_t original_capacity = 8;
     size_t original_count = 0;
     ptcl_expression **buffer = malloc(original_capacity * sizeof(ptcl_expression *));
@@ -2145,14 +2152,16 @@ bool ptcl_parser_parse_try_syntax_usage(
             }
 
             ptcl_parser_set_position(parser, position);
-            const bool last_mode = parser->state.add_errors;
-            parser->state.add_errors = false;
+            const bool last_mode = ptcl_parser_add_errors(parser);
+            ptcl_parser_remove_state(parser, ptcl_parser_add_errors_flag);
+
             const ptcl_parser_tokens_state state = parser->state.tokens;
             ptcl_expression *value = ptcl_parser_cast(parser, NULL, true);
-            parser->state.add_errors = last_mode;
+
+            ptcl_parser_set_state_by_bool(parser, ptcl_parser_add_errors_flag, last_mode);
             if (ptcl_parser_critical(parser))
             {
-                parser->state.is_critical = false;
+                ptcl_parser_remove_state(parser, ptcl_parser_add_errors_flag);
                 break;
             }
             else
@@ -2251,7 +2260,7 @@ bool ptcl_parser_parse_try_syntax_usage(
             {
                 ptcl_expression_destroy(expression);
                 const ptcl_parser_tokens_state previous_state = parser->state.tokens;
-                ptcl_parser_set_state(parser, target_node.value.state);
+                ptcl_parser_set_tokens_state(parser, target_node.value.state);
                 expression = ptcl_parser_cast(parser, NULL, ptcl_parser_expression_with_word_flag | ptcl_parser_expression_change_the_value_flag);
             }
 
@@ -2290,7 +2299,7 @@ bool ptcl_parser_parse_try_syntax_usage(
             syntax, parser->state.tokens, temp,
             parser->state.syntax_depth == 1 ? temp->root : parser->state.syntaxes_nodes[current - 1].body);
         ptcl_parser_tokens_state lated_body = parser->lated_states.items[result.index];
-        ptcl_parser_set_state(parser, lated_body);
+        ptcl_parser_set_tokens_state(parser, lated_body);
         ptcl_parser_set_position(parser, 0);
     }
     else
@@ -2328,7 +2337,7 @@ void ptcl_parser_leave_from_syntax(ptcl_parser *parser)
         free(ptcl_parser_tokens(parser));
     }
 
-    ptcl_parser_set_state(parser, pair.state);
+    ptcl_parser_set_tokens_state(parser, pair.state);
     ptcl_func_body *temp = pair.body;
     ptcl_func_body_destroy(*temp);
     parser->temp.root = pair.previous_body;
@@ -2343,13 +2352,13 @@ void ptcl_parser_leave_from_insert_state(ptcl_parser *parser)
         free(ptcl_parser_tokens(parser));
     }
 
-    ptcl_parser_set_state(parser, ptcl_parser_insert_state_at(parser, --parser->temp.insert_states_count)->state);
+    ptcl_parser_set_tokens_state(parser, ptcl_parser_insert_state_at(parser, --parser->temp.insert_states_count)->state);
 }
 
 static inline ptcl_statement_func_call ptcl_handle_builtin_execution(ptcl_parser *parser, ptcl_parser_function *target,
                                                                      ptcl_statement_func_call *func_call, ptcl_location location, bool is_expression)
 {
-    if (parser->state.is_ignore_error && strcmp(func_call->func_decl->name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
+    if (ptcl_parser_ignore_error(parser) && strcmp(func_call->func_decl->name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
     {
         return *func_call;
     }
@@ -2469,7 +2478,7 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
         }
     }
 
-    bool last_state = parser->state.is_except_return;
+    bool last_state = ptcl_parser_except_return(parser);
     ptcl_type *last_return_type = parser->temp.return_type;
     ptcl_type func_return_type = target->func.return_type;
     // static (...): static T -> inline without static return type by specification
@@ -2478,23 +2487,25 @@ static inline ptcl_statement_func_call ptcl_handle_static_return_function(ptcl_p
         func_return_type.is_static = false;
     }
 
-    parser->state.is_except_return = true;
+    ptcl_parser_enable_state(parser, ptcl_parser_except_return_flag);
     parser->temp.return_type = &func_return_type;
 
     ptcl_parser_tokens_state last_tokens = parser->state.tokens;
     ptcl_parser_tokens_state body = parser->lated_states.items[target->func.index];
-    ptcl_parser_set_state(parser, body);
+    ptcl_parser_set_tokens_state(parser, body);
     ptcl_parser_set_position(parser, 0);
 
     ptcl_parser_func_body_by_pointer(parser, placeholder, true, true, false);
-    ptcl_parser_set_state(parser, last_tokens);
+
+    ptcl_parser_set_tokens_state(parser, last_tokens);
+
     if (variable_identifier > -1)
     {
         parser->variables.items[variable_identifier].is_built_in = false;
     }
 
     parser->temp.return_type = last_return_type;
-    parser->state.is_except_return = last_state;
+    ptcl_parser_set_state_by_bool(parser, ptcl_parser_except_return_flag, last_state);
     if (ptcl_parser_critical(parser))
     {
         free(func_call->arguments);
@@ -2591,7 +2602,7 @@ static bool ptcl_parser_func_call_args(ptcl_parser *parser, ptcl_statement_func_
 
             state->state = temp_state;
             state->syntax_depth = parser->state.syntax_depth;
-            ptcl_parser_set_state(parser, temp_state);
+            ptcl_parser_set_tokens_state(parser, temp_state);
             continue;
         }
 
@@ -2619,7 +2630,7 @@ static bool ptcl_parser_func_call_args(ptcl_parser *parser, ptcl_statement_func_
                     }
 
                     free(parser->state.tokens.tokens);
-                    ptcl_parser_set_state(parser, ptcl_parser_insert_state_at(parser, 0)->state);
+                    ptcl_parser_set_tokens_state(parser, ptcl_parser_insert_state_at(parser, 0)->state);
                 }
 
                 return false;
@@ -2769,8 +2780,9 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_func_body *func_
         parser->temp.main_root = func_body_pointer;
     }
 
-    const bool last_ignore_error = parser->state.is_ignore_error;
-    parser->state.is_ignore_error = is_ignore_error;
+    const bool last_ignore_error = ptcl_parser_ignore_error(parser);
+    ptcl_parser_flags_set_by_bool(parser, ptcl_parser_ignore_error_flag, is_ignore_error);
+
     size_t depth = parser->state.syntax_depth;
     while (depth <= parser->state.syntax_depth)
     {
@@ -2805,7 +2817,7 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_func_body *func_
             continue;
         }
 
-        if (parser->state.is_except_return && statement->type == ptcl_statement_return_type)
+        if (ptcl_parser_except_return(parser) && statement->type == ptcl_statement_return_type)
         {
             parser->temp.return_value = statement->ret.value;
             free(statement);
@@ -2831,7 +2843,7 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_func_body *func_
         func_body_pointer->count++;
     }
 
-    parser->state.is_ignore_error = last_ignore_error;
+    ptcl_parser_set_state_by_bool(parser, ptcl_parser_ignore_error_flag, last_ignore_error);
     if (change_root)
     {
         ptcl_parser_clear_scope(parser);
@@ -2842,9 +2854,9 @@ void ptcl_parser_func_body_by_pointer(ptcl_parser *parser, ptcl_func_body *func_
 
 ptcl_func_body *ptcl_parser_current_body(ptcl_parser *parser)
 {
-    return parser->temp.inserted_body == NULL                      ? parser->temp.main_root
+    return parser->temp.inserted_body == NULL                           ? parser->temp.main_root
            : parser->temp.inserted_body->root == parser->temp.main_root ? parser->temp.inserted_body
-                                                              : parser->temp.main_root;
+                                                                        : parser->temp.main_root;
 }
 
 void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax)
@@ -2858,7 +2870,7 @@ void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax)
     ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_func_body body = ptcl_func_body_create(
         NULL, 0, ptcl_parser_current_body(parser));
-    ptcl_parser_func_body_by_pointer(parser, &body, true, false, parser->state.is_ignore_error);
+    ptcl_parser_func_body_by_pointer(parser, &body, true, false, ptcl_parser_ignore_error(parser));
     if (ptcl_parser_critical(parser))
     {
         return;
@@ -2898,12 +2910,7 @@ void ptcl_parser_extra_body(ptcl_parser *parser, bool is_syntax)
 
 ptcl_type ptcl_parser_type(ptcl_parser *parser, bool with_word, bool with_any, bool with_static)
 {
-    bool with_syntax = false;
-    if (parser->state.is_syntax_body)
-    {
-        with_syntax = ptcl_parser_parse_try_syntax_usage_here(parser, false);
-    }
-
+    const bool with_syntax = ptcl_parser_parse_try_syntax_usage_here(parser, false);
     size_t depth = parser->state.syntax_depth;
     if (ptcl_parser_critical(parser))
     {
@@ -3151,7 +3158,7 @@ static ptcl_type *ptcl_parser_register_function(ptcl_parser *parser, ptcl_statem
     const ptcl_location location = ptcl_parser_current(parser).location;
     ptcl_parser_function function = ptcl_parser_function_create(ptcl_statement_modifiers_flags_global(modifiers) ? NULL : ptcl_parser_root(parser), func_decl);
     ptcl_type *variable_return_type = NULL;
-    if (!parser->state.is_type_body)
+    if (!ptcl_parser_in_type(parser))
     {
         if (prototype_function != NULL)
         {
@@ -3209,7 +3216,7 @@ static bool ptcl_parser_parse_dynamic_body(
         free(func_decl->func_body);
         ptcl_statement_func_decl_destroy(*func_decl);
         free(return_type);
-        if (!parser->state.is_type_body)
+        if (!ptcl_parser_in_type(parser))
         {
             parser->variables.items[variable_index].is_out_of_scope = true;
             parser->functions.items[function_index].is_out_of_scope = true;
@@ -3234,12 +3241,11 @@ static bool ptcl_parser_parse_dynamic_body(
     }
 
     const bool is_static = ptcl_statement_modifiers_flags_static(func_decl->modifiers);
-    const bool last_state = parser->state.is_type_body;
-    parser->state.is_type_body = false;
-
+    const bool last_state = ptcl_parser_in_type(parser);
+    ptcl_parser_remove_state(parser, ptcl_parser_in_type_flag);
     ptcl_parser_func_body_by_pointer(parser, func_decl->func_body, true, true, is_static);
 
-    parser->state.is_type_body = last_state;
+    ptcl_parser_set_state_by_bool(parser, ptcl_parser_in_type_flag, last_state);
     if (ptcl_parser_critical(parser))
     {
         parser->temp.return_type = previous_type;
@@ -3247,7 +3253,7 @@ static bool ptcl_parser_parse_dynamic_body(
     }
 
     ptcl_statement_modifiers_flags_remove(&func_decl->modifiers, ptcl_statement_modifiers_prototype_flag);
-    if (!parser->state.is_type_body)
+    if (!ptcl_parser_in_type(parser))
     {
         ptcl_parser_function *original = &parser->functions.items[function_index];
         original->func = *func_decl;
@@ -3266,7 +3272,7 @@ static bool ptcl_parser_parse_static_body(ptcl_parser *parser, ptcl_statement_fu
     {
     cleanup:
         ptcl_statement_func_decl_destroy(*func_decl);
-        if (!parser->state.is_type_body)
+        if (!ptcl_parser_in_type(parser))
         {
             parser->functions.items[function_identifier].is_out_of_scope = true;
         }
@@ -3284,7 +3290,7 @@ static bool ptcl_parser_parse_static_body(ptcl_parser *parser, ptcl_statement_fu
     }
 
     func_decl->index = index;
-    if (!parser->state.is_type_body)
+    if (!ptcl_parser_in_type(parser))
     {
         ptcl_parser_function *original = &parser->functions.items[function_identifier];
         original->func = *func_decl;
@@ -3321,7 +3327,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, ptcl_stateme
     }
     else
     {
-        if (!parser->state.is_type_body)
+        if (!ptcl_parser_in_type(parser))
         {
             ptcl_parser_except(parser, ptcl_token_word_type);
             return (ptcl_statement_func_decl){0};
@@ -3356,7 +3362,7 @@ ptcl_statement_func_decl ptcl_parser_func_decl(ptcl_parser *parser, ptcl_stateme
     ptcl_parse_arguments_result arguments = ptcl_parser_parse_arguments(
         parser,
         location,
-        !ptcl_statement_modifiers_flags_global(modifiers) && parser->state.is_type_body,
+        !ptcl_statement_modifiers_flags_global(modifiers) && ptcl_parser_in_type(parser),
         true,
         true,
         true);
@@ -3543,10 +3549,13 @@ static bool ptcl_parser_type_decl_body(ptcl_parser *parser, ptcl_statement_type_
         return false;
     }
 
-    const bool last_state = parser->state.is_type_body;
-    parser->state.is_type_body = true;
+    const bool last_state = ptcl_parser_in_type(parser);
+    ptcl_parser_enable_state(parser, ptcl_parser_in_type_flag);
+
     ptcl_parser_func_body_by_pointer(parser, body, true, true, false);
-    parser->state.is_type_body = last_state;
+
+    ptcl_parser_set_state_by_bool(parser, ptcl_parser_in_type_flag, last_state);
+
     if (ptcl_parser_critical(parser))
     {
         free(body);
@@ -3836,7 +3845,7 @@ static ptcl_statement *ptcl_parser_static_if_body(ptcl_parser *parser, ptcl_expr
     ptcl_expression_destroy(condition);
     if (condition_value)
     {
-        result = ptcl_parser_func_body(parser, true, false, parser->state.is_ignore_error);
+        result = ptcl_parser_func_body(parser, true, false, ptcl_parser_ignore_error(parser));
         if (ptcl_parser_critical(parser))
         {
             return NULL;
@@ -3869,7 +3878,7 @@ static ptcl_statement *ptcl_parser_static_if_body(ptcl_parser *parser, ptcl_expr
 
         if (ptcl_parser_match(parser, ptcl_token_else_type))
         {
-            result = ptcl_parser_func_body(parser, true, false, parser->state.is_ignore_error);
+            result = ptcl_parser_func_body(parser, true, false, ptcl_parser_ignore_error(parser));
             if (ptcl_parser_critical(parser))
             {
                 return NULL;
@@ -3901,7 +3910,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
         return ptcl_parser_static_if_body(parser, condition);
     }
 
-    ptcl_func_body body = ptcl_parser_func_body(parser, true, true, parser->state.is_ignore_error);
+    ptcl_func_body body = ptcl_parser_func_body(parser, true, true, ptcl_parser_ignore_error(parser));
     if (ptcl_parser_critical(parser))
     {
         ptcl_expression_destroy(condition);
@@ -3911,7 +3920,7 @@ ptcl_statement *ptcl_parser_if(ptcl_parser *parser, bool is_static)
     ptcl_statement_if if_stat = ptcl_statement_if_create(condition, body, false, (ptcl_func_body){0});
     if (ptcl_parser_match(parser, ptcl_token_else_type))
     {
-        if_stat.else_body = ptcl_parser_func_body(parser, true, true, parser->state.is_ignore_error);
+        if_stat.else_body = ptcl_parser_func_body(parser, true, true, ptcl_parser_ignore_error(parser));
         if_stat.with_else = !ptcl_parser_critical(parser);
         if (ptcl_parser_critical(parser))
         {
@@ -4059,11 +4068,11 @@ ptcl_expression *ptcl_parser_if_expression(ptcl_parser *parser, bool is_static)
 ptcl_statement_func_body ptcl_parser_unsyntax(ptcl_parser *parser)
 {
     ptcl_parser_match(parser, ptcl_token_unsyntax_type);
-    parser->state.is_syntax_body = false;
+    ptcl_parser_remove_state(parser, ptcl_parser_in_syntax_flag);
 
-    ptcl_func_body body = ptcl_parser_func_body(parser, true, false, parser->state.is_ignore_error);
+    ptcl_func_body body = ptcl_parser_func_body(parser, true, false, ptcl_parser_ignore_error(parser));
 
-    parser->state.is_syntax_body = true;
+    ptcl_parser_enable_state(parser, ptcl_parser_in_syntax_flag);
 
     return ptcl_statement_func_body_create_by_body(body);
 }
@@ -4407,8 +4416,10 @@ void ptcl_parser_each(ptcl_parser *parser)
 
     ptcl_type *type = &ptcl_type_any;
     type->is_const = true;
+
     ptcl_type array = ptcl_type_create_pointer(type, true);
     array.is_static = true;
+
     ptcl_expression *value = ptcl_parser_cast(parser, &array, false);
     if (ptcl_parser_critical(parser))
     {
@@ -4425,6 +4436,7 @@ void ptcl_parser_each(ptcl_parser *parser)
     {
         ptcl_expression *expression = value->array.expressions[i];
         expression->is_original = false;
+
         ptcl_parser_variable variable = ptcl_parser_variable_create(name, *ptcl_type_get_target(value->return_type), expression, true, &empty);
         size_t idenitifer = parser->variables.count;
         if (!ptcl_parser_add_instance_variable(parser, variable))
@@ -4435,7 +4447,7 @@ void ptcl_parser_each(ptcl_parser *parser)
             return;
         }
 
-        ptcl_parser_func_body_by_pointer(parser, &empty, true, true, parser->state.is_ignore_error);
+        ptcl_parser_func_body_by_pointer(parser, &empty, true, true, ptcl_parser_ignore_error(parser));
         if (i != value->array.count - 1)
         {
             ptcl_parser_set_position(parser, position);
@@ -4540,7 +4552,7 @@ ptcl_expression *ptcl_parser_cast(ptcl_parser *parser, ptcl_type *expected, ptcl
     {
         ptcl_location location = ptcl_parser_current(parser).location;
         ptcl_expression *value = ptcl_parser_cast(parser, expected, flags);
-        if (parser->state.is_critical)
+        if (ptcl_parser_critical(parser))
         {
             return NULL;
         }
@@ -5382,7 +5394,7 @@ static ptcl_expression *ptcl_parse_none(ptcl_parser *parser, ptcl_type *expected
 
 ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *expected, ptcl_parser_expression_flags flags)
 {
-    if (parser->state.is_syntax_body && ptcl_parser_parse_try_syntax_usage_here(parser, false))
+    if (ptcl_parser_parse_try_syntax_usage_here(parser, false))
     {
         size_t depth = parser->state.syntax_depth;
         ptcl_expression *expression = ptcl_parser_cast(parser, expected, flags);
@@ -5510,11 +5522,13 @@ ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *expected, ptc
         return ptcl_parse_none(parser, expected, location);
     default:
     {
-        const bool last_state = parser->state.add_errors;
-        parser->state.add_errors = false;
+        const bool last_state = ptcl_parser_add_errors(parser);
+        ptcl_parser_remove_state(parser, ptcl_parser_add_errors_flag);
+
         ptcl_parser_back(parser);
         ptcl_expression *type = ptcl_parser_type_object(parser, location);
-        parser->state.add_errors = last_state;
+
+        ptcl_parser_set_state_by_bool(parser, ptcl_parser_add_errors_flag, last_state);
         if (ptcl_parser_critical(parser))
         {
             ptcl_parser_throw_unknown_expression(parser, location);
@@ -5746,13 +5760,15 @@ static ptcl_name ptcl_parser_to_word(ptcl_parser *parser)
     }
     else
     {
-        bool last_state = parser->state.add_errors;
-        parser->state.add_errors = false;
+        bool last_state = ptcl_parser_add_errors(parser);
+        ptcl_parser_remove_state(parser, ptcl_parser_add_errors_flag);
+
         target = ptcl_parser_name_word(parser);
-        parser->state.add_errors = last_state;
+        ptcl_parser_set_state_by_bool(parser, ptcl_parser_add_errors_flag, last_state);
+
         if (ptcl_parser_critical(parser))
         {
-            parser->state.is_critical = false;
+            ptcl_parser_remove_state(parser, ptcl_parser_critical_flag);
             ptcl_type type = ptcl_parser_type(parser, true, true, true);
             if (ptcl_parser_critical(parser))
             {
@@ -6076,12 +6092,12 @@ ptcl_token ptcl_parser_current(ptcl_parser *parser)
     return *ptcl_parser_current_ptr(parser);
 }
 
-inline ptcl_parser_tokens_state ptcl_parser_state(ptcl_parser *parser)
+inline ptcl_parser_tokens_state ptcl_parser_get_tokens_state(ptcl_parser *parser)
 {
     return parser->state.tokens;
 }
 
-inline void ptcl_parser_set_state(ptcl_parser *parser, ptcl_parser_tokens_state state)
+inline void ptcl_parser_set_tokens_state(ptcl_parser *parser, ptcl_parser_tokens_state state)
 {
     parser->state.tokens = state;
 }
@@ -6138,7 +6154,32 @@ inline bool ptcl_parser_ended(ptcl_parser *parser)
 
 inline bool ptcl_parser_critical(ptcl_parser *parser)
 {
-    return parser->state.is_critical;
+    return ptcl_parser_has_state(parser, ptcl_parser_critical_flag);
+}
+
+inline bool ptcl_parser_ignore_error(ptcl_parser *parser)
+{
+    return ptcl_parser_has_state(parser, ptcl_parser_ignore_error_flag);
+}
+
+inline bool ptcl_parser_in_type(ptcl_parser *parser)
+{
+    return ptcl_parser_has_state(parser, ptcl_parser_in_type_flag);
+}
+
+inline bool ptcl_parser_add_errors(ptcl_parser *parser)
+{
+    return ptcl_parser_has_state(parser, ptcl_parser_add_errors_flag);
+}
+
+inline bool ptcl_parser_except_return(ptcl_parser *parser)
+{
+    return ptcl_parser_has_state(parser, ptcl_parser_except_return_flag);
+}
+
+inline bool ptcl_parser_in_syntax(ptcl_parser *parser)
+{
+    return ptcl_parser_has_state(parser, ptcl_parser_in_syntax_flag);
 }
 
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser)
@@ -6149,11 +6190,6 @@ size_t ptcl_parser_insert_states_count(ptcl_parser *parser)
 ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index)
 {
     return &parser->temp.insert_states[index];
-}
-
-void ptcl_parser_set_ignore_error_func_mode(ptcl_parser *parser, bool mode)
-{
-    parser->state.is_ignore_error = mode;
 }
 
 ptcl_func_body *ptcl_parser_root(ptcl_parser *parser)
@@ -6169,6 +6205,26 @@ size_t ptcl_parser_variables_count(ptcl_parser *parser)
 ptcl_parser_variable *ptcl_parser_variables(ptcl_parser *parser)
 {
     return parser->variables.items;
+}
+
+void ptcl_parser_set_state_by_bool(ptcl_parser *parser, ptcl_parser_flags flag, bool value)
+{
+    ptcl_parser_flags_set_by_bool(&parser->state.states, flag, value);
+}
+
+void ptcl_parser_enable_state(ptcl_parser *parser, ptcl_parser_flags flag)
+{
+    ptcl_parser_flags_set(&parser->state.states, flag);
+}
+
+void ptcl_parser_remove_state(ptcl_parser *parser, ptcl_parser_flags flag)
+{
+    ptcl_parser_flags_remove(&parser->state.states, flag);
+}
+
+bool ptcl_parser_has_state(ptcl_parser *parser, ptcl_parser_flags flag)
+{
+    return ptcl_parser_flags_has(parser->state.states, flag);
 }
 
 bool ptcl_parser_add_this_pair(ptcl_parser *parser, ptcl_parser_this_s_pair instance)
@@ -6234,13 +6290,13 @@ ptcl_statement *ptcl_parser_insert_pairs(ptcl_parser *parser, ptcl_statement *st
         ptcl_parser_tokens_state last_state = parser->state.tokens;
         ptcl_func_body *last_body = parser->temp.inserted_body;
 
-        ptcl_parser_set_state(parser, parser->lated_states.items[target->index]);
+        ptcl_parser_set_tokens_state(parser, parser->lated_states.items[target->index]);
         ptcl_parser_set_position(parser, 0);
         parser->temp.inserted_body = &paired_statement->body;
 
-        ptcl_parser_func_body_by_pointer(parser, parser->temp.inserted_body, false, false, parser->state.is_ignore_error);
+        ptcl_parser_func_body_by_pointer(parser, parser->temp.inserted_body, false, false, ptcl_parser_ignore_error(parser));
 
-        ptcl_parser_set_state(parser, last_state);
+        ptcl_parser_set_tokens_state(parser, last_state);
         parser->temp.inserted_body = last_body;
 
         if (ptcl_parser_critical(parser))
@@ -6775,7 +6831,7 @@ bool ptcl_parser_try_get_typedata_member(ptcl_parser *parser, ptcl_name name, ch
     return false;
 }
 
-bool ptcl_parser_try_get_variable_by_id(ptcl_parser_result* result, size_t index, ptcl_parser_variable** variable)
+bool ptcl_parser_try_get_variable_by_id(ptcl_parser_result *result, size_t index, ptcl_parser_variable **variable)
 {
     if (result->variables_count == 0 || index > result->variables_count - 1)
     {
@@ -7167,12 +7223,12 @@ void ptcl_parser_throw_user(ptcl_parser *parser, char *message, ptcl_location lo
 
 void ptcl_parser_add_error(ptcl_parser *parser, ptcl_parser_error error)
 {
-    if (!parser->state.add_errors)
+    if (!ptcl_parser_add_errors(parser))
     {
         ptcl_parser_error_destroy(error);
         if (!ptcl_parser_critical(parser))
         {
-            parser->state.is_critical = error.is_critical;
+            ptcl_parser_set_state_by_bool(parser, ptcl_parser_critical_flag, error.is_critical);
         }
 
         return;
@@ -7181,14 +7237,14 @@ void ptcl_parser_add_error(ptcl_parser *parser, ptcl_parser_error error)
     ptcl_parser_error *buffer = realloc(parser->errors.items, (parser->errors.count + 1) * sizeof(ptcl_parser_error));
     if (buffer == NULL)
     {
-        parser->state.is_critical = true;
+        ptcl_parser_enable_state(parser, ptcl_parser_critical_flag);
         ptcl_parser_error_destroy(error);
     }
     else
     {
         parser->errors.items = buffer;
         parser->errors.items[parser->errors.count++] = error;
-        parser->state.is_critical = error.is_critical;
+        ptcl_parser_set_state_by_bool(parser, ptcl_parser_critical_flag, error.is_critical);
     }
 }
 
