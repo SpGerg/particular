@@ -22,6 +22,8 @@ typedef struct ptcl_interpreter
     size_t variables_count;
     size_t variables_capacity;
     ptcl_statement_func_decl *func_decl;
+    bool *is_self_used;
+    bool is_in_return;
 } ptcl_interpreter;
 
 ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
@@ -43,6 +45,8 @@ ptcl_interpreter *ptcl_interpreter_create(ptcl_parser *parser)
 
     interpreter->stack_trace_count = 0;
     interpreter->func_decl = NULL;
+    interpreter->is_self_used = NULL;
+    interpreter->is_in_return = false;
     return interpreter;
 }
 
@@ -73,7 +77,10 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
     case ptcl_statement_func_body_type:
         return ptcl_interpreter_evaluate_func_body(interpreter, statement->body.body, location);
     case ptcl_statement_func_call_type:
-        return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, location);
+    {
+        bool placeholder = false;
+        return ptcl_interpreter_evaluate_function_call(interpreter, statement->func_call, true, NULL, &placeholder, location);
+    }
     case ptcl_statement_assign_type:
     {
         ptcl_expression *variable_value = ptcl_interpreter_evaluate_expression(interpreter, statement->assign.value, location);
@@ -139,7 +146,11 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
         break;
     }
     case ptcl_statement_return_type:
-        return ptcl_interpreter_evaluate_expression(interpreter, statement->ret.value, location);
+        interpreter->is_in_return = true;
+        ptcl_expression *result = ptcl_interpreter_evaluate_expression(interpreter, statement->ret.value, location);
+
+        interpreter->is_in_return = false;
+        return result;
     case ptcl_statement_import_type:
     case ptcl_statement_undefine_type:
     case ptcl_statement_unsyntax_type:
@@ -157,7 +168,7 @@ ptcl_expression *ptcl_interpreter_evaluate_statement(ptcl_interpreter *interpret
 
 ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpreter, ptcl_expression *expression, ptcl_location location)
 {
-    ptcl_expression *result;
+    ptcl_expression *result = NULL;
     switch (expression->type)
     {
     case ptcl_expression_lated_func_body_type:
@@ -170,7 +181,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
     case ptcl_expression_word_type:
     case ptcl_expression_func_call_type:
     {
-        result = ptcl_interpreter_evaluate_function_call(interpreter, expression->func_call, true, NULL, location);
+        bool placeholder = false;
+        result = ptcl_interpreter_evaluate_function_call(interpreter, expression->func_call, true, NULL, &placeholder, location);
         if (result == NULL)
         {
             return NULL;
@@ -230,7 +242,8 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
                 return NULL;
             }
 
-            return ptcl_interpreter_evaluate_function_call(interpreter, expression->dot.right->func_call, true, self, location);
+            bool placeholder = false;
+            return ptcl_interpreter_evaluate_function_call(interpreter, expression->dot.right->func_call, true, self, &placeholder, location);
         }
 
         break;
@@ -288,6 +301,11 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
         break;
     }
     case ptcl_expression_variable_type:
+        if (interpreter->is_in_return && ptcl_name_compare(expression->variable.name, ptcl_name_self))
+        {
+            *interpreter->is_self_used = true;
+        }
+
         result = ptcl_interpreter_get_value(interpreter, expression->variable.name);
         if (result == NULL || !result->return_type.is_static)
         {
@@ -340,7 +358,7 @@ ptcl_expression *ptcl_interpreter_evaluate_expression(ptcl_interpreter *interpre
     return result;
 }
 
-ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, bool evaluate_arguments, ptcl_expression *self, ptcl_location location)
+ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *interpreter, ptcl_statement_func_call func_call, bool evaluate_arguments, ptcl_expression *self, bool *is_self_used, ptcl_location location)
 {
     if (func_call.identifier.is_name && strcmp(func_call.identifier.name.value, PTCL_PARSER_ERROR_FUNC_NAME) == 0)
     {
@@ -357,6 +375,8 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     if (is_root)
     {
         interpreter->func_decl = func_call.func_decl;
+        interpreter->is_self_used = is_self_used;
+        *interpreter->is_self_used = false;
         size_t count = ptcl_parser_variables_count(interpreter->parser);
         ptcl_parser_variable *variables = ptcl_parser_variables(interpreter->parser);
         for (size_t i = 0; i < count; i++)
@@ -390,7 +410,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
             }
         }
 
-        ptcl_interpreter_var_index last_self;
+        ptcl_interpreter_var_index last_self = {0};
         last_self.index = -1;
         for (size_t i = 0; i < func_call.func_decl->count; i++)
         {

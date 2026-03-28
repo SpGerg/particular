@@ -42,8 +42,7 @@ function foo(v: string): void {
 function main(): integer {
 	var := "Hello, world" :: static string
 	length := var.length()
-	foo(var)
-	length = var.length()
-	length = var.length()
+	
+	
 	return 0
 }

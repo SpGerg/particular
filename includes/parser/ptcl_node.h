@@ -82,12 +82,12 @@ typedef enum ptcl_statement_modifiers
 {
     ptcl_statement_modifiers_none_flag = 0,
     ptcl_statement_modifiers_const_flag = 1 << 0,
-    ptcl_statement_modifiers_static_flag = 2 << 0,
-    ptcl_statement_modifiers_global_flag = 3 << 0,
-    ptcl_statement_modifiers_prototype_flag = 4 << 0,
-    ptcl_statement_modifiers_auto_flag = 5 << 0,
-    ptcl_statement_modifiers_optional_flag = 6 << 0,
-    ptcl_statement_modifiers_injection_flag = 7 << 0
+    ptcl_statement_modifiers_static_flag = 1 << 1,
+    ptcl_statement_modifiers_global_flag = 1 << 2,
+    ptcl_statement_modifiers_prototype_flag = 1 << 3,
+    ptcl_statement_modifiers_auto_flag = 1 << 4,
+    ptcl_statement_modifiers_optional_flag = 1 << 5,
+    ptcl_statement_modifiers_injection_flag = 1 << 6
 } ptcl_statement_modifiers;
 
 static bool ptcl_statement_modifiers_flags_has(int flags, ptcl_statement_modifiers flag)
@@ -417,6 +417,7 @@ typedef struct ptcl_statement_func_call
     ptcl_type return_type;
     ptcl_expression *built_in;
     bool is_built_in;
+    bool is_self_used;
 } ptcl_statement_func_call;
 
 typedef struct ptcl_func_body
@@ -814,7 +815,10 @@ static ptcl_statement_func_call ptcl_statement_func_call_create(ptcl_statement_f
         .func_decl = func_decl,
         .identifier = identifier,
         .arguments = arguments,
-        .count = count};
+        .count = count,
+        .built_in = NULL,
+        .is_built_in = false,
+        .is_self_used = true};
 }
 
 static ptcl_expression *ptcl_expression_create_null(ptcl_location location)
@@ -1269,8 +1273,7 @@ static ptcl_statement_assign ptcl_statement_assign_create(
         .with_type = with_type,
         .value = value,
         .is_define = is_define,
-        .variable_id = variable_id
-    };
+        .variable_id = variable_id};
 }
 
 static ptcl_statement_return ptcl_statement_return_create(ptcl_expression *value)
@@ -2873,7 +2876,7 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
 static void ptcl_statement_assign_destroy(ptcl_statement_assign statement)
 {
     ptcl_identifier_destroy(statement.identifier);
-    if (statement.value != NULL && !statement.type.is_static)
+    if (statement.value != NULL)
     {
         ptcl_expression_destroy(statement.value);
     }

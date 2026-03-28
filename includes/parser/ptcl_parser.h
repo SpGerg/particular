@@ -80,11 +80,13 @@ typedef enum ptcl_parser_flags
 {
     ptcl_parser_none_flag = 0,
     ptcl_parser_critical_flag = 1 << 0,
-    ptcl_parser_in_syntax_flag = 2 << 0,
-    ptcl_parser_in_type_flag = 3 << 1,
-    ptcl_parser_ignore_error_flag = 4 << 2,
-    ptcl_parser_add_errors_flag = 5 << 3,
-    ptcl_parser_except_return_flag = 6 << 4
+    ptcl_parser_in_syntax_flag = 1 << 1,
+    ptcl_parser_in_type_flag = 1 << 2,
+    ptcl_parser_ignore_error_flag = 1 << 3,
+    ptcl_parser_add_errors_flag = 1 << 4,
+    ptcl_parser_except_return_flag = 1 << 5,
+    ptcl_parser_in_if_flag = 1 << 6,
+    ptcl_parser_in_return_flag = 1 << 7
 } ptcl_parser_flags;
 
 typedef struct ptcl_parser_tokens_state
@@ -116,12 +118,12 @@ typedef struct ptcl_parser_variable
     ptcl_type type;
     ptcl_expression *built_in;
     // TODO: use flags instead of it...
-    bool is_changed;
     bool is_built_in;
     bool is_syntax_word;
     bool is_function_pointer;
     bool is_syntax_variable;
     bool is_syntax_anonymous;
+    bool is_used;
     bool is_out_of_scope;
 } ptcl_parser_variable;
 
@@ -383,12 +385,12 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_out_of_scope = false,
         .type = type,
         .built_in = built_in,
-        .is_changed = false,
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false};
+        .is_syntax_anonymous = false,
+        .is_used = false};
 }
 
 // TODO: more cool name
@@ -400,12 +402,12 @@ static ptcl_parser_variable ptcl_parser_variable_not_static_create(ptcl_name nam
         .is_out_of_scope = false,
         .type = type,
         .built_in = built_in,
-        .is_changed = false,
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false};
+        .is_syntax_anonymous = false,
+        .is_used = false};
 }
 
 static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptcl_type type, ptcl_func_body *root)
@@ -415,12 +417,12 @@ static ptcl_parser_variable ptcl_parser_func_variable_create(ptcl_name name, ptc
         .root = root,
         .is_out_of_scope = false,
         .type = type,
-        .is_changed = false,
         .is_built_in = false,
         .is_syntax_word = false,
         .is_function_pointer = true,
         .is_syntax_variable = false,
-        .is_syntax_anonymous = false};
+        .is_syntax_anonymous = false,
+        .is_used = false};
 }
 
 static ptcl_parser_function ptcl_parser_function_create(ptcl_func_body *root, ptcl_statement_func_decl func)
@@ -558,7 +560,7 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
     }
     else
     {
-        if (variable.is_built_in || variable.is_syntax_variable || variable.is_changed)
+        if (variable.is_syntax_variable)
         {
             ptcl_expression_destroy(variable.built_in);
         }
@@ -696,6 +698,10 @@ bool ptcl_parser_except_return(ptcl_parser *parser);
 
 bool ptcl_parser_in_syntax(ptcl_parser *parser);
 
+bool ptcl_parser_in_if(ptcl_parser *parser);
+
+bool ptcl_parser_in_return(ptcl_parser *parser);
+
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 
 ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index);
@@ -706,11 +712,11 @@ size_t ptcl_parser_variables_count(ptcl_parser *parser);
 
 ptcl_parser_variable *ptcl_parser_variables(ptcl_parser *parser);
 
-void ptcl_parser_set_state_by_bool(ptcl_parser *parser, ptcl_parser_flags flag, bool value);
+void ptcl_parser_set_state(ptcl_parser *parser, ptcl_parser_flags flag, bool value);
 
 void ptcl_parser_enable_state(ptcl_parser *parser, ptcl_parser_flags flag);
 
-void ptcl_parser_remove_state(ptcl_parser *parser, ptcl_parser_flags flag);
+void ptcl_parser_disable_state(ptcl_parser *parser, ptcl_parser_flags flag);
 
 bool ptcl_parser_has_state(ptcl_parser *parser, ptcl_parser_flags flag);
 
