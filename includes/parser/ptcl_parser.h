@@ -86,7 +86,8 @@ typedef enum ptcl_parser_flags
     ptcl_parser_add_errors_flag = 1 << 4,
     ptcl_parser_except_return_flag = 1 << 5,
     ptcl_parser_in_if_flag = 1 << 6,
-    ptcl_parser_in_return_flag = 1 << 7
+    ptcl_parser_in_return_flag = 1 << 7,
+    ptcl_parser_in_dot_flag = 1 << 8
 } ptcl_parser_flags;
 
 typedef struct ptcl_parser_tokens_state
@@ -388,7 +389,7 @@ static ptcl_parser_variable ptcl_parser_variable_create(ptcl_name name, ptcl_typ
         .is_built_in = is_built_in,
         .is_syntax_word = false,
         .is_function_pointer = false,
-        .is_syntax_variable = false,
+        .is_syntax_variable = is_built_in,
         .is_syntax_anonymous = false,
         .is_used = false};
 }
@@ -560,7 +561,7 @@ static void ptcl_parser_variable_destroy(ptcl_parser_variable variable)
     }
     else
     {
-        if (variable.is_syntax_variable)
+        if (variable.is_built_in)
         {
             ptcl_expression_destroy(variable.built_in);
         }
@@ -701,6 +702,8 @@ bool ptcl_parser_in_syntax(ptcl_parser *parser);
 bool ptcl_parser_in_if(ptcl_parser *parser);
 
 bool ptcl_parser_in_return(ptcl_parser *parser);
+
+bool ptcl_parser_in_dot(ptcl_parser* parser);
 
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 

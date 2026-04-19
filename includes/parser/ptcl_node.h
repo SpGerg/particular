@@ -2865,7 +2865,6 @@ static void ptcl_statement_type_decl_destroy(ptcl_statement_type_decl type_decl)
     }
 
     free(type_decl.types);
-
     if (type_decl.body != NULL)
     {
         ptcl_func_body_destroy(*type_decl.body);
@@ -2944,6 +2943,11 @@ static void ptcl_statement_destroy(ptcl_statement *statement)
         if (statement->body.arguments != NULL)
         {
             free(statement->body.func_call.arguments);
+        }
+
+        if (statement->body.self != NULL && !statement->body.func_call.is_self_used)
+        {
+            ptcl_expression_destroy(statement->body.self);
         }
 
         ptcl_func_body_destroy(statement->body.body);

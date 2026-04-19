@@ -22,27 +22,22 @@ function print(content: any): static void {
 	}
 }
 
-type string: static character* {
-	static function length(const self): integer {
-		return 4
+type round: static integer {
+	static function evaluate(const self): static integer {
+		vark: static integer = self
+		return 2 + vark
 	}
 }
 
-type string: character* {
-	static function length(const self): static integer {
-		test := 1 + strlen(self)
-		return test
+type round: integer {
+	static function evaluate(const self): integer {
+		return 2
 	}
-}
-
-function foo(v: string): void {
-	length := v.length()
 }
 
 function main(): integer {
-	var := "Hello, world" :: static string
-	length := var.length()
-	foo(var)
-	length = var.length()
+	variable := 256 :: static round
+	result := variable.evaluate()
+	
 	return 0
 }
