@@ -105,37 +105,37 @@ static void ptcl_statement_modifiers_flags_remove(ptcl_statement_modifiers *flag
     *flags &= ~flag;
 }
 
-static bool ptcl_statement_modifiers_flags_prototype(const int flags)
+static bool ptcl_statement_modifiers_flags_prototype(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_prototype_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_static(const int flags)
+static bool ptcl_statement_modifiers_flags_static(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_static_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_global(const int flags)
+static bool ptcl_statement_modifiers_flags_global(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_global_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_const(const int flags)
+static bool ptcl_statement_modifiers_flags_const(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_const_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_auto(const int flags)
+static bool ptcl_statement_modifiers_flags_auto(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_auto_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_optional(const int flags)
+static bool ptcl_statement_modifiers_flags_optional(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_optional_flag);
 }
 
-static bool ptcl_statement_modifiers_flags_injection(const int flags)
+static bool ptcl_statement_modifiers_flags_injection(const ptcl_statement_modifiers flags)
 {
     return ptcl_statement_modifiers_flags_has(flags, ptcl_statement_modifiers_injection_flag);
 }
@@ -193,7 +193,7 @@ typedef struct ptcl_type_pointer
 typedef struct ptcl_type_array
 {
     ptcl_type *target;
-    int count;
+    size_t count;
 } ptcl_type_array;
 
 typedef struct ptcl_type_object_type
@@ -450,7 +450,7 @@ typedef struct ptcl_statement_func_decl
     ptcl_argument *arguments;
     size_t count;
     ptcl_func_body *func_body;
-    int index;
+    size_t index;
     ptcl_type return_type;
     bool is_variadic;
     bool is_self_const;
@@ -700,7 +700,7 @@ static ptcl_type ptcl_type_create_typedata(char *identifier, bool is_const, bool
     return base;
 }
 
-static ptcl_type ptcl_type_create_array(ptcl_type *type, bool is_const, int count)
+static ptcl_type ptcl_type_create_array(ptcl_type *type, bool is_const, size_t count)
 {
     ptcl_type base = ptcl_type_create_base(ptcl_value_array_type, true, is_const, true);
     base.array = (ptcl_type_array){
@@ -844,7 +844,7 @@ static ptcl_statement_func_decl ptcl_statement_func_decl_create(
         .arguments = arguments,
         .count = count,
         .func_body = func_body,
-        .index = -1,
+        .index = 0,
         .return_type = return_type,
         .is_variadic = is_variadic,
         .with_self = false,

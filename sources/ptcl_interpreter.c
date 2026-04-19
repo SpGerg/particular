@@ -10,7 +10,7 @@ typedef struct ptcl_interpreter_variable
 typedef struct ptcl_interpreter_var_index
 {
     ptcl_interpreter_variable variable;
-    int index;
+    size_t index;
 } ptcl_interpreter_var_index;
 
 typedef struct ptcl_interpreter
@@ -19,7 +19,7 @@ typedef struct ptcl_interpreter
     ptcl_name stack_trace[PTCL_INTERPRETER_MAX_STACK_TRACE];
     size_t stack_trace_count;
     ptcl_interpreter_variable *variables;
-    int variables_count;
+    size_t variables_count;
     size_t variables_capacity;
     ptcl_statement_func_decl *func_decl;
     bool *is_self_used;
@@ -414,12 +414,18 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
         last_self.index = -1;
         for (size_t i = 0; i < func_call.func_decl->count; i++)
         {
-            for (int j = interpreter->variables_count - 1; j >= 0; j--)
+            if (interpreter->variables_count == 0) 
             {
-                ptcl_interpreter_variable *variable = &interpreter->variables[i];
+                break;
+            }
+
+            for (size_t j = 0; j < interpreter->variables_count; j++)
+            {
+                const size_t index = interpreter->variables_count - 1 - j;
+                ptcl_interpreter_variable* variable = &interpreter->variables[index];
                 if (self != NULL && ptcl_name_compare(variable->name, ptcl_name_self))
                 {
-                    last_self.index = j;
+                    last_self.index = index;
                     last_self.variable = *variable;
                     variable->value = self;
                     continue;
@@ -430,14 +436,15 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
                     continue;
                 }
 
-                ptcl_interpreter_var_index *pair = &arguments[i];
+                ptcl_interpreter_var_index* pair = &arguments[i];
                 pair->variable = *variable;
-                pair->index = j;
-                ptcl_expression *value = evaluate_arguments
-                                             ? ptcl_interpreter_evaluate_expression(interpreter, func_call.arguments[i], location)
-                                             : func_call.arguments[i];
+                pair->index = index;
+                ptcl_expression* value = evaluate_arguments
+                    ? ptcl_interpreter_evaluate_expression(interpreter, func_call.arguments[i], location)
+                    : func_call.arguments[i];
                 variable->value = value;
                 variable->is_destroy = evaluate_arguments;
+                break;
             }
         }
 
@@ -504,7 +511,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     }
 
     ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl->func_body, location);
-    for (int i = variables_count; i < interpreter->variables_count; i++)
+    for (size_t i = variables_count; i < interpreter->variables_count; i++)
     {
         ptcl_interpreter_variable variable = interpreter->variables[i];
         if (variable.is_destroy)
@@ -557,11 +564,17 @@ ptcl_expression *ptcl_interpreter_get_member_from_dot(ptcl_interpreter *interpre
     return value;
 }
 
-ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_name name)
+ptcl_expression* ptcl_interpreter_get_value(ptcl_interpreter* interpreter, ptcl_name name)
 {
-    for (int i = interpreter->variables_count - 1; i >= 0; i--)
+    if (interpreter->variables_count == 0)
     {
-        ptcl_interpreter_variable variable = interpreter->variables[i];
+        return NULL;
+    }
+
+    for (size_t j = 0; j < interpreter->variables_count; j++)
+    {
+        const size_t index = interpreter->variables_count - 1 - j;
+        ptcl_interpreter_variable variable = interpreter->variables[index];
         if (!ptcl_name_compare(variable.name, name))
         {
             continue;
@@ -575,7 +588,7 @@ ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_
 
 bool ptcl_interpreter_add_variable(ptcl_interpreter *interpreter, ptcl_name name, ptcl_expression *value, bool is_destroy)
 {
-    if (interpreter->variables_count >= (int)interpreter->variables_capacity)
+    if (interpreter->variables_count >= interpreter->variables_capacity)
     {
         interpreter->variables_capacity *= 2;
         ptcl_interpreter_variable *buffer = realloc(interpreter->variables, interpreter->variables_capacity * sizeof(ptcl_interpreter_variable));

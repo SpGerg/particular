@@ -280,22 +280,22 @@ typedef enum ptcl_parser_expression_flags
     ptcl_parser_expression_ignore_excepted_flag = 1 << 4
 } ptcl_parser_expression_flags;
 
-static bool ptcl_parser_expression_flags_has(int flags, ptcl_parser_expression_flags flag)
+static bool ptcl_parser_expression_flags_has(ptcl_parser_expression_flags flags, ptcl_parser_expression_flags flag)
 {
     return (flags & flag) == flag;
 }
 
-static bool ptcl_parser_expression_flags_change_value(int flags)
+static bool ptcl_parser_expression_flags_change_value(ptcl_parser_expression_flags flags)
 {
     return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_change_the_value_flag);
 }
 
-static bool ptcl_parser_expression_flags_ignore_expected(int flags)
+static bool ptcl_parser_expression_flags_ignore_expected(ptcl_parser_expression_flags flags)
 {
     return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_ignore_excepted_flag);
 }
 
-static bool ptcl_parser_expression_flags_require_expr(int flags)
+static bool ptcl_parser_expression_flags_require_expr(ptcl_parser_expression_flags flags)
 {
     return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_require_expression_flag);
 }
@@ -310,22 +310,22 @@ static ptcl_parser_expression_flags ptcl_parser_expression_flags_default(bool is
     return ptcl_parser_expression_with_word_flag;
 }
 
-static bool ptcl_parser_flags_has(int flags, ptcl_parser_flags flag)
+static bool ptcl_parser_flags_has(ptcl_parser_flags flags, ptcl_parser_flags flag)
 {
     return (flags & flag) == flag;
 }
 
-static void ptcl_parser_flags_set(int *flags, ptcl_parser_flags flag)
+static void ptcl_parser_flags_set(ptcl_parser_flags *flags, ptcl_parser_flags flag)
 {
     *flags |= flag;
 }
 
-static void ptcl_parser_flags_remove(int *flags, ptcl_parser_flags flag)
+static void ptcl_parser_flags_remove(ptcl_parser_flags *flags, ptcl_parser_flags flag)
 {
     *flags &= ~flag;
 }
 
-static void ptcl_parser_flags_set_by_bool(int *flags, ptcl_parser_flags flag, bool value)
+static void ptcl_parser_flags_set_by_bool(ptcl_parser_flags *flags, ptcl_parser_flags flag, bool value)
 {
     if (value)
     {
@@ -703,7 +703,7 @@ bool ptcl_parser_in_if(ptcl_parser *parser);
 
 bool ptcl_parser_in_return(ptcl_parser *parser);
 
-bool ptcl_parser_in_dot(ptcl_parser *parser);
+bool ptcl_parser_in_dot(ptcl_parser* parser);
 
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 
@@ -749,7 +749,7 @@ bool ptcl_parser_try_get_function(ptcl_parser *parser, ptcl_name name, ptcl_pars
 
 bool ptcl_parser_try_get_variable(ptcl_parser *parser, ptcl_name name, ptcl_parser_variable **instance);
 
-int ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, bool is_free, ptcl_location location);
+size_t ptcl_parser_add_lated_body(ptcl_parser *parser, size_t start, size_t tokens_count, bool is_free, ptcl_location location);
 
 bool ptcl_parser_is_syntax_defined(ptcl_parser *parser, ptcl_name name);
 

@@ -25,7 +25,7 @@ typedef struct ptcl_transpiler
     size_t last_stat_position;
     int inserted_bodies_depth;
     ptcl_transpiler_caller *callers;
-    int callers_count;
+    size_t callers_count;
 } ptcl_transpiler;
 
 static bool ptcl_transpiler_add_closure_arguments(ptcl_transpiler *transpiler, ptcl_identifier identifier)
@@ -156,14 +156,11 @@ static void ptcl_transpiler_add_array_dimensional(ptcl_transpiler *transpiler, p
     }
 
     ptcl_transpiler_append_character(transpiler, '[');
-    if (type.array.count >= 0)
+    char *number = ptcl_from_long(type.array.count);
+    if (number != NULL)
     {
-        char *number = ptcl_from_long(type.array.count);
-        if (number != NULL)
-        {
-            ptcl_transpiler_append_word_s(transpiler, number);
-            free(number);
-        }
+        ptcl_transpiler_append_word_s(transpiler, number);
+        free(number);
     }
 
     ptcl_transpiler_append_character(transpiler, ']');
@@ -269,9 +266,10 @@ bool ptcl_transpiler_append_character(ptcl_transpiler *transpiler, char characte
 
 bool ptcl_transpiler_try_get_variable(ptcl_transpiler *transpiler, ptcl_name name, ptcl_transpiler_variable **variable)
 {
-    for (int i = transpiler->variables_count - 1; i >= 0; i--)
+    for (size_t j = 0; j < transpiler->variables_count; j++)
     {
-        ptcl_transpiler_variable *target = &transpiler->variables[i];
+        const size_t index = transpiler->variables_count - 1 - j;
+        ptcl_transpiler_variable *target = &transpiler->variables[index];
         if (target->root == transpiler->main_root)
         {
             break;
@@ -302,9 +300,10 @@ bool ptcl_transpiler_is_inner(ptcl_transpiler *transpiler, ptcl_name name)
 
 bool ptcl_transpiler_is_inner_function(ptcl_transpiler *transpiler, ptcl_name name)
 {
-    for (int i = transpiler->inner_functions_count - 1; i >= 0; i--)
+    for (size_t j = 0; j < transpiler->inner_functions_count; j++)
     {
-        ptcl_transpiler_function function = transpiler->inner_functions[i];
+        const size_t index = transpiler->inner_functions_count - 1 - j;
+        ptcl_transpiler_function function = transpiler->inner_functions[index];
         if (function.root == transpiler->main_root)
         {
             break;
@@ -323,9 +322,10 @@ bool ptcl_transpiler_is_inner_function(ptcl_transpiler *transpiler, ptcl_name na
 
 bool ptcl_transpiler_is_caller(ptcl_transpiler *transpiler, ptcl_expression *expression, ptcl_transpiler_caller **caller)
 {
-    for (int i = transpiler->callers_count - 1; i >= 0; i--)
+    for (size_t j = 0; j < transpiler->callers_count; j++)
     {
-        *caller = &transpiler->callers[i];
+        const size_t index = transpiler->callers_count - 1 - j;
+        *caller = &transpiler->callers[index];
         if ((*caller)->caller != expression)
         {
             continue;
