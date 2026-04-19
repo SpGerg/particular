@@ -703,7 +703,7 @@ bool ptcl_parser_in_if(ptcl_parser *parser);
 
 bool ptcl_parser_in_return(ptcl_parser *parser);
 
-bool ptcl_parser_in_dot(ptcl_parser* parser);
+bool ptcl_parser_in_dot(ptcl_parser *parser);
 
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 

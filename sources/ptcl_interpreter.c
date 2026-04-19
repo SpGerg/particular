@@ -19,7 +19,7 @@ typedef struct ptcl_interpreter
     ptcl_name stack_trace[PTCL_INTERPRETER_MAX_STACK_TRACE];
     size_t stack_trace_count;
     ptcl_interpreter_variable *variables;
-    size_t variables_count;
+    int variables_count;
     size_t variables_capacity;
     ptcl_statement_func_decl *func_decl;
     bool *is_self_used;
@@ -504,7 +504,7 @@ ptcl_expression *ptcl_interpreter_evaluate_function_call(ptcl_interpreter *inter
     }
 
     ptcl_expression *result = ptcl_interpreter_evaluate_func_body(interpreter, *func_call.func_decl->func_body, location);
-    for (size_t i = variables_count; i < interpreter->variables_count; i++)
+    for (int i = variables_count; i < interpreter->variables_count; i++)
     {
         ptcl_interpreter_variable variable = interpreter->variables[i];
         if (variable.is_destroy)
@@ -575,7 +575,7 @@ ptcl_expression *ptcl_interpreter_get_value(ptcl_interpreter *interpreter, ptcl_
 
 bool ptcl_interpreter_add_variable(ptcl_interpreter *interpreter, ptcl_name name, ptcl_expression *value, bool is_destroy)
 {
-    if (interpreter->variables_count >= interpreter->variables_capacity)
+    if (interpreter->variables_count >= (int)interpreter->variables_capacity)
     {
         interpreter->variables_capacity *= 2;
         ptcl_interpreter_variable *buffer = realloc(interpreter->variables, interpreter->variables_capacity * sizeof(ptcl_interpreter_variable));

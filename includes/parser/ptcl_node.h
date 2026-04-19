@@ -90,17 +90,17 @@ typedef enum ptcl_statement_modifiers
     ptcl_statement_modifiers_injection_flag = 1 << 6
 } ptcl_statement_modifiers;
 
-static bool ptcl_statement_modifiers_flags_has(int flags, ptcl_statement_modifiers flag)
+static bool ptcl_statement_modifiers_flags_has(ptcl_statement_modifiers flags, ptcl_statement_modifiers flag)
 {
     return (flags & flag) == flag;
 }
 
-static void ptcl_statement_modifiers_flags_set(int *flags, ptcl_statement_modifiers flag)
+static void ptcl_statement_modifiers_flags_set(ptcl_statement_modifiers *flags, ptcl_statement_modifiers flag)
 {
     *flags |= flag;
 }
 
-static void ptcl_statement_modifiers_flags_remove(int *flags, ptcl_statement_modifiers flag)
+static void ptcl_statement_modifiers_flags_remove(ptcl_statement_modifiers *flags, ptcl_statement_modifiers flag)
 {
     *flags &= ~flag;
 }

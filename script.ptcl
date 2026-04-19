@@ -35,9 +35,14 @@ type round: integer {
 	}
 }
 
+function foo(v: round): void {
+
+}
+
 function main(): integer {
 	variable := 256 :: static round
 	result := variable.evaluate()
+	v := 2 + "Hello, world"
 	
 	return 0
 }
