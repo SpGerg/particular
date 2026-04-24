@@ -699,6 +699,7 @@ static bool ptcl_parser_name_arg(ptcl_parser *parser, ptcl_parse_arguments_resul
     }
 
     // We need manually parse "self" argument without argument type.
+    // Make fixes about "self" name unique
     if (result->count == 0 && !result->with_self && with_self)
     {
         result->is_const = is_const;
@@ -5590,7 +5591,9 @@ ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *expected, ptc
     case ptcl_token_left_par_type:
     {
         with_word = ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_with_word_flag);
-        ptcl_expression *inside = ptcl_parser_cast(parser, expected, with_word);
+
+        // we don't pass expected type, because after (...) can be casting to expected type
+        ptcl_expression *inside = ptcl_parser_cast(parser, NULL, with_word);
         if (ptcl_parser_critical(parser))
         {
             return NULL;

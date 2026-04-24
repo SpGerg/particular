@@ -25,7 +25,7 @@ function print(content: any): static void {
 type round: static integer {
 	static function evaluate(const self): static integer {
 		vark: static integer = self
-		return 2 + vark
+		return vark
 	}
 }
 
@@ -35,14 +35,12 @@ type round: integer {
 	}
 }
 
-function foo(v: round): void {
-
-}
-
 function main(): integer {
-	variable := 256 :: static round
-	result := variable.evaluate()
-	v := 2 + "Hello, world"
 	
+	variable := 123456 :: round
+	if 1 {
+		variable = 12346 + variable.evaluate() :: round
+	}
+
 	return 0
 }
