@@ -36,9 +36,11 @@ type round: integer {
 }
 
 function main(): integer {
-	
-	variable := 123456 :: round
-	if 1 {
+	 var := 123
+
+	variable := 123456 :: static round
+	if 1
+	{
 		variable = 12346 + variable.evaluate() :: round
 	}
 
