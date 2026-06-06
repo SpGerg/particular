@@ -75,7 +75,9 @@ bool ptcl_string_buffer_insert(ptcl_string_buffer *string_buffer, char value)
 
     if (string_buffer->position == string_buffer->capacity)
     {
-        return ptcl_string_buffer_append(string_buffer, value);
+        const bool result = ptcl_string_buffer_append(string_buffer, value);
+        string_buffer->position++;
+        return result;
     }
 
     char *buffer = realloc(string_buffer->buffer, (string_buffer->capacity + 2) * sizeof(char));

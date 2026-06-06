@@ -131,9 +131,7 @@ typedef struct ptcl_parser_variable
 typedef struct ptcl_parser_typedata
 {
     ptcl_func_body *root;
-    ptcl_name name;
-    ptcl_argument *members;
-    size_t count;
+    ptcl_type_typedata *typedata;
     bool is_out_of_scope;
 } ptcl_parser_typedata;
 
@@ -451,14 +449,12 @@ static ptcl_parser_function ptcl_parser_built_in_create(ptcl_func_body *root, pt
             .return_type = return_type}};
 }
 
-static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_func_body *root, ptcl_name name, ptcl_argument *members, size_t count)
+static ptcl_parser_typedata ptcl_parser_typedata_create(ptcl_func_body *root, ptcl_type_typedata *typedata)
 {
     return (ptcl_parser_typedata){
         .root = root,
-        .name = name,
-        .is_out_of_scope = false,
-        .members = members,
-        .count = count};
+        .typedata = typedata,
+        .is_out_of_scope = false};
 }
 
 static ptcl_parser_syntax ptcl_parser_syntax_create(ptcl_name name, ptcl_func_body *root, ptcl_parser_syntax_node *nodes, size_t count, size_t index)
@@ -535,6 +531,11 @@ static void ptcl_parser_syntax_node_destroy(ptcl_parser_syntax_node node)
     }
 }
 
+static void ptcl_parser_typedata_destroy(ptcl_parser_typedata typedata)
+{
+    free(typedata.typedata);
+}
+
 static void ptcl_parser_syntax_destroy(ptcl_parser_syntax syntax)
 {
     if (syntax.count > 0)
@@ -601,7 +602,7 @@ ptcl_statement_typedata_decl ptcl_parser_typedata_decl(ptcl_parser *parser, ptcl
 
 ptcl_statement_type_decl ptcl_parser_type_decl(ptcl_parser *parser, ptcl_statement_modifiers modifiers);
 
-ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, ptcl_name name, ptcl_statement_modifiers modifiers);
+ptcl_statement_assign ptcl_parser_assign(ptcl_parser *parser, ptcl_name name, ptcl_expression *left, ptcl_statement_modifiers modifiers);
 
 ptcl_statement_return ptcl_parser_return(ptcl_parser *parser);
 
@@ -642,8 +643,6 @@ ptcl_expression *ptcl_parser_dot(ptcl_parser *parser, ptcl_type *except, ptcl_ex
 ptcl_expression *ptcl_parser_array_element(ptcl_parser *parser, ptcl_type *except, ptcl_expression *left, ptcl_parser_expression_flags flags);
 
 ptcl_expression *ptcl_parser_value(ptcl_parser *parser, ptcl_type *except, ptcl_parser_expression_flags flags);
-
-ptcl_expression_ctor ptcl_parser_ctor(ptcl_parser *parser, ptcl_name name, ptcl_parser_typedata typedata);
 
 ptcl_name ptcl_parser_name_word(ptcl_parser *parser);
 

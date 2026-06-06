@@ -10,6 +10,7 @@ typedef struct ptcl_typedata_builder
     ptcl_func_body *root;
     ptcl_argument *members;
     size_t count;
+    bool has_unstatic_member;
 } ptcl_typedata_builder;
 
 typedef struct ptcl_func_built_in_builder
@@ -117,12 +118,18 @@ static ptcl_typedata_builder ptcl_typedata_builder_create(char *name)
         .name = name,
         .root = NULL,
         .members = NULL,
-        .count = 0};
+        .count = 0,
+        .has_unstatic_member = false};
 }
 
-static ptcl_parser_typedata ptcl_typedata_builder_build(ptcl_typedata_builder builder)
+static ptcl_type_typedata ptcl_typedata_builder_type(ptcl_typedata_builder builder)
 {
-    return ptcl_parser_typedata_create(builder.root, ptcl_name_create_fast_w(builder.name, false), builder.members, builder.count);
+    return ptcl_type_typedata_create(ptcl_name_create_fast_w(builder.name, false), builder.members, builder.count, builder.has_unstatic_member);
+}
+
+static ptcl_parser_typedata ptcl_typedata_builder_build(ptcl_typedata_builder builder, ptcl_type_typedata *typedata)
+{
+    return ptcl_parser_typedata_create(builder.root, typedata);
 }
 
 static void ptcl_typedata_builder_destroy(ptcl_typedata_builder *builder)
@@ -149,6 +156,11 @@ static bool ptcl_typedata_builder_add_member(ptcl_typedata_builder *builder, cha
     builder->members = buffer;
     builder->members[builder->count] = ptcl_argument_create(type, ptcl_name_create_fast_w(name, false));
     builder->count++;
+    if (!builder->has_unstatic_member)
+    {
+        builder->has_unstatic_member = !type.is_static;
+    }
+
     return true;
 }
 

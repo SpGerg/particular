@@ -543,10 +543,10 @@ ptcl_expression *ptcl_interpreter_get_member_from_dot(ptcl_interpreter *interpre
         return NULL;
     }
 
-    ptcl_name typedata = left->return_type.typedata;
+    ptcl_name typedata = left->return_type.typedata->identifier;
     if (left->return_type.type == ptcl_value_type_type)
     {
-        typedata = left->return_type.comp_type->types[0].type.typedata;
+        typedata = left->return_type.comp_type->types[0].type.typedata->identifier;
     }
 
     ptcl_name name = expression->dot.name;

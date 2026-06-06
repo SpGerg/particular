@@ -22,27 +22,15 @@ function print(content: any): static void {
 	}
 }
 
-type round: static integer {
-	static function evaluate(const self): static integer {
-		vark: static integer = self
-		return vark
-	}
-}
+typedata test(id: integer, value: static integer = 0)
 
-type round: integer {
-	static function evaluate(const self): integer {
-		return 2
+function foo(value: test): void {
+	if value.value == 0 {
+		print("Hello, world")
 	}
 }
 
 function main(): integer {
-	 var := 123
-
-	variable := 123456 :: static round
-	if 1
-	{
-		variable = 12346 + variable.evaluate() :: round
-	}
-
+	
 	return 0
 }
