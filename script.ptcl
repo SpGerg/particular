@@ -22,15 +22,56 @@ function print(content: any): static void {
 	}
 }
 
-typedata test(id: integer, value: static integer = 0)
+syntax object_name [name: static word] {
+	!<__object_ !name>
+}
 
-function foo(value: test): void {
-	if value.value == 0 {
-		print("Hello, world")
+syntax object [name: static word] [{] [variables: ...] [}] with [body: static (): void] {
+	~typedata_name: static word = #object_name(name)
+	typedata !~typedata_name(ptcl_insert(variables))
+	type !name: !~typedata_name {
+		ptcl_insert(ptcl_get_statements(body))
 	}
 }
 
+syntax create [name: static word]([arguments: ...]) {
+	@{
+		~instance := (!name) #object_name(name)(!none)
+		~instance.constructor(ptcl_insert(arguments))
+	}
+
+	~instance
+}
+
+syntax delete [name: any] {
+	name.destructor()
+}
+
 function main(): integer {
+	val: static character[] = "123"
+	counter: static integer = 0
+	each d, val {
+		counter = counter + 1
+		#object !<dog !<_ word(counter)>> {
+			name: character*,
+			years: integer,
+			created: integer
+		} with {
+			function constructor(self, name: character*, years: integer): void {
+				self.name = name
+				self.years = years
+				self.created = 1
+			}
+
+			function destructor(self): void {
+				self.created = 0
+			}
+
+			function speak(self): void {
+				printf(self.name)
+			}
+		}
+	}
 	
 	return 0
 }

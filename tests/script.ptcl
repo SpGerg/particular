@@ -22,11 +22,54 @@ function print(content: any): static void {
 	}
 }
 
-syntax ref [value: const any] { @{ ~temp := value } &~temp }
+syntax object_name [name: static word] {
+	!<__object_ !name>
+}
+
+syntax object [name: static word] [{] [variables: ...] [}] with [body: static (): void] {
+	~typedata_name: static word = #object_name(name)
+	typedata !~typedata_name(ptcl_insert(variables))
+	type !name: !~typedata_name {
+		ptcl_insert(ptcl_get_statements(body))
+	}
+}
+
+syntax create [name: static word]([arguments: ...]) {
+	@{
+		~instance := (!name) #object_name(name)(!none)
+		~instance.constructor(ptcl_insert(arguments))
+	}
+
+	~instance
+}
+
+syntax delete [name: any] {
+	name.destructor()
+}
 
 function main(): integer {
-	variable := 5
-	ptr := #ref variable
-	print(variable)
+	val: static character[] = "123112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222112048--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+	each d, val {
+		#object dog {
+			name: character*,
+			years: integer,
+			created: integer
+		} with {
+			function constructor(name: character*, years: integer): void {
+				self.name = name
+				self.years = years
+				self.created = 1
+			}
+
+			function destructor(): void {
+				self.created = 0
+			}
+
+			function speak(): void {
+				printf(self.name)
+			}
+		}
+	}
+	
 	return 0
 }
