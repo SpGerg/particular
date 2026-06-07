@@ -1466,9 +1466,10 @@ static ptcl_expression *ptcl_insert_statements_array(ptcl_parser *parser, ptcl_e
 
         if (expression->is_original)
         {
+            expression->is_original = false;
             free(expression->internal_statement);
             free(expression);
-            expression->is_original = false;
+
             element->is_original = true;
         }
 

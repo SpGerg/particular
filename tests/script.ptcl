@@ -48,24 +48,26 @@ syntax delete [name: any] {
 }
 
 function main(): integer {
-	val: static character[] = "123112222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222112048--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+	val: static character[] = "123"
+	counter: static integer = 0
 	each d, val {
-		#object dog {
+		counter = counter + 1
+		#object !<dog !<_ word(counter)>> {
 			name: character*,
 			years: integer,
 			created: integer
 		} with {
-			function constructor(name: character*, years: integer): void {
+			function constructor(self, name: character*, years: integer): void {
 				self.name = name
 				self.years = years
 				self.created = 1
 			}
 
-			function destructor(): void {
+			function destructor(self): void {
 				self.created = 0
 			}
 
-			function speak(): void {
+			function speak(self): void {
 				printf(self.name)
 			}
 		}
