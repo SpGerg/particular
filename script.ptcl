@@ -36,7 +36,7 @@ syntax object [name: static word] [{] [variables: ...] [}] with [body: static ()
 
 syntax create [name: static word]([arguments: ...]) {
 	@{
-		~instance := (!name) #object_name(name)(!none)
+		~instance := (#object_name(name)(!none) :: !name)
 		~instance.constructor(ptcl_insert(arguments))
 	}
 
@@ -48,11 +48,12 @@ syntax delete [name: any] {
 }
 
 function main(): integer {
-	val: static character[] = "123"
+	val: static character[] = "1"
 	counter: static integer = 0
 	each d, val {
 		counter = counter + 1
-		#object !<dog !<_ word(counter)>> {
+		~name: static word = !<dog !<_ word(counter)>> 
+		#object !~name {
 			name: character*,
 			years: integer,
 			created: integer
@@ -71,6 +72,8 @@ function main(): integer {
 				printf(self.name)
 			}
 		}
+
+		!<foo !<_ word(counter)>> := #create ~name("Doggy", counter)
 	}
 	
 	return 0

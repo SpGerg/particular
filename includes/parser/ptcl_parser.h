@@ -283,6 +283,16 @@ static bool ptcl_parser_expression_flags_has(ptcl_parser_expression_flags flags,
     return (flags & flag) == flag;
 }
 
+static void ptcl_parser_expression_flags_set(ptcl_parser_expression_flags *flags, ptcl_parser_expression_flags flag)
+{
+    *flags |= flag;
+}
+
+static void ptcl_parser_expression_flags_remove(ptcl_parser_expression_flags *flags, ptcl_parser_expression_flags flag)
+{
+    *flags &= ~flag;
+}
+
 static bool ptcl_parser_expression_flags_change_value(ptcl_parser_expression_flags flags)
 {
     return ptcl_parser_expression_flags_has(flags, ptcl_parser_expression_change_the_value_flag);
@@ -338,6 +348,12 @@ static void ptcl_parser_flags_set_by_bool(ptcl_parser_flags *flags, ptcl_parser_
 static ptcl_parser_flags ptcl_parser_flags_default()
 {
     return ptcl_parser_add_errors_flag;
+}
+
+static ptcl_parser_insert_state ptcl_parser_insert_state_create(ptcl_parser_tokens_state state, size_t syntax_depth) {
+    return (ptcl_parser_insert_state) {
+        .state = state,
+        .syntax_depth = syntax_depth};
 }
 
 static ptcl_parser_statement_info ptcl_parser_statement_info_default()
@@ -707,6 +723,8 @@ bool ptcl_parser_in_dot(ptcl_parser* parser);
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 
 ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index);
+
+void ptcl_parser_insert_state_add_and_set(ptcl_parser* parser, ptcl_parser_insert_state state);
 
 ptcl_func_body *ptcl_parser_root(ptcl_parser *parser);
 

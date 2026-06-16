@@ -57,7 +57,8 @@ static bool ptcl_transpiler_add_closure_arguments(ptcl_transpiler *transpiler, p
             }
 
             ptcl_transpiler_append_character(transpiler, '&');
-            ptcl_transpiler_add_name(transpiler, variable.name, false);
+            // we have already generated anonymmous name, so we dont to think about it.
+            ptcl_transpiler_append_word_s(transpiler, variable.name.value);
             added = true;
         }
     }
