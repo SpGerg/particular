@@ -350,8 +350,9 @@ static ptcl_parser_flags ptcl_parser_flags_default()
     return ptcl_parser_add_errors_flag;
 }
 
-static ptcl_parser_insert_state ptcl_parser_insert_state_create(ptcl_parser_tokens_state state, size_t syntax_depth) {
-    return (ptcl_parser_insert_state) {
+static ptcl_parser_insert_state ptcl_parser_insert_state_create(ptcl_parser_tokens_state state, size_t syntax_depth)
+{
+    return (ptcl_parser_insert_state){
         .state = state,
         .syntax_depth = syntax_depth};
 }
@@ -718,13 +719,13 @@ bool ptcl_parser_in_if(ptcl_parser *parser);
 
 bool ptcl_parser_in_return(ptcl_parser *parser);
 
-bool ptcl_parser_in_dot(ptcl_parser* parser);
+bool ptcl_parser_in_dot(ptcl_parser *parser);
 
 size_t ptcl_parser_insert_states_count(ptcl_parser *parser);
 
 ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_t index);
 
-void ptcl_parser_insert_state_add_and_set(ptcl_parser* parser, ptcl_parser_insert_state state);
+void ptcl_parser_insert_state_add_and_set(ptcl_parser *parser, ptcl_parser_insert_state state);
 
 ptcl_func_body *ptcl_parser_root(ptcl_parser *parser);
 

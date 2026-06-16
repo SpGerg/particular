@@ -336,7 +336,7 @@ static bool ptcl_parser_try_get_left_par(ptcl_parser *parser)
             ptcl_parser_insert_state *state = ptcl_parser_insert_state_at(parser, ptcl_parser_insert_states_count(parser));
             ptcl_parser_tokens_state current = state->state;
             size_t position = current.position;
-            if (state->state.tokens == parser->state.tokens.tokens) 
+            if (state->state.tokens == parser->state.tokens.tokens)
             {
                 position = parser->state.tokens.position;
             }
@@ -6341,7 +6341,7 @@ ptcl_token *ptcl_parser_current_ptr(ptcl_parser *parser)
     {
         if (ptcl_parser_insert_states_count(parser) > 0)
         {
-            // Don't need - 1 cuz we have only inserted root at 0 
+            // Don't need - 1 cuz we have only inserted root at 0
             // TODO: reake syntaxes for first
             ptcl_parser_insert_state *state = ptcl_parser_insert_state_at(parser, ptcl_parser_insert_states_count(parser));
             if (state->syntax_depth == parser->state.syntax_depth)
@@ -6486,7 +6486,7 @@ ptcl_parser_insert_state *ptcl_parser_insert_state_at(ptcl_parser *parser, size_
     return &parser->temp.insert_states[index];
 }
 
-void ptcl_parser_insert_state_add_and_set(ptcl_parser* parser, ptcl_parser_insert_state state) 
+void ptcl_parser_insert_state_add_and_set(ptcl_parser *parser, ptcl_parser_insert_state state)
 {
     if (parser->temp.insert_states_count == 0)
     {
